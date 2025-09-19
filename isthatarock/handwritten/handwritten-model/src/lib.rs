@@ -2,7 +2,7 @@ use burn::{
     nn::{
         conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
     },
-    prelude::*,
+    prelude::*, train::RegressionOutput,
 };
 
 #[derive(Module, Debug)]
@@ -188,6 +188,28 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
     ///   - Output [batch_size, height, width]
     pub fn decode(&self, latent: Tensor<B, 2>) -> Tensor<B, 3> {
         self.decoder.forward(latent)
+    }
+
+    pub fn forward_regression(&self, images: Tensor<B, 3>, expected: Tensor<B, 3>) -> RegressionOutput<B> {
+        let [batch_size, ..] = images.dims();
+        let actual = self.forward(images);
+        let loss = burn::nn::loss::MseLoss::new()
+            .forward(actual.clone(), expected.clone(), nn::loss::Reduction::Auto);
+        RegressionOutput::new(loss, actual.reshape([batch_size as i32, -1]), expected.reshape([batch_size as i32, -1]))
+    }
+}
+
+impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, batch: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
+        let item = self.forward_classification(batch.images, batch.targets);
+
+        TrainOutput::new(self, item.loss.backward(), item)
+    }
+}
+
+impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
+    fn step(&self, batch: MnistBatch<B>) -> ClassificationOutput<B> {
+        self.forward_classification(batch.images, batch.targets)
     }
 }
 
