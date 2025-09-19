@@ -1,7 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["isthatarock/isthatarock-model"
-, "isthatarock/isthatarock-training"]
+members = ["isthatarock/handwritten/handwritten-model", "isthatarock/handwritten/handwritten-training"]
 
 [workspace.dependencies]
 rustc-hash = "2.1.1"

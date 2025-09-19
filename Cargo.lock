@@ -1905,6 +1905,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "handwritten-model"
+version = "0.1.0"
+dependencies = [
+ "burn",
+]
+
+[[package]]
+name = "handwritten-training"
+version = "0.1.0"
+dependencies = [
+ "burn",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2000,17 +2014,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "isthatarock-model"
-version = "0.1.0"
-dependencies = [
- "burn",
-]
-
-[[package]]
-name = "isthatarock-training"
-version = "0.1.0"
 
 [[package]]
 name = "itertools"
