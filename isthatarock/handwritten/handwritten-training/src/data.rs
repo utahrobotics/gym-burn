@@ -1,15 +1,15 @@
 use std::{io::Cursor, path::Path};
 
 use burn::{
-    data::dataloader::batcher::Batcher,
-    prelude::Backend,
-    tensor::{Tensor, TensorData},
+    backend::wgpu::WgpuDevice, data::dataloader::batcher::Batcher, prelude::Backend, tensor::{Tensor, TensorData}
 };
 use crossbeam::queue::SegQueue;
-use image::{imageops::FilterType, ImageFormat};
+use image::{imageops::FilterType, DynamicImage, ImageFormat};
 use rayon::iter::{ParallelBridge, ParallelIterator};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+
+use crate::{model_config, MyAutodiffBackend};
 
 #[derive(Clone, Default)]
 pub struct HandwrittenAutoEncoderBatcher {}
@@ -140,6 +140,23 @@ pub fn dataset_commands(command: &str) {
                     conn_queue.push(conn);
                 }
             );
+        }
+        "infer" => {
+            let Some(path) = second_arg else {
+                eprintln!("No path provided");
+                return;
+            };
+            let device = WgpuDevice::default();
+            let mut model = model_config().init::<MyAutodiffBackend>(&device);
+            model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
+            let image = image::open(path).unwrap();
+            let image = image.resize_exact(28, 28, FilterType::CatmullRom);
+            let mut image = image.to_luma32f();
+            let mut output = vec![];
+            model.forward_slice(&image, &mut output, &device);
+            image.copy_from_slice(&output);
+            let image = DynamicImage::from(image);
+            image.save("valid.webp").unwrap();
         }
         _ => {
             eprintln!("Unknown command");

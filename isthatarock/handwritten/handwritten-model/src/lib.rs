@@ -1,9 +1,9 @@
+use std::path::PathBuf;
+
 use burn::{
     nn::{
         conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, loss::{MseLoss, Reduction}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
-    },
-    prelude::*,
-    train::RegressionOutput,
+    }, prelude::*, record::{CompactRecorder, Recorder}, train::RegressionOutput
 };
 
 #[derive(Module, Debug)]
@@ -126,8 +126,6 @@ impl<B: Backend> HandwrittenDecoder<B> {
 pub struct HandwrittenDecoderConfig {
     latent_dim: usize,
     hidden_size: usize,
-    output_height: usize,
-    output_width: usize,
     #[config(default = "0.5")]
     linear_dropout: f64,
     #[config(default = "0.1")]
@@ -159,8 +157,8 @@ impl HandwrittenDecoderConfig {
 
 #[derive(Module, Debug)]
 pub struct HandwrittenAutoEncoder<B: Backend> {
-    encoder: HandwrittenEncoder<B>,
-    decoder: HandwrittenDecoder<B>,
+    pub encoder: HandwrittenEncoder<B>,
+    pub decoder: HandwrittenDecoder<B>,
 }
 
 impl<B: Backend> HandwrittenAutoEncoder<B> {
@@ -203,32 +201,49 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
             images.reshape([batch_size as i32, -1]),
         )
     }
+
+    pub fn encode_slice(&self, image: &[f32], into: &mut Vec<f32>, device: &B::Device) {
+        let tensor: Tensor<B, 1> = Tensor::from_data(TensorData::from(image), device);
+        let tensor = tensor.reshape([1, 28, 28]);
+        let latent_tensor = self.encode(tensor);
+        // let latent_tensor = latent_tensor.reshape([-1]);
+        into.clear();
+        into.extend(latent_tensor.into_data().iter::<f32>());
+    }
+
+    pub fn decode_slice(&self, latent: &[f32], into: &mut Vec<f32>, device: &B::Device) {
+        let tensor: Tensor<B, 1> = Tensor::from_data(TensorData::from(latent), device);
+        let tensor = tensor.reshape([1, -1]);
+        let image_tensor = self.decode(tensor);
+        // let image_tensor = image_tensor.reshape([28, 28]);
+        into.clear();
+        into.extend(image_tensor.into_data().iter::<f32>());
+    }
+
+    pub fn forward_slice(&self, image: &[f32], into: &mut Vec<f32>, device: &B::Device) {
+        let tensor: Tensor<B, 1> = Tensor::from_data(TensorData::from(image), device);
+        let tensor = tensor.reshape([1, 28, 28]);
+        let image_tensor = self.forward(tensor);
+        // let image_tensor = image_tensor.reshape([28, 28]);
+        into.clear();
+        into.extend(image_tensor.into_data().iter::<f32>());
+    }
+
+    pub fn load_compact_record_file(&mut self, path: PathBuf, device: &B::Device) {
+        let record = CompactRecorder::new()
+            .load(path, device)
+            .expect("Trained model should exist; run train first");
+        unsafe {
+            let tmp = std::ptr::read(self).load_record(record);
+            std::ptr::write(self, tmp);
+        }
+    }
 }
-
-// pub fn infer<B: Backend>(artifact_dir: &str, device: B::Device, item: MnistItem) {
-//     let config = TrainingConfig::load(format!("{artifact_dir}/config.json"))
-//         .expect("Config should exist for the model; run train first");
-//     let record = CompactRecorder::new()
-//         .load(format!("{artifact_dir}/model").into(), &device)
-//         .expect("Trained model should exist; run train first");
-
-//     let model = config.model.init::<B>(&device).load_record(record);
-
-//     let label = item.label;
-//     let batcher = MnistBatcher::default();
-//     let batch = batcher.batch(vec![item], &device);
-//     let output = model.forward(batch.images);
-//     let predicted = output.argmax(1).flatten::<1>(0, 1).into_scalar();
-
-//     println!("Predicted {predicted} Expected {label}");
-// }
 
 #[derive(Config, Debug)]
 pub struct HandwrittenAutoEncoderConfig {
     latent_dim: usize,
     hidden_size: usize,
-    output_height: usize,
-    output_width: usize,
     #[config(default = "0.5")]
     linear_dropout: f64,
     #[config(default = "0.1")]
@@ -248,8 +263,6 @@ impl HandwrittenAutoEncoderConfig {
         let decoder_config = HandwrittenDecoderConfig {
             latent_dim: self.latent_dim,
             hidden_size: self.hidden_size,
-            output_height: self.output_height,
-            output_width: self.output_width,
             linear_dropout: self.linear_dropout,
             conv_dropout: self.conv_dropout,
         };

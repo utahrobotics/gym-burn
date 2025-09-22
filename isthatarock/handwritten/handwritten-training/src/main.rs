@@ -1,12 +1,12 @@
 use burn::{
-    backend::{Autodiff, Wgpu},
+    backend::{wgpu::WgpuDevice, Autodiff, Wgpu},
     config::Config,
     data::{dataloader::DataLoaderBuilder, dataset::SqliteDataset},
     module::Module,
     optim::AdamConfig,
     record::CompactRecorder,
     tensor::backend::AutodiffBackend,
-    train::{LearnerBuilder, metric::LossMetric},
+    train::{metric::LossMetric, LearnerBuilder},
 };
 use handwritten_model::HandwrittenAutoEncoderConfig;
 
@@ -86,20 +86,24 @@ pub fn train<B: AutodiffBackend>(
         .expect("Trained model should be saved successfully");
 }
 
+fn model_config() -> HandwrittenAutoEncoderConfig {
+    HandwrittenAutoEncoderConfig::new(10, 64)
+}
+pub type MyBackend = Wgpu<f32, i32>;
+pub type MyAutodiffBackend = Autodiff<MyBackend>;
+
 fn main() {
     if let Some(first_arg) = std::env::args().nth(1) {
         dataset_commands(&first_arg);
         return;
     }
-    type MyBackend = Wgpu<f32, i32>;
-    type MyAutodiffBackend = Autodiff<MyBackend>;
 
-    let device = burn::backend::wgpu::WgpuDevice::default();
+    let device = WgpuDevice::default();
     let artifact_dir = "artifacts/isthatarock/handwritten";
     train::<MyAutodiffBackend>(
         artifact_dir,
         AutoEncoderTrainingConfig::new(
-            HandwrittenAutoEncoderConfig::new(10, 64, 28, 28),
+            model_config(),
             AdamConfig::new(),
         ),
         device.clone(),
