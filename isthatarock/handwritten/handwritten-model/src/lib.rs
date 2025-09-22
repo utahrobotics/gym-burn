@@ -1,8 +1,11 @@
 use burn::{
     nn::{
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
+        Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh,
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
     },
-    prelude::*, train::RegressionOutput,
+    prelude::*,
+    train::RegressionOutput,
 };
 
 #[derive(Module, Debug)]
@@ -157,11 +160,10 @@ impl HandwrittenDecoderConfig {
     }
 }
 
-
 #[derive(Module, Debug)]
 pub struct HandwrittenAutoEncoder<B: Backend> {
     encoder: HandwrittenEncoder<B>,
-    decoder: HandwrittenDecoder<B>
+    decoder: HandwrittenDecoder<B>,
 }
 
 impl<B: Backend> HandwrittenAutoEncoder<B> {
@@ -190,28 +192,39 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
         self.decoder.forward(latent)
     }
 
-    pub fn forward_regression(&self, images: Tensor<B, 3>, expected: Tensor<B, 3>) -> RegressionOutput<B> {
+    pub fn forward_regression(&self, images: Tensor<B, 3>) -> RegressionOutput<B> {
         let [batch_size, ..] = images.dims();
-        let actual = self.forward(images);
-        let loss = burn::nn::loss::MseLoss::new()
-            .forward(actual.clone(), expected.clone(), nn::loss::Reduction::Auto);
-        RegressionOutput::new(loss, actual.reshape([batch_size as i32, -1]), expected.reshape([batch_size as i32, -1]))
+        let actual = self.forward(images.clone());
+        let loss = burn::nn::loss::MseLoss::new().forward(
+            actual.clone(),
+            images.clone(),
+            nn::loss::Reduction::Auto,
+        );
+        RegressionOutput::new(
+            loss,
+            actual.reshape([batch_size as i32, -1]),
+            images.reshape([batch_size as i32, -1]),
+        )
     }
 }
 
-impl<B: AutodiffBackend> TrainStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
-    fn step(&self, batch: MnistBatch<B>) -> TrainOutput<ClassificationOutput<B>> {
-        let item = self.forward_classification(batch.images, batch.targets);
+// pub fn infer<B: Backend>(artifact_dir: &str, device: B::Device, item: MnistItem) {
+//     let config = TrainingConfig::load(format!("{artifact_dir}/config.json"))
+//         .expect("Config should exist for the model; run train first");
+//     let record = CompactRecorder::new()
+//         .load(format!("{artifact_dir}/model").into(), &device)
+//         .expect("Trained model should exist; run train first");
 
-        TrainOutput::new(self, item.loss.backward(), item)
-    }
-}
+//     let model = config.model.init::<B>(&device).load_record(record);
 
-impl<B: Backend> ValidStep<MnistBatch<B>, ClassificationOutput<B>> for Model<B> {
-    fn step(&self, batch: MnistBatch<B>) -> ClassificationOutput<B> {
-        self.forward_classification(batch.images, batch.targets)
-    }
-}
+//     let label = item.label;
+//     let batcher = MnistBatcher::default();
+//     let batch = batcher.batch(vec![item], &device);
+//     let output = model.forward(batch.images);
+//     let predicted = output.argmax(1).flatten::<1>(0, 1).into_scalar();
+
+//     println!("Predicted {predicted} Expected {label}");
+// }
 
 #[derive(Config, Debug)]
 pub struct HandwrittenAutoEncoderConfig {

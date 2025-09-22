@@ -4,5 +4,12 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-burn.workspace = true
-image = "0.24"
+handwritten-model.path = "../handwritten-model"
+burn = { workspace = true, features = ["tui", "train", "sqlite"] }
+image.workspace = true
+serde.workspace = true
+rusqlite = "0.37.0"
+md5 = "0.8.0"
+rayon = "1.11.0"
+crossbeam = "0.8.4"
+hex = "0.4.3"

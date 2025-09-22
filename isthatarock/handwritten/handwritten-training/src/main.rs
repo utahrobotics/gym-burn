@@ -1,67 +1,106 @@
-mod data;
-
 use burn::{
-    backend::{Autodiff, NdArray},
-    data::{dataloader::DataLoaderBuilder, dataset::Dataset},
-    prelude::*,
+    backend::{Autodiff, Wgpu},
+    config::Config,
+    data::{dataloader::DataLoaderBuilder, dataset::SqliteDataset},
+    module::Module,
+    optim::AdamConfig,
+    record::CompactRecorder,
+    tensor::backend::AutodiffBackend,
+    train::{LearnerBuilder, metric::LossMetric},
 };
-use data::{HandwrittenBatcher, HandwrittenDataset};
+use handwritten_model::HandwrittenAutoEncoderConfig;
 
-type Backend = NdArray<f32>;
-type AutodiffBackend = Autodiff<Backend>;
+use crate::{data::{dataset_commands, HandwrittenAutoEncoderBatcher, SQLITE_DATABASE}, model::TrainableHandwrittenAutoEncoder};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up the device 
-    let device = Default::default();
-    
-    // Path to the dataset (relative to the training crate)
-    let dataset_path = "../../dataset";
-    
-    // Load the training dataset
-    let train_dataset = HandwrittenDataset::train(dataset_path)?;
-    println!("Training dataset size: {}", train_dataset.len());
-    
-    // Create a batcher with target image dimensions
-    // Most handwritten character images should be relatively small
-    let batcher = HandwrittenBatcher::new(28, 28); // Similar to MNIST dimensions
-    
-    // Create a data loader
-    let dataloader = DataLoaderBuilder::new(batcher)
-        .batch_size(32)
-        .shuffle(42) // Seed for reproducibility
-        .num_workers(4)
-        .build(train_dataset);
-    
-    // Demonstrate loading a few batches
-    let mut batch_count = 0;
-    for batch in dataloader.iter(&device) {
-        println!(
-            "Batch {}: images shape {:?}, targets shape {:?}",
-            batch_count,
-            batch.images.shape(),
-            batch.targets.shape()
+mod data;
+mod model;
+
+#[derive(Config)]
+pub struct AutoEncoderTrainingConfig {
+    pub model: HandwrittenAutoEncoderConfig,
+    pub optimizer: AdamConfig,
+    #[config(default = 10)]
+    pub num_epochs: usize,
+    #[config(default = 64)]
+    pub batch_size: usize,
+    #[config(default = 4)]
+    pub num_workers: usize,
+    #[config(default = 42)]
+    pub seed: u64,
+    #[config(default = 1.0e-4)]
+    pub learning_rate: f64,
+}
+
+fn create_artifact_dir(artifact_dir: &str) {
+    // Remove existing artifacts before to get an accurate learner summary
+    std::fs::remove_dir_all(artifact_dir).ok();
+    std::fs::create_dir_all(artifact_dir).ok();
+}
+
+pub fn train<B: AutodiffBackend>(
+    artifact_dir: &str,
+    config: AutoEncoderTrainingConfig,
+    device: B::Device,
+) {
+    create_artifact_dir(artifact_dir);
+    config
+        .save(format!("{artifact_dir}/config.json"))
+        .expect("Config should be saved successfully");
+
+    B::seed(config.seed);
+
+    let batcher = HandwrittenAutoEncoderBatcher::default();
+
+    let dataloader_train = DataLoaderBuilder::new(batcher.clone())
+        .batch_size(config.batch_size)
+        .shuffle(config.seed)
+        .num_workers(config.num_workers)
+        .build(SqliteDataset::from_db_file(SQLITE_DATABASE, "train").unwrap());
+
+    let dataloader_test = DataLoaderBuilder::new(batcher)
+        .batch_size(config.batch_size)
+        .shuffle(config.seed)
+        .num_workers(config.num_workers)
+        .build(SqliteDataset::from_db_file(SQLITE_DATABASE, "test").unwrap());
+
+    let learner = LearnerBuilder::new(artifact_dir)
+        .metric_train_numeric(LossMetric::new())
+        .metric_valid_numeric(LossMetric::new())
+        .with_file_checkpointer(CompactRecorder::new())
+        .devices(vec![device.clone()])
+        .num_epochs(config.num_epochs)
+        .summary()
+        .build(
+            TrainableHandwrittenAutoEncoder {
+                model: config.model.init::<B>(&device),
+            },
+            config.optimizer.init(),
+            config.learning_rate,
         );
-        
-        // Print some sample target values (ASCII codes)
-        let target_data = batch.targets.clone().into_data();
-        let targets_vec: Vec<i32> = target_data.convert::<i32>().value;
-        println!("Sample targets (ASCII values): {:?}", &targets_vec[..5.min(targets_vec.len())]);
-        
-        // Convert ASCII values to characters for display
-        let chars: Vec<char> = targets_vec[..5.min(targets_vec.len())]
-            .iter()
-            .map(|&ascii| ascii as u8 as char)
-            .collect();
-        println!("Sample characters: {:?}", chars);
-        
-        batch_count += 1;
-        
-        // Only process first few batches for demonstration
-        if batch_count >= 3 {
-            break;
-        }
+
+    let model_trained = learner.fit(dataloader_train, dataloader_test);
+
+    model_trained
+        .save_file(format!("{artifact_dir}/model"), &CompactRecorder::new())
+        .expect("Trained model should be saved successfully");
+}
+
+fn main() {
+    if let Some(first_arg) = std::env::args().nth(1) {
+        dataset_commands(&first_arg);
+        return;
     }
-    
-    println!("Handwritten character batcher implementation complete!");
-    Ok(())
+    type MyBackend = Wgpu<f32, i32>;
+    type MyAutodiffBackend = Autodiff<MyBackend>;
+
+    let device = burn::backend::wgpu::WgpuDevice::default();
+    let artifact_dir = "artifacts/isthatarock/handwritten";
+    train::<MyAutodiffBackend>(
+        artifact_dir,
+        AutoEncoderTrainingConfig::new(
+            HandwrittenAutoEncoderConfig::new(10, 64, 28, 28),
+            AdamConfig::new(),
+        ),
+        device.clone(),
+    );
 }
