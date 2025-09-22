@@ -1,8 +1,6 @@
 use burn::{
     nn::{
-        Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh,
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
-        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, loss::{MseLoss, Reduction}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
     },
     prelude::*,
     train::RegressionOutput,
@@ -142,15 +140,14 @@ impl HandwrittenDecoderConfig {
         HandwrittenDecoder {
             linear1: LinearConfig::new(self.latent_dim, self.hidden_size).init(device),
             linear2: LinearConfig::new(self.hidden_size, 16 * 8 * 8).init(device),
-            // ConvTranspose2d to go from [16, 8, 8] back to larger feature maps
-            // We need to determine the right parameters to get the desired output size
             conv_transpose1: ConvTranspose2dConfig::new([16, 8], [3, 3])
                 .with_stride([2, 2])
                 .with_padding([1, 1])
                 .init(device),
             conv_transpose2: ConvTranspose2dConfig::new([8, 1], [5, 5])
                 .with_stride([2, 2])
-                .with_padding([2, 2])
+                .with_padding([3, 3])
+                .with_padding_out([1, 1])
                 .init(device),
             linear_dropout: DropoutConfig::new(self.linear_dropout).init(),
             conv_dropout: DropoutConfig::new(self.conv_dropout).init(),
@@ -195,10 +192,10 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
     pub fn forward_regression(&self, images: Tensor<B, 3>) -> RegressionOutput<B> {
         let [batch_size, ..] = images.dims();
         let actual = self.forward(images.clone());
-        let loss = burn::nn::loss::MseLoss::new().forward(
+        let loss = MseLoss::new().forward(
             actual.clone(),
             images.clone(),
-            nn::loss::Reduction::Auto,
+            Reduction::Auto,
         );
         RegressionOutput::new(
             loss,
