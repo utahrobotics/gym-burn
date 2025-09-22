@@ -130,10 +130,8 @@ pub fn dataset_commands(command: &str) {
                 path.as_ref(),
                 &|path, blob_fn| {
                     let conn = conn_queue.pop().unwrap_or_else(|| Connection::open(SQLITE_DATABASE).unwrap());
-                    let mut md5_ctx = md5::Context::new();
-                    std::io::copy(&mut std::fs::File::open(path).unwrap(), &mut md5_ctx).unwrap();
-                    let md5_hash = md5_ctx.finalize().0;
-                    let md5_hash = hex::encode(md5_hash);
+                    let md5_hash = hash_file(&path);
+                    let md5_hash = std::str::from_utf8(&md5_hash).unwrap();
                     let insert_cmd = format!("INSERT OR IGNORE INTO {split} (`hash`, `image_blob`, `noisy`, `scaled`) VALUES (?1, ?2, 0, ?3)");
                     conn.execute(
                         &insert_cmd,
@@ -148,4 +146,13 @@ pub fn dataset_commands(command: &str) {
             return;
         }
     }
+}
+
+fn hash_file(file: &Path) -> [u8; 32] {
+    let mut md5_ctx = md5::Context::new();
+    std::io::copy(&mut std::fs::File::open(file).unwrap(), &mut md5_ctx).unwrap();
+    let md5_hash = md5_ctx.finalize().0;
+    let mut out = [0u8; 32];
+    hex::encode_to_slice(md5_hash, &mut out).unwrap();
+    out
 }

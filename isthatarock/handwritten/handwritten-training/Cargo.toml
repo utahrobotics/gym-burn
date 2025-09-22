@@ -8,7 +8,7 @@ handwritten-model.path = "../handwritten-model"
 burn = { workspace = true, features = ["tui", "train", "sqlite"] }
 image.workspace = true
 serde.workspace = true
-rusqlite = "0.37.0"
+rusqlite = { version = "0.37.0", features = ["bundled"] }
 md5 = "0.8.0"
 rayon = "1.11.0"
 crossbeam = "0.8.4"
