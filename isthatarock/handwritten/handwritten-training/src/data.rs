@@ -1,15 +1,18 @@
-use std::{io::Cursor, path::Path};
+use std::{collections::{BTreeMap, btree_map::Entry}, io::Cursor, path::Path};
 
 use burn::{
-    backend::wgpu::WgpuDevice, data::dataloader::batcher::Batcher, prelude::Backend, tensor::{Tensor, TensorData}
+    backend::wgpu::WgpuDevice, data::{dataloader::{DataLoaderBuilder, batcher::Batcher}, dataset::SqliteDataset}, prelude::Backend, tensor::{Tensor, TensorData}
 };
 use crossbeam::queue::SegQueue;
 use image::{imageops::FilterType, DynamicImage, ImageFormat};
+use linfa::traits::*;
+use linfa_clustering::Dbscan;
+use ndarray::Array2;
 use rayon::iter::{ParallelBridge, ParallelIterator};
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, ErrorCode, params};
 use serde::{Deserialize, Serialize};
 
-use crate::{model_config, MyAutodiffBackend};
+use crate::{MyBackend, model_config};
 
 #[derive(Clone, Default)]
 pub struct HandwrittenAutoEncoderBatcher {}
@@ -73,11 +76,20 @@ fn recursive_iter(path: &Path, f: &(impl Fn(&Path, Box<dyn FnOnce() -> Vec<u8> +
         let blob_fn = Box::new(move || {
             let mut img = image::open(next).unwrap();
             img = img.resize_exact(28, 28, FilterType::CatmullRom);
+            validate_color(&mut img);
             let mut blob = vec![];
             img.write_to(&mut Cursor::new(&mut blob), ImageFormat::WebP).unwrap();
             blob
         });
         f(&path, blob_fn);
+    }
+}
+
+fn validate_color(img: &mut DynamicImage) {
+    let mut luma_bytes = img.to_luma8().into_vec();
+    luma_bytes.sort_unstable();
+    if luma_bytes[luma_bytes.len() / 2] > 127 {
+        img.invert();
     }
 }
 
@@ -133,10 +145,20 @@ pub fn dataset_commands(command: &str) {
                     let md5_hash = hash_file(&path);
                     let md5_hash = std::str::from_utf8(&md5_hash).unwrap();
                     let insert_cmd = format!("INSERT OR IGNORE INTO {split} (`hash`, `image_blob`, `noisy`, `scaled`) VALUES (?1, ?2, 0, ?3)");
-                    conn.execute(
-                        &insert_cmd,
-                        params![md5_hash, blob_fn(), 0]
-                    ).unwrap();
+                    let blob = blob_fn();
+                    loop {
+                        if let Err(e) = conn.execute(
+                            &insert_cmd,
+                            params![md5_hash, blob, 0]
+                        ) {
+                            if let Some(ErrorCode::DatabaseBusy) = e.sqlite_error_code() {
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                continue;
+                            }
+                            panic!("{e}");
+                        }
+                        break;
+                    }
                     conn_queue.push(conn);
                 }
             );
@@ -147,16 +169,65 @@ pub fn dataset_commands(command: &str) {
                 return;
             };
             let device = WgpuDevice::default();
-            let mut model = model_config().init::<MyAutodiffBackend>(&device);
+            let mut model = model_config().init::<MyBackend>(&device);
             model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
-            let image = image::open(path).unwrap();
-            let image = image.resize_exact(28, 28, FilterType::CatmullRom);
+            let mut image = image::open(path).unwrap();
+            image = image.resize_exact(28, 28, FilterType::CatmullRom);
+            validate_color(&mut image);
             let mut image = image.to_luma32f();
             let mut output = vec![];
             model.forward_slice(&image, &mut output, &device);
             image.copy_from_slice(&output);
-            let image = DynamicImage::from(image);
-            image.save("valid.webp").unwrap();
+            DynamicImage::from(image).to_rgba8().save("valid.webp").unwrap();
+        }
+        "cluster" => {
+            let device = WgpuDevice::default();
+            let mut model = model_config().init::<MyBackend>(&device);
+            model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
+
+            let batcher = HandwrittenAutoEncoderBatcher::default();
+            
+            let dataloader_train = DataLoaderBuilder::new(batcher.clone())
+                .batch_size(64)
+                .num_workers(4)
+                .build(SqliteDataset::from_db_file(SQLITE_DATABASE, "train").unwrap());
+
+            let dataloader_test = DataLoaderBuilder::new(batcher)
+                .batch_size(64)
+                .num_workers(4)
+                .build(SqliteDataset::from_db_file(SQLITE_DATABASE, "test").unwrap());
+
+            let mut latent_points: Vec<[f32; 10]> = vec![];
+            for batch in dataloader_train.iter().chain(dataloader_test.iter()) {
+                let latent_batch = model.encode(batch.images);
+                for tensor in latent_batch.iter_dim(0) {
+                    let point: Vec<_> = tensor.into_data().iter().collect();
+                    latent_points.push(
+                        point.try_into().unwrap()
+                    );
+                }
+            }
+            let min_points = 3;
+            let clusters = Dbscan::params::<f32>(min_points)
+                .tolerance(1e-2)
+                .transform(&Array2::from(latent_points))
+                .unwrap();
+            let mut ids = BTreeMap::default();
+            let mut noise = 0usize;
+            for id in clusters {
+                let Some(id) = id else {
+                    noise += 1;
+                    continue;
+                };
+                match ids.entry(id) {
+                    Entry::Occupied(mut entry) => *entry.get_mut() += 1,
+                    Entry::Vacant(entry) => { entry.insert(1usize); },
+                }
+            }
+            for (id, count) in ids {
+                println!("{id}: {count}");
+            }
+            println!("noise: {noise}");
         }
         _ => {
             eprintln!("Unknown command");

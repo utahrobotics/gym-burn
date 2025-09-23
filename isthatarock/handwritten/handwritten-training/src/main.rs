@@ -19,7 +19,7 @@ mod model;
 pub struct AutoEncoderTrainingConfig {
     pub model: HandwrittenAutoEncoderConfig,
     pub optimizer: AdamConfig,
-    #[config(default = 10)]
+    #[config(default = 20)]
     pub num_epochs: usize,
     #[config(default = 64)]
     pub batch_size: usize,

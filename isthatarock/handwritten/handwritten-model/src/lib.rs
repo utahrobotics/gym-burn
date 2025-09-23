@@ -6,6 +6,8 @@ use burn::{
     }, prelude::*, record::{CompactRecorder, Recorder}, train::RegressionOutput
 };
 
+pub use burn::module::Module;
+
 #[derive(Module, Debug)]
 pub struct HandwrittenEncoder<B: Backend> {
     conv1: Conv2d<B>,
@@ -234,10 +236,15 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
             .load(path, device)
             .expect("Trained model should exist; run train first");
         unsafe {
-            let tmp = std::ptr::read(self).load_record(record);
-            std::ptr::write(self, tmp);
+            let tmp = HandwrittenAutoEncoderShim { model: std::ptr::read(self) }.load_record(record);
+            std::ptr::write(self, tmp.model);
         }
     }
+}
+
+#[derive(Module, Debug)]
+struct HandwrittenAutoEncoderShim<B: Backend> {
+    model: HandwrittenAutoEncoder<B>,
 }
 
 #[derive(Config, Debug)]
