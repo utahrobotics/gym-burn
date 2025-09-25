@@ -1,13 +1,7 @@
 use burn::{
-    Tensor,
-    module::Module,
-    nn::{
-        BatchNorm, Dropout, Gelu, Linear, Tanh,
-        conv::{Conv2d, ConvTranspose2d},
-        interpolate::Interpolate2d,
-        pool::AdaptiveAvgPool2d,
-    },
-    prelude::Backend,
+    module::Module, nn::{
+        conv::{Conv2d, ConvTranspose2d}, interpolate::Interpolate2d, loss::{MseLoss, Reduction}, pool::AdaptiveAvgPool2d, BatchNorm, Dropout, Gelu, Linear, Tanh
+    }, prelude::Backend, train::RegressionOutput, Tensor
 };
 
 #[derive(Module, Debug)]
@@ -22,8 +16,8 @@ pub struct SimpleLumaImageEncoder<B: Backend> {
     conv_dropout: Dropout,
 }
 
-impl<B: Backend> SimpleLumaImageEncoder<B> {
-    pub fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
+impl<B: Backend> Encoder<B> for SimpleLumaImageEncoder<B> {
+    fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, image_width, image_height] = images.dims();
 
         let mut x = if self.encoder_convolutions.is_empty() {
@@ -78,8 +72,8 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     interpolate: Option<Interpolate2d>,
 }
 
-impl<B: Backend> SimpleLumaImageDecoder<B> {
-    pub fn decode(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
+impl<B: Backend> Decoder<B> for SimpleLumaImageDecoder<B> {
+    fn decode(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
         let [batch_size, _] = latents.dims();
         let mut x = latents;
 
@@ -130,5 +124,56 @@ impl<B: Backend> SimpleLumaImageDecoder<B> {
         } else {
             x
         }
+    }
+}
+
+
+#[derive(Module, Debug)]
+pub struct SimpleLumaImageAutoEncoder<B: Backend> {
+    encoder: SimpleLumaImageEncoder<B>,
+    decoder: SimpleLumaImageDecoder<B>
+}
+
+impl<B: Backend> AutoEncoder<B> for SimpleLumaImageAutoEncoder<B> {
+    fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 3> {
+        self.decoder.decode(self.encoder.encode(images))
+    }
+}
+
+pub trait Encoder<B: Backend>: Module<B> {
+    fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2>;
+}
+
+pub trait Decoder<B: Backend>: Module<B> {
+    fn decode(&self, latent: Tensor<B, 2>) -> Tensor<B, 3>;
+}
+
+pub trait AutoEncoder<B: Backend>: Module<B> {
+    fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 3>;
+
+    fn forward_regression(&self, input_images: Tensor<B, 3>, output_images: Tensor<B, 3>) -> RegressionOutput<B> {
+        let [batch_size, ..] = input_images.dims();
+        let actual = self.forward(input_images.clone());
+        let loss = MseLoss::new().forward(actual.clone(), input_images.clone(), Reduction::Auto);
+
+        RegressionOutput::new(
+            loss,
+            actual.reshape([batch_size as i32, -1]),
+            output_images.reshape([batch_size as i32, -1]),
+        )
+    }
+}
+
+#[cfg(feature = "wgpu")]
+pub mod wgpu {
+    use std::sync::LazyLock;
+
+    use burn::backend::{Wgpu, wgpu::WgpuDevice};
+    pub type WgpuBackend = Wgpu<f32, i32>;
+
+    static DEVICE: LazyLock<WgpuDevice> = LazyLock::new(Default::default);
+
+    pub fn get_device() -> &'static WgpuDevice {
+        &DEVICE
     }
 }
