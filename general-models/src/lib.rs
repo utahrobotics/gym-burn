@@ -1,168 +1,113 @@
-use burn::{
-    module::Module, nn::{
-        conv::{Conv2d, ConvTranspose2d}, interpolate::Interpolate2d, loss::{MseLoss, Reduction}, pool::AdaptiveAvgPool2d, BatchNorm, Dropout, Gelu, Linear, Tanh
-    }, prelude::Backend, train::RegressionOutput, Tensor
-};
+use std::path::Path;
 
-#[derive(Module, Debug)]
-pub struct SimpleLumaImageEncoder<B: Backend> {
-    encoder_convolutions: Vec<(Conv2d<B>, Option<BatchNorm<B>>)>,
-    adaptive_avg_pooling: Option<AdaptiveAvgPool2d>,
-    encoder_linears: Vec<(Linear<B>, Option<BatchNorm<B>>)>,
+use burn::{module::Module, prelude::Backend, record::{CompactRecorder, Record, Recorder, RecorderError}, Tensor};
+use serde::{Deserialize, Serialize};
 
-    gelu: Gelu,
-    tanh: Tanh,
-    linear_dropout: Dropout,
-    conv_dropout: Dropout,
+pub mod autoencoder;
+
+
+#[derive(Debug, Clone)]
+struct TrainingShim<T> {
+    model: T
 }
 
-impl<B: Backend> Encoder<B> for SimpleLumaImageEncoder<B> {
-    fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
-        let [batch_size, image_width, image_height] = images.dims();
 
-        let mut x = if self.encoder_convolutions.is_empty() {
-            images.reshape([batch_size as i32, -1])
-        } else {
-            let mut x = images.reshape([batch_size, 1, image_width, image_height]);
+struct TrainingShimRecord<T> {
+    model_record: T
+}
 
-            for (cnn, norm) in &self.encoder_convolutions {
-                x = cnn.forward(x);
-                x = self.gelu.forward(x);
-                if let Some(norm) = norm {
-                    x = norm.forward(x);
-                }
-                x = self.conv_dropout.forward(x);
-            }
 
-            if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
-                x = adaptive_avg_pooling.forward(x);
-            }
+#[derive(Deserialize, Serialize)]
+struct TrainingShimRecordItem<T> {
+    model_item: T
+}
 
-            x.reshape([batch_size as i32, -1])
-        };
 
-        for (i, (linear, norm)) in self.encoder_linears.iter().enumerate() {
-            x = linear.forward(x);
-            if let Some(norm) = norm {
-                x = norm.forward(x);
-            }
+impl<B: Backend, T: Record<B>> Record<B> for TrainingShimRecord<T> {
+    type Item<S: burn::record::PrecisionSettings> = TrainingShimRecordItem<T::Item<S>>;
 
-            if i < self.encoder_linears.len() - 1 {
-                x = self.gelu.forward(x);
-                x = self.linear_dropout.forward(x);
-            } else {
-                x = self.tanh.forward(x);
-            }
+    fn into_item<S: burn::record::PrecisionSettings>(self) -> Self::Item<S> {
+        TrainingShimRecordItem {
+            model_item: self.model_record.into_item()
         }
-
-        x
     }
-}
 
-#[derive(Module, Debug)]
-pub struct SimpleLumaImageDecoder<B: Backend> {
-    decoder_linears: Vec<(Linear<B>, Option<BatchNorm<B>>)>,
-    cnn_input_shape: Option<[usize; 2]>,
-    decoder_convolutions: Vec<(ConvTranspose2d<B>, Option<BatchNorm<B>>)>,
-
-    gelu: Gelu,
-    linear_dropout: Dropout,
-    conv_dropout: Dropout,
-    output_size: [usize; 2],
-    interpolate: Option<Interpolate2d>,
-}
-
-impl<B: Backend> Decoder<B> for SimpleLumaImageDecoder<B> {
-    fn decode(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
-        let [batch_size, _] = latents.dims();
-        let mut x = latents;
-
-        for (linear, norm) in &self.decoder_linears {
-            x = linear.forward(x);
-            if let Some(norm) = norm {
-                x = norm.forward(x);
-            }
-            x = self.gelu.forward(x);
-            x = self.linear_dropout.forward(x);
-        }
-
-        let x = if let Some((first_cnn, _)) = self.decoder_convolutions.first() {
-            let mut x = if let Some([width, height]) = self.cnn_input_shape {
-                x.reshape([batch_size, first_cnn.channels[0] as usize, width, height])
-            } else {
-                let width = (x.dims()[1] as f64).sqrt().ceil() as i32;
-                x.reshape([batch_size as i32, first_cnn.channels[0] as i32, width, -1])
-            };
-            for (cnn, norm) in &self.decoder_convolutions {
-                x = cnn.forward(x);
-                if let Some(norm) = norm {
-                    x = norm.forward(x);
-                }
-                x = self.gelu.forward(x);
-                x = self.linear_dropout.forward(x);
-            }
-            let [_, channels, width, height] = x.dims();
-            assert_eq!(
-                channels, 1,
-                "Final CNN layer does not output exactly 1 channel"
-            );
-            x.reshape([batch_size, width, height])
-        } else {
-            let [width, height] = self.output_size;
-            let count = width * height;
-            let [_, actual_count] = x.dims();
-            let actual_width = (actual_count as f64 / count as f64 * width as f64).round();
-
-            x.reshape([batch_size as i32, actual_width as i32, -1])
-        };
-
-        if let Some(interpolate) = &self.interpolate {
-            let [_, width, height] = x.dims();
-            interpolate
-                .forward(x.reshape([batch_size, 1, width, height]))
-                .reshape([batch_size, width, height])
-        } else {
-            x
+    fn from_item<S: burn::record::PrecisionSettings>(item: Self::Item<S>, device: &<B as Backend>::Device) -> Self {
+        Self {
+            model_record: Record::from_item(item.model_item, device)
         }
     }
 }
 
 
-#[derive(Module, Debug)]
-pub struct SimpleLumaImageAutoEncoder<B: Backend> {
-    encoder: SimpleLumaImageEncoder<B>,
-    decoder: SimpleLumaImageDecoder<B>
-}
+impl<B: Backend, T: Module<B>> Module<B> for TrainingShim<T> {
+    type Record = TrainingShimRecord<T::Record>;
 
-impl<B: Backend> AutoEncoder<B> for SimpleLumaImageAutoEncoder<B> {
-    fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 3> {
-        self.decoder.decode(self.encoder.encode(images))
+    fn collect_devices(&self, devices: burn::module::Devices<B>) -> burn::module::Devices<B> {
+        self.model.collect_devices(devices)
+    }
+
+    fn fork(self, device: &<B as Backend>::Device) -> Self {
+        Self {
+            model: self.model.fork(device)
+        }
+    }
+
+    fn to_device(self, device: &<B as Backend>::Device) -> Self {
+        Self {
+            model: self.model.to_device(device)
+        }
+    }
+
+    fn visit<Visitor: burn::module::ModuleVisitor<B>>(&self, visitor: &mut Visitor) {
+        self.model.visit(visitor);
+    }
+
+    fn map<Mapper: burn::module::ModuleMapper<B>>(self, mapper: &mut Mapper) -> Self {
+        Self {
+            model: self.model.map(mapper)
+        }
+    }
+
+    fn load_record(self, record: Self::Record) -> Self {
+        Self {
+            model: self.model.load_record(record.model_record)
+        }
+    }
+
+    fn into_record(self) -> Self::Record {
+        TrainingShimRecord {
+            model_record: self.model.into_record()
+        }
     }
 }
 
-pub trait Encoder<B: Backend>: Module<B> {
-    fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2>;
-}
 
-pub trait Decoder<B: Backend>: Module<B> {
-    fn decode(&self, latent: Tensor<B, 2>) -> Tensor<B, 3>;
-}
+pub trait LoadTraining<B: Backend>: Module<B> {
+    fn load_compact_training(&mut self, path: impl AsRef<Path>, device: &B::Device) -> Result<(), RecorderError> {
+        let record = CompactRecorder::new()
+            .load(path.as_ref().into(), device)?;
+        unsafe {
+            let tmp = TrainingShim {
+                model: std::ptr::read(self),
+            }
+            .load_record(record);
+            std::ptr::write(self, tmp.model);
+        }
+        Ok(())
+    }
 
-pub trait AutoEncoder<B: Backend>: Module<B> {
-    fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 3>;
-
-    fn forward_regression(&self, input_images: Tensor<B, 3>, output_images: Tensor<B, 3>) -> RegressionOutput<B> {
-        let [batch_size, ..] = input_images.dims();
-        let actual = self.forward(input_images.clone());
-        let loss = MseLoss::new().forward(actual.clone(), input_images.clone(), Reduction::Auto);
-
-        RegressionOutput::new(
-            loss,
-            actual.reshape([batch_size as i32, -1]),
-            output_images.reshape([batch_size as i32, -1]),
-        )
+    #[cfg(feature = "wgpu")]
+    fn load_compact_training_wgpu(&mut self, path: impl AsRef<Path>) -> Result<(), RecorderError> {
+        self.load_compact_training(path, wgpu::get_device())
     }
 }
+
+
+pub trait SimpleForwardable<B: Backend, const N_I: usize, const N_O:usize>: Module<B> {
+    fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_O>;
+}
+
 
 #[cfg(feature = "wgpu")]
 pub mod wgpu {

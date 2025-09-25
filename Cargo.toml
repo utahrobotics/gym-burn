@@ -1,9 +1,10 @@
 [workspace]
 resolver = "3"
-members = [ "general-models", "isthatarock/handwritten/handwritten-dataset","isthatarock/handwritten/handwritten-model", "isthatarock/handwritten/handwritten-training", "wgpu-inference"]
+members = [ "general-models", "general-training"]
 
 [workspace.dependencies]
 wgpu-inference.path = "wgpu-inference"
+general-models.path = "general-models"
 
 rustc-hash = "2.1.1"
 burn = { git = "https://github.com/tracel-ai/burn.git", features = ["std", "fusion", "accelerate", "openblas"], default-features = false }
