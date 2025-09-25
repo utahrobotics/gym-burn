@@ -1,11 +1,19 @@
-use std::collections::{btree_map::Entry, BTreeMap};
+use std::collections::{BTreeMap, btree_map::Entry};
 
 use burn::{
-    backend::{wgpu::WgpuDevice, Autodiff, Wgpu}, config::Config, data::{dataloader::DataLoaderBuilder, dataset::SqliteDataset}, module::Module, optim::AdamConfig, prelude::Backend, record::CompactRecorder, tensor::backend::AutodiffBackend, train::{metric::LossMetric, LearnerBuilder}
+    backend::{Autodiff, Wgpu, wgpu::WgpuDevice},
+    config::Config,
+    data::{dataloader::DataLoaderBuilder, dataset::SqliteDataset},
+    module::Module,
+    optim::AdamConfig,
+    prelude::Backend,
+    record::CompactRecorder,
+    tensor::backend::AutodiffBackend,
+    train::{LearnerBuilder, metric::LossMetric},
 };
 use handwritten_model::{HandwrittenAutoEncoder, HandwrittenAutoEncoderConfig};
 
-use image::{imageops::FilterType, DynamicImage};
+use image::{DynamicImage, imageops::FilterType};
 use linfa::traits::*;
 use linfa_clustering::Dbscan;
 use ndarray::Array2;
@@ -104,7 +112,7 @@ fn cluster<B: Backend>(model: &HandwrittenAutoEncoder<B>) {
     // model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
 
     let batcher = HandwrittenAutoEncoderBatcher::default();
-    
+
     let dataloader_train = DataLoaderBuilder::new(batcher.clone())
         .batch_size(64)
         .num_workers(4)
@@ -120,9 +128,7 @@ fn cluster<B: Backend>(model: &HandwrittenAutoEncoder<B>) {
         let latent_batch = model.encode(batch.images);
         for tensor in latent_batch.iter_dim(0) {
             let point: Vec<_> = tensor.into_data().iter().collect();
-            latent_points.push(
-                point.try_into().unwrap()
-            );
+            latent_points.push(point.try_into().unwrap());
         }
     }
     let min_points = 3;
@@ -139,7 +145,9 @@ fn cluster<B: Backend>(model: &HandwrittenAutoEncoder<B>) {
         };
         match ids.entry(id) {
             Entry::Occupied(mut entry) => *entry.get_mut() += 1,
-            Entry::Vacant(entry) => { entry.insert(1usize); },
+            Entry::Vacant(entry) => {
+                entry.insert(1usize);
+            }
         }
     }
     for (id, count) in ids {
@@ -166,7 +174,10 @@ fn main() {
                 };
                 let device = WgpuDevice::default();
                 let mut model = model_config().init::<MyBackend>(&device);
-                model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
+                model.load_compact_record_file(
+                    "artifacts/isthatarock/handwritten/model.mpk".into(),
+                    &device,
+                );
                 let mut image = image::open(path).unwrap();
                 image = image.resize_exact(28, 28, FilterType::CatmullRom);
                 // validate_color(&mut image);
@@ -174,7 +185,10 @@ fn main() {
                 let mut output = vec![];
                 model.forward_slice(&image, &mut output, &device);
                 image.copy_from_slice(&output);
-                DynamicImage::from(image).to_rgba8().save("valid.webp").unwrap();
+                DynamicImage::from(image)
+                    .to_rgba8()
+                    .save("valid.webp")
+                    .unwrap();
             }
             _ => {
                 eprintln!("Unknown command");
@@ -186,10 +200,7 @@ fn main() {
     let artifact_dir = "artifacts/isthatarock/handwritten";
     train::<MyAutodiffBackend>(
         artifact_dir,
-        AutoEncoderTrainingConfig::new(
-            model_config(),
-            AdamConfig::new(),
-        ),
+        AutoEncoderTrainingConfig::new(model_config(), AdamConfig::new()),
         device.clone(),
     );
 }

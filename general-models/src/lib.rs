@@ -1,5 +1,14 @@
-use burn::{module::Module, nn::{conv::{Conv2d, ConvTranspose2d}, interpolate::Interpolate2d, pool::AdaptiveAvgPool2d, BatchNorm, Dropout, Gelu, Linear, Tanh}, prelude::Backend, Tensor};
-
+use burn::{
+    Tensor,
+    module::Module,
+    nn::{
+        BatchNorm, Dropout, Gelu, Linear, Tanh,
+        conv::{Conv2d, ConvTranspose2d},
+        interpolate::Interpolate2d,
+        pool::AdaptiveAvgPool2d,
+    },
+    prelude::Backend,
+};
 
 #[derive(Module, Debug)]
 pub struct SimpleLumaImageEncoder<B: Backend> {
@@ -13,14 +22,12 @@ pub struct SimpleLumaImageEncoder<B: Backend> {
     conv_dropout: Dropout,
 }
 
-
 impl<B: Backend> SimpleLumaImageEncoder<B> {
     pub fn encode(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, image_width, image_height] = images.dims();
 
         let mut x = if self.encoder_convolutions.is_empty() {
             images.reshape([batch_size as i32, -1])
-            
         } else {
             let mut x = images.reshape([batch_size, 1, image_width, image_height]);
 
@@ -32,7 +39,7 @@ impl<B: Backend> SimpleLumaImageEncoder<B> {
                 }
                 x = self.conv_dropout.forward(x);
             }
-            
+
             if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
                 x = adaptive_avg_pooling.forward(x);
             }
@@ -45,7 +52,7 @@ impl<B: Backend> SimpleLumaImageEncoder<B> {
             if let Some(norm) = norm {
                 x = norm.forward(x);
             }
-            
+
             if i < self.encoder_linears.len() - 1 {
                 x = self.gelu.forward(x);
                 x = self.linear_dropout.forward(x);
@@ -68,9 +75,8 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     linear_dropout: Dropout,
     conv_dropout: Dropout,
     output_size: [usize; 2],
-    interpolate: Option<Interpolate2d>
+    interpolate: Option<Interpolate2d>,
 }
-
 
 impl<B: Backend> SimpleLumaImageDecoder<B> {
     pub fn decode(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
@@ -102,15 +108,17 @@ impl<B: Backend> SimpleLumaImageDecoder<B> {
                 x = self.linear_dropout.forward(x);
             }
             let [_, channels, width, height] = x.dims();
-            assert_eq!(channels, 1, "Final CNN layer does not output exactly 1 channel");
+            assert_eq!(
+                channels, 1,
+                "Final CNN layer does not output exactly 1 channel"
+            );
             x.reshape([batch_size, width, height])
-            
         } else {
             let [width, height] = self.output_size;
             let count = width * height;
             let [_, actual_count] = x.dims();
             let actual_width = (actual_count as f64 / count as f64 * width as f64).round();
-            
+
             x.reshape([batch_size as i32, actual_width as i32, -1])
         };
 

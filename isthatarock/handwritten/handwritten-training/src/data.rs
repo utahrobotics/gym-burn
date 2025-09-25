@@ -1,6 +1,7 @@
-
 use burn::{
-    data::dataloader::batcher::Batcher, prelude::Backend, tensor::{Tensor, TensorData}
+    data::dataloader::batcher::Batcher,
+    prelude::Backend,
+    tensor::{Tensor, TensorData},
 };
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
@@ -28,9 +29,9 @@ impl<B: Backend> Batcher<B, HandwrittenAutoEncoderItem, HandwrittenAutoEncoderBa
     ) -> HandwrittenAutoEncoderBatch<B> {
         let images = items
             .iter()
-            .map(|item|
+            .map(|item| {
                 image::load_from_memory_with_format(&item.image_blob, ImageFormat::WebP).unwrap()
-            )
+            })
             .map(|image| image.to_luma32f())
             .map(|image| TensorData::from(&*image))
             .map(|data| Tensor::<B, 1>::from_data(data, device))

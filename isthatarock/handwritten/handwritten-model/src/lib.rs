@@ -2,8 +2,14 @@ use std::path::PathBuf;
 
 use burn::{
     nn::{
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, loss::{MseLoss, Reduction}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
-    }, prelude::*, record::{CompactRecorder, Recorder}, train::RegressionOutput
+        Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh,
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+        loss::{MseLoss, Reduction},
+        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+    },
+    prelude::*,
+    record::{CompactRecorder, Recorder},
+    train::RegressionOutput,
 };
 
 pub use burn::module::Module;
@@ -192,11 +198,7 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
     pub fn forward_regression(&self, images: Tensor<B, 3>) -> RegressionOutput<B> {
         let [batch_size, ..] = images.dims();
         let actual = self.forward(images.clone());
-        let loss = MseLoss::new().forward(
-            actual.clone(),
-            images.clone(),
-            Reduction::Auto,
-        );
+        let loss = MseLoss::new().forward(actual.clone(), images.clone(), Reduction::Auto);
         RegressionOutput::new(
             loss,
             actual.reshape([batch_size as i32, -1]),
@@ -236,7 +238,10 @@ impl<B: Backend> HandwrittenAutoEncoder<B> {
             .load(path, device)
             .expect("Trained model should exist; run train first");
         unsafe {
-            let tmp = HandwrittenAutoEncoderShim { model: std::ptr::read(self) }.load_record(record);
+            let tmp = HandwrittenAutoEncoderShim {
+                model: std::ptr::read(self),
+            }
+            .load_record(record);
             std::ptr::write(self, tmp.model);
         }
     }
