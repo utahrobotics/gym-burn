@@ -1,35 +1,69 @@
+use std::{fmt::Debug, marker::PhantomData};
+
 use burn::{
     Tensor,
-    module::Module,
+    module::AutodiffModule,
     nn::loss::{MseLoss, Reduction},
     prelude::Backend,
     record::Record,
+    tensor::backend::AutodiffBackend,
     train::RegressionOutput,
 };
 use general_models::{SimpleForwardable, autoencoder::SimpleAutoEncoder};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
-pub struct TrainableModel<T> {
-    pub model: T,
+pub mod batches;
+pub mod regression;
+pub mod training_loop;
+
+pub struct TrainableModelRecord<T, P> {
+    pub model_record: T,
+    pub phantom: PhantomData<fn() -> P>,
 }
 
-#[derive(Debug, Clone)]
-pub struct TrainableModelRecord<T> {
-    model_record: T,
+impl<T: Debug, P> Debug for TrainableModelRecord<T, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.model_record.fmt(f)
+    }
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct TrainableModelRecordItem<T> {
-    model_item: T,
+impl<T: Clone, P> Clone for TrainableModelRecord<T, P> {
+    fn clone(&self) -> Self {
+        Self {
+            model_record: self.model_record.clone(),
+            phantom: self.phantom,
+        }
+    }
 }
 
-impl<B: Backend, T: Record<B>> Record<B> for TrainableModelRecord<T> {
-    type Item<S: burn::record::PrecisionSettings> = TrainableModelRecordItem<T::Item<S>>;
+#[derive(Deserialize, Serialize)]
+pub struct TrainableModelRecordItem<T, P> {
+    pub model_item: T,
+    pub phantom: PhantomData<fn() -> P>,
+}
+
+impl<T: Debug, P> Debug for TrainableModelRecordItem<T, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.model_item.fmt(f)
+    }
+}
+
+impl<T: Clone, P> Clone for TrainableModelRecordItem<T, P> {
+    fn clone(&self) -> Self {
+        Self {
+            model_item: self.model_item.clone(),
+            phantom: self.phantom,
+        }
+    }
+}
+
+impl<B: Backend, T: Record<B>, P> Record<B> for TrainableModelRecord<T, P> {
+    type Item<S: burn::record::PrecisionSettings> = TrainableModelRecordItem<T::Item<S>, P>;
 
     fn into_item<S: burn::record::PrecisionSettings>(self) -> Self::Item<S> {
         TrainableModelRecordItem {
             model_item: self.model_record.into_item(),
+            phantom: PhantomData,
         }
     }
 
@@ -39,53 +73,14 @@ impl<B: Backend, T: Record<B>> Record<B> for TrainableModelRecord<T> {
     ) -> Self {
         Self {
             model_record: Record::from_item(item.model_item, device),
+            phantom: PhantomData,
         }
     }
 }
 
-impl<B: Backend, T: Module<B>> Module<B> for TrainableModel<T> {
-    type Record = TrainableModelRecord<T::Record>;
-
-    fn collect_devices(&self, devices: burn::module::Devices<B>) -> burn::module::Devices<B> {
-        self.model.collect_devices(devices)
-    }
-
-    fn fork(self, device: &<B as Backend>::Device) -> Self {
-        Self {
-            model: self.model.fork(device),
-        }
-    }
-
-    fn to_device(self, device: &<B as Backend>::Device) -> Self {
-        Self {
-            model: self.model.to_device(device),
-        }
-    }
-
-    fn visit<Visitor: burn::module::ModuleVisitor<B>>(&self, visitor: &mut Visitor) {
-        self.model.visit(visitor);
-    }
-
-    fn map<Mapper: burn::module::ModuleMapper<B>>(self, mapper: &mut Mapper) -> Self {
-        Self {
-            model: self.model.map(mapper),
-        }
-    }
-
-    fn load_record(self, record: Self::Record) -> Self {
-        Self {
-            model: self.model.load_record(record.model_record),
-        }
-    }
-
-    fn into_record(self) -> Self::Record {
-        TrainableModelRecord {
-            model_record: self.model.into_record(),
-        }
-    }
-}
-
-pub trait RegressionTrainable<B: Backend, const N_I: usize, const N_O: usize>: Module<B> {
+pub trait RegressionTrainable<B: AutodiffBackend, const N_I: usize, const N_O: usize>:
+    AutodiffModule<B>
+{
     fn forward_regression(
         &self,
         input: Tensor<B, N_I>,
@@ -96,8 +91,8 @@ pub trait RegressionTrainable<B: Backend, const N_I: usize, const N_O: usize>: M
 impl<B, const N_I: usize, const N_D: usize, E, D> RegressionTrainable<B, N_I, N_I>
     for SimpleAutoEncoder<B, E, D, N_I, N_D>
 where
-    B: Backend,
-    Self: SimpleForwardable<B, N_I, N_I>,
+    B: AutodiffBackend,
+    Self: SimpleForwardable<B, N_I, N_I> + AutodiffModule<B>,
 {
     fn forward_regression(
         &self,
@@ -115,3 +110,5 @@ where
         )
     }
 }
+
+pub struct ConstUsizeTuple<const N_I: usize, const N_D: usize>;

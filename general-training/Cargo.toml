@@ -5,8 +5,12 @@ edition = "2024"
 
 [dependencies]
 general-models.workspace = true
-burn = { workspace = true, features = ["tui", "train", "wgpu"] }
+burn = { workspace = true, features = ["train", "wgpu"] }
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
 image.workspace = true
 tokio = { version = "1.47.1", features = ["macros"] }
 serde.workspace = true
+
+[features]
+app = ["burn/tui"]
+default = ["app"]

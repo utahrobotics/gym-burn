@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-use crate::SimpleForwardable;
+use crate::{FromConfig, SimpleForwardable};
 
 use burn::{
     Tensor,
     config::Config,
-    module::Module,
+    module::{AutodiffModule, Module},
     nn::{
         BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid,
         Tanh,
@@ -15,6 +15,7 @@ use burn::{
     },
     prelude::Backend,
     record::Record,
+    tensor::backend::AutodiffBackend,
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,13 +32,15 @@ pub struct SimpleLumaImageEncoder<B: Backend> {
     conv_dropout: Dropout,
 }
 
-impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
+impl<B: Backend> FromConfig<B> for SimpleLumaImageEncoder<B> {
     type Config = SimpleLumaImageEncoderConfig;
 
     fn init(config: Self::Config, device: &B::Device) -> Self {
         config.init(device)
     }
+}
 
+impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
     fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, image_width, image_height] = images.dims();
 
@@ -136,13 +139,15 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     interpolate: Option<Interpolate2d>,
 }
 
-impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
+impl<B: Backend> FromConfig<B> for SimpleLumaImageDecoder<B> {
     type Config = SimpleLumaImageDecoderConfig;
 
     fn init(config: Self::Config, device: &B::Device) -> Self {
         config.init(device)
     }
+}
 
+impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
     fn forward(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
         let [batch_size, _] = latents.dims();
         let mut x = latents;
@@ -277,7 +282,8 @@ impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
 }
 
 /// An Image AutoEncoder with a linear Latent Space
-pub type LinearImageAutoEncoder<B> = SimpleAutoEncoder<B, Linear<B>, Linear<B>, 3, 2>;
+pub type LinearImageAutoEncoder<B> =
+    SimpleAutoEncoder<B, SimpleLumaImageEncoder<B>, SimpleLumaImageDecoder<B>, 3, 2>;
 
 impl<
     B: Backend,
@@ -285,7 +291,7 @@ impl<
     const N_D: usize,
     E: SimpleForwardable<B, N_I, N_D>,
     D: SimpleForwardable<B, N_D, N_I>,
-> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D>
+> FromConfig<B> for SimpleAutoEncoder<B, E, D, N_I, N_D>
 {
     type Config = SimpleAutoEncoderConfig<E::Config, D::Config>;
 
@@ -296,7 +302,15 @@ impl<
             _phantom: PhantomData,
         }
     }
-
+}
+impl<
+    B: Backend,
+    const N_I: usize,
+    const N_D: usize,
+    E: SimpleForwardable<B, N_I, N_D>,
+    D: SimpleForwardable<B, N_D, N_I>,
+> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D>
+{
     fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_I> {
         self.decoder.forward(self.encoder.forward(images))
     }
@@ -386,6 +400,25 @@ impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize>
         AutoEncoderRecord {
             encoder_record: self.encoder.into_record(),
             decoder_record: self.decoder.into_record(),
+        }
+    }
+}
+
+impl<
+    B: AutodiffBackend,
+    E: AutodiffModule<B>,
+    D: AutodiffModule<B>,
+    const N_I: usize,
+    const N_D: usize,
+> AutodiffModule<B> for SimpleAutoEncoder<B, E, D, N_I, N_D>
+{
+    type InnerModule = SimpleAutoEncoder<B::InnerBackend, E::InnerModule, D::InnerModule, N_I, N_D>;
+
+    fn valid(&self) -> Self::InnerModule {
+        SimpleAutoEncoder {
+            encoder: self.encoder.valid(),
+            decoder: self.decoder.valid(),
+            _phantom: PhantomData,
         }
     }
 }
