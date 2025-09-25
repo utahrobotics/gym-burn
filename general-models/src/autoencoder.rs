@@ -3,13 +3,21 @@ use std::marker::PhantomData;
 use crate::SimpleForwardable;
 
 use burn::{
+    Tensor,
     config::Config,
-    module::Module, nn::{
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, interpolate::{Interpolate2d, Interpolate2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
-    }, prelude::Backend, record::Record, Tensor
+    module::Module,
+    nn::{
+        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid,
+        Tanh,
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+        interpolate::{Interpolate2d, Interpolate2dConfig},
+        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+    },
+    prelude::Backend,
+    record::Record,
 };
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Module, Debug)]
 pub struct SimpleLumaImageEncoder<B: Backend> {
@@ -85,13 +93,27 @@ pub struct SimpleLumaImageEncoderConfig {
 impl SimpleLumaImageEncoderConfig {
     pub fn init<B: Backend>(self, device: &B::Device) -> SimpleLumaImageEncoder<B> {
         SimpleLumaImageEncoder {
-            encoder_convolutions: self.encoder_convolutions.into_iter().map(|(conv_config, bn_config)| {
-                (conv_config.init(device), bn_config.map(|bn_config| bn_config.init(device)))
-            }).collect(),
+            encoder_convolutions: self
+                .encoder_convolutions
+                .into_iter()
+                .map(|(conv_config, bn_config)| {
+                    (
+                        conv_config.init(device),
+                        bn_config.map(|bn_config| bn_config.init(device)),
+                    )
+                })
+                .collect(),
             adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| x.init()),
-            encoder_linears: self.encoder_linears.into_iter().map(|(linear_config, bn_config)| {
-                (linear_config.init(device), bn_config.map(|bn_config| bn_config.init(device)))
-            }).collect(),
+            encoder_linears: self
+                .encoder_linears
+                .into_iter()
+                .map(|(linear_config, bn_config)| {
+                    (
+                        linear_config.init(device),
+                        bn_config.map(|bn_config| bn_config.init(device)),
+                    )
+                })
+                .collect(),
             gelu: Gelu::new(),
             tanh: Tanh::new(),
             linear_dropout: self.linear_dropout.init(),
@@ -116,11 +138,11 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
 
 impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
     type Config = SimpleLumaImageDecoderConfig;
-    
+
     fn init(config: Self::Config, device: &B::Device) -> Self {
         config.init(device)
     }
-    
+
     fn forward(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
         let [batch_size, _] = latents.dims();
         let mut x = latents;
@@ -169,7 +191,7 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
 
             x.reshape([batch_size as i32, actual_width as i32, -1])
         };
-        
+
         x = self.sigmoid.forward(x);
 
         if let Some(interpolate) = &self.interpolate {
@@ -182,7 +204,6 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
         }
     }
 }
-
 
 #[derive(Debug, Config)]
 pub struct SimpleLumaImageDecoderConfig {
@@ -199,17 +220,25 @@ pub struct SimpleLumaImageDecoderConfig {
 impl SimpleLumaImageDecoderConfig {
     pub fn init<B: Backend>(self, device: &B::Device) -> SimpleLumaImageDecoder<B> {
         SimpleLumaImageDecoder {
-            decoder_linears: self.decoder_linears.into_iter().map(|(config, norm)| {
-                let linear = config.init(device);
-                let norm = norm.map(|config| config.init(device));
-                (linear, norm)
-            }).collect(),
+            decoder_linears: self
+                .decoder_linears
+                .into_iter()
+                .map(|(config, norm)| {
+                    let linear = config.init(device);
+                    let norm = norm.map(|config| config.init(device));
+                    (linear, norm)
+                })
+                .collect(),
             cnn_input_shape: self.cnn_input_shape,
-            decoder_convolutions: self.decoder_convolutions.into_iter().map(|(config, norm)| {
-                let conv = config.init(device);
-                let norm = norm.map(|config| config.init(device));
-                (conv, norm)
-            }).collect(),
+            decoder_convolutions: self
+                .decoder_convolutions
+                .into_iter()
+                .map(|(config, norm)| {
+                    let conv = config.init(device);
+                    let norm = norm.map(|config| config.init(device));
+                    (conv, norm)
+                })
+                .collect(),
             gelu: Gelu::new(),
             sigmoid: Sigmoid::new(),
             linear_dropout: self.linear_dropout.init(),
@@ -224,7 +253,7 @@ impl SimpleLumaImageDecoderConfig {
 pub struct SimpleAutoEncoder<B, E, D, const N_I: usize, const N_D: usize> {
     pub encoder: E,
     pub decoder: D,
-    _phantom: PhantomData<B>
+    _phantom: PhantomData<B>,
 }
 
 #[derive(Debug, Clone)]
@@ -234,11 +263,14 @@ pub struct SimpleAutoEncoderConfig<E, D> {
 }
 
 impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
-    pub fn init<B, const N_I: usize, const N_D: usize, E, D>(self, device: &B::Device) -> SimpleAutoEncoder<B, E, D, N_I, N_D>
+    pub fn init<B, const N_I: usize, const N_D: usize, E, D>(
+        self,
+        device: &B::Device,
+    ) -> SimpleAutoEncoder<B, E, D, N_I, N_D>
     where
         B: Backend,
-        E: SimpleForwardable<B, N_I, N_D, Config=X>,
-        D: SimpleForwardable<B, N_D, N_I, Config=Y>
+        E: SimpleForwardable<B, N_I, N_D, Config = X>,
+        D: SimpleForwardable<B, N_D, N_I, Config = Y>,
     {
         SimpleAutoEncoder::init(self, device)
     }
@@ -247,10 +279,16 @@ impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
 /// An Image AutoEncoder with a linear Latent Space
 pub type LinearImageAutoEncoder<B> = SimpleAutoEncoder<B, Linear<B>, Linear<B>, 3, 2>;
 
-
-impl<B: Backend, const N_I: usize, const N_D: usize, E: SimpleForwardable<B, N_I, N_D>, D: SimpleForwardable<B, N_D, N_I>> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D> {
+impl<
+    B: Backend,
+    const N_I: usize,
+    const N_D: usize,
+    E: SimpleForwardable<B, N_I, N_D>,
+    D: SimpleForwardable<B, N_D, N_I>,
+> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D>
+{
     type Config = SimpleAutoEncoderConfig<E::Config, D::Config>;
-    
+
     fn init(config: Self::Config, device: &B::Device) -> Self {
         SimpleAutoEncoder {
             encoder: E::init(config.encoder_config, device),
@@ -264,20 +302,17 @@ impl<B: Backend, const N_I: usize, const N_D: usize, E: SimpleForwardable<B, N_I
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct AutoEncoderRecord<E, D> {
     pub encoder_record: E,
-    pub decoder_record: D
+    pub decoder_record: D,
 }
-
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct AutoEncoderRecordItem<E, D> {
     pub encoder_item: E,
-    pub decoder_item: D
+    pub decoder_item: D,
 }
-
 
 impl<B: Backend, E: Record<B>, D: Record<B>> Record<B> for AutoEncoderRecord<E, D> {
     type Item<S: burn::record::PrecisionSettings> = AutoEncoderRecordItem<E::Item<S>, D::Item<S>>;
@@ -289,16 +324,20 @@ impl<B: Backend, E: Record<B>, D: Record<B>> Record<B> for AutoEncoderRecord<E, 
         }
     }
 
-    fn from_item<S: burn::record::PrecisionSettings>(item: Self::Item<S>, device: &<B as Backend>::Device) -> Self {
+    fn from_item<S: burn::record::PrecisionSettings>(
+        item: Self::Item<S>,
+        device: &<B as Backend>::Device,
+    ) -> Self {
         Self {
             encoder_record: Record::from_item(item.encoder_item, device),
-            decoder_record: Record::from_item(item.decoder_item, device)
+            decoder_record: Record::from_item(item.decoder_item, device),
         }
     }
 }
 
-
-impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize> Module<B> for SimpleAutoEncoder<B, E, D, N_I, N_D> {
+impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize> Module<B>
+    for SimpleAutoEncoder<B, E, D, N_I, N_D>
+{
     type Record = AutoEncoderRecord<E::Record, D::Record>;
 
     fn collect_devices(&self, mut devices: burn::module::Devices<B>) -> burn::module::Devices<B> {
@@ -310,7 +349,7 @@ impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize>
         Self {
             encoder: self.encoder.fork(device),
             decoder: self.decoder.fork(device),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -318,7 +357,7 @@ impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize>
         Self {
             encoder: self.encoder.to_device(device),
             decoder: self.decoder.to_device(device),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -331,7 +370,7 @@ impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize>
         Self {
             encoder: self.encoder.map(mapper),
             decoder: self.decoder.map(mapper),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
@@ -339,14 +378,14 @@ impl<B: Backend, E: Module<B>, D: Module<B>, const N_I: usize, const N_D: usize>
         Self {
             encoder: self.encoder.load_record(record.encoder_record),
             decoder: self.decoder.load_record(record.decoder_record),
-            _phantom: PhantomData
+            _phantom: PhantomData,
         }
     }
 
     fn into_record(self) -> Self::Record {
         AutoEncoderRecord {
             encoder_record: self.encoder.into_record(),
-            decoder_record: self.decoder.into_record()
+            decoder_record: self.decoder.into_record(),
         }
     }
 }
