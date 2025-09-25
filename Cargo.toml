@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "isthatarock/handwritten/handwritten-dataset","isthatarock/handwritten/handwritten-model", "isthatarock/handwritten/handwritten-training", "wgpu-inference"]
+members = [ "general-models", "isthatarock/handwritten/handwritten-dataset","isthatarock/handwritten/handwritten-model", "isthatarock/handwritten/handwritten-training", "wgpu-inference"]
 
 [workspace.dependencies]
 wgpu-inference.path = "wgpu-inference"

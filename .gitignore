@@ -3,3 +3,4 @@ isthatarock/handwritten/dataset/
 .DS_Store
 artifacts/
 **.sqlite
+**.sqlite-journal

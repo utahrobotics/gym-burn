@@ -148,13 +148,13 @@ fn cluster<B: Backend>(model: &HandwrittenAutoEncoder<B>) {
     println!("noise: {noise}");
 }
 
-fn validate_color(img: &mut DynamicImage) {
-    let mut luma_bytes = img.to_luma8().into_vec();
-    luma_bytes.sort_unstable();
-    if luma_bytes[luma_bytes.len() / 2] > 127 {
-        img.invert();
-    }
-}
+// fn validate_color(img: &mut DynamicImage) {
+//     let mut luma_bytes = img.to_luma8().into_vec();
+//     luma_bytes.sort_unstable();
+//     if luma_bytes[luma_bytes.len() / 2] > 127 {
+//         img.invert();
+//     }
+// }
 
 fn main() {
     if let Some(command) = std::env::args().nth(1) {
@@ -169,7 +169,7 @@ fn main() {
                 model.load_compact_record_file("artifacts/isthatarock/handwritten/model.mpk".into(), &device);
                 let mut image = image::open(path).unwrap();
                 image = image.resize_exact(28, 28, FilterType::CatmullRom);
-                validate_color(&mut image);
+                // validate_color(&mut image);
                 let mut image = image.to_luma32f();
                 let mut output = vec![];
                 model.forward_slice(&image, &mut output, &device);

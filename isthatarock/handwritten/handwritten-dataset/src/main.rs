@@ -93,12 +93,54 @@ fn main() {
         ) STRICT"#,
         (),
     ).unwrap();
-    let conn_queue = SegQueue::new();
-    conn_queue.push(conn);
 
     let second_arg = std::env::args().nth(2);
     let third_arg = std::env::args().nth(3);
     match command.as_str() {
+        "read" => {
+            let Some(table) = second_arg else {
+                eprintln!("No table provided");
+                return;
+            };
+            let Some(extras) = third_arg else {
+                eprintln!("No additional constraints provided");
+                return;
+            };
+            let mut stmt = conn
+                .prepare(&format!("SELECT row_id, image_blob FROM {table} WHERE {extras}"))
+                .unwrap();
+            let mut rows = stmt
+                .query(())
+                .unwrap();
+            while let Some(row) = rows.next().unwrap() {
+                let row_id: u32 = row.get("row_id").unwrap();
+                let image_blob: Vec<u8> = row.get("image_blob").unwrap();
+                std::fs::write(format!("{row_id}.webp"), image_blob).unwrap();
+            }
+        }
+        "select" => {
+            let Some(stmt) = second_arg else {
+                eprintln!("No statement provided");
+                return;
+            };
+            let stmt = stmt.trim();
+            if !stmt.starts_with("select") && !stmt.starts_with("SELECT") {
+                eprintln!("Not a select statement");
+                return;
+            }
+            let mut stmt = conn
+                .prepare(stmt)
+                .unwrap();
+            let mut rows = stmt
+                .query(())
+                .unwrap();
+            while let Some(row) = rows.next().unwrap() {
+                println!("{row:?}");
+                // let row_id: u32 = row.get("row_id").unwrap();
+                // let image_blob: Vec<u8> = row.get("image_blob").unwrap();
+                // std::fs::write(format!("{row_id}.webp"), image_blob).unwrap();
+            }
+        }
         "append" => {
             let Some(split) = second_arg else {
                 eprintln!("No split provided");
@@ -112,6 +154,8 @@ fn main() {
                 eprintln!("Invalid split. Must be 'train' or 'test'");
                 return;
             }
+            let conn_queue = SegQueue::new();
+            conn_queue.push(conn);
             recursive_iter(
                 path.as_ref(),
                 &|path, img_fn| {
@@ -126,7 +170,7 @@ fn main() {
                     let image = image.to_rgb8();
                     let mut tmp_blobs = vec![];
 
-                    const NOISE_STD_DEV: f32 = 0.1;
+                    const NOISE_STD_DEV: f32 = 20.0;
                     const NOISE_COUNT: usize = 3;
 
                     (0..NOISE_COUNT).into_par_iter()
@@ -138,9 +182,8 @@ fn main() {
                             image
                                 .pixels_mut()
                                 .for_each(|p| {
-                                    p.0.iter_mut().for_each(|b| {
-                                        *b = Normal::new(*b as f32, NOISE_STD_DEV).unwrap().sample(&mut rng).clamp(0.0, 255.0).round() as u8;
-                                    });
+                                    let new = Normal::new(p.0[0] as f32, NOISE_STD_DEV).unwrap().sample(&mut rng).clamp(0.0, 255.0).round() as u8;
+                                    p.0 = [new; 3];
                                 });
                             image_to_webp(&image.into())
                         })
