@@ -21,22 +21,24 @@ pub struct SimpleTrainingConfig {
     pub learning_rate: f64,
 }
 
-pub fn simple_training_loop<B, M, BatcherTy, Batch, I, Output, D>(
+pub fn simple_training_loop<B, M, BatcherTy, Batch, I, Output, D1, D2>(
     model: M,
     training_config: SimpleTrainingConfig,
     batcher: BatcherTy,
-    training_dataset: D,
-    validation_dataset: D,
+    training_dataset: D1,
+    validation_dataset: D2,
     artifact_dir: impl AsRef<Path>,
     device: &B::Device,
-) -> M::InnerModule where
+) -> M::InnerModule
+where
     B: AutodiffBackend,
     I: Clone + Debug + Send + Sync + 'static,
     BatcherTy: Batcher<B, I, Batch> + Batcher<B::InnerBackend, I, Batch> + Clone + 'static,
     Batch: Clone + Debug + Send + 'static,
     Output: ItemLazy + 'static,
     M: AutodiffModule<B> + Display + TrainStep<Batch, Output> + 'static,
-    D: Dataset<I> + 'static,
+    D1: Dataset<I> + 'static,
+    D2: Dataset<I> + 'static,
     M::Record: 'static,
     M::InnerModule: ValidStep<Batch, Output>,
     <Output as ItemLazy>::ItemSync: Adaptor<LossInput<B>>

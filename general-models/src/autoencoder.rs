@@ -261,11 +261,13 @@ pub struct SimpleAutoEncoder<B, E, D, const N_I: usize, const N_D: usize> {
     _phantom: PhantomData<B>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SimpleAutoEncoderConfig<E, D> {
     pub encoder_config: E,
     pub decoder_config: D,
 }
+
+impl<E: Config, D: Config> Config for SimpleAutoEncoderConfig<E, D> {}
 
 impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
     pub fn init<B, const N_I: usize, const N_D: usize, E, D>(
@@ -284,6 +286,8 @@ impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
 /// An Image AutoEncoder with a linear Latent Space
 pub type LinearImageAutoEncoder<B> =
     SimpleAutoEncoder<B, SimpleLumaImageEncoder<B>, SimpleLumaImageDecoder<B>, 3, 2>;
+pub type LinearImageAutoEncoderConfig =
+    SimpleAutoEncoderConfig<SimpleLumaImageEncoderConfig, SimpleLumaImageDecoderConfig>;
 
 impl<
     B: Backend,

@@ -5,12 +5,16 @@ edition = "2024"
 
 [dependencies]
 general-models.workspace = true
-burn = { workspace = true, features = ["train", "wgpu"] }
-sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio"] }
+burn = { workspace = true, features = ["train"] }
 image.workspace = true
-tokio = { version = "1.47.1", features = ["macros"] }
 serde.workspace = true
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+unfmt = "0.2.2"
+crossbeam = "0.8.4"
+serde_json = "1.0.145"
 
 [features]
-app = ["burn/tui"]
-default = ["app"]
+tui = ["burn/tui"]
+wgpu = ["burn/wgpu"]
+app = ["tui"]
+default = ["app", "wgpu"]

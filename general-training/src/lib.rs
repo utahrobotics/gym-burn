@@ -1,18 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use burn::{
-    Tensor,
-    module::AutodiffModule,
-    nn::loss::{MseLoss, Reduction},
-    prelude::Backend,
-    record::Record,
-    tensor::backend::AutodiffBackend,
-    train::RegressionOutput,
+    prelude::Backend, record::Record
 };
-use general_models::{SimpleForwardable, autoencoder::SimpleAutoEncoder};
 use serde::{Deserialize, Serialize};
 
 pub mod batches;
+pub mod dataset;
 pub mod regression;
 pub mod training_loop;
 
@@ -75,39 +69,6 @@ impl<B: Backend, T: Record<B>, P> Record<B> for TrainableModelRecord<T, P> {
             model_record: Record::from_item(item.model_item, device),
             phantom: PhantomData,
         }
-    }
-}
-
-pub trait RegressionTrainable<B: AutodiffBackend, const N_I: usize, const N_O: usize>:
-    AutodiffModule<B>
-{
-    fn forward_regression(
-        &self,
-        input: Tensor<B, N_I>,
-        expected: Tensor<B, N_O>,
-    ) -> RegressionOutput<B>;
-}
-
-impl<B, const N_I: usize, const N_D: usize, E, D> RegressionTrainable<B, N_I, N_I>
-    for SimpleAutoEncoder<B, E, D, N_I, N_D>
-where
-    B: AutodiffBackend,
-    Self: SimpleForwardable<B, N_I, N_I> + AutodiffModule<B>,
-{
-    fn forward_regression(
-        &self,
-        input: Tensor<B, N_I>,
-        expected: Tensor<B, N_I>,
-    ) -> RegressionOutput<B> {
-        let batch_size = input.dims()[0];
-        let actual = self.forward(input.clone());
-        let loss = MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Mean);
-
-        RegressionOutput::new(
-            loss,
-            actual.reshape([batch_size as i32, -1]),
-            expected.reshape([batch_size as i32, -1]),
-        )
     }
 }
 

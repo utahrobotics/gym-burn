@@ -1,14 +1,44 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use burn::{
-    module::{AutodiffModule, Module},
-    prelude::Backend,
-    tensor::backend::AutodiffBackend,
-    train::{RegressionOutput, TrainOutput, TrainStep, ValidStep},
+    module::{AutodiffModule, Module}, nn::loss::{MseLoss, Reduction}, prelude::Backend, tensor::backend::AutodiffBackend, train::{RegressionOutput, TrainOutput, TrainStep, ValidStep}, Tensor
 };
-use general_models::autoencoder::LinearImageAutoEncoder;
+use general_models::{autoencoder::{LinearImageAutoEncoder, SimpleAutoEncoder}, SimpleForwardable};
 
-use crate::{RegressionTrainable, TrainableModelRecord, batches::AutoEncoderImageBatch};
+use crate::{TrainableModelRecord, batches::AutoEncoderImageBatch};
+
+pub trait RegressionTrainable<B: Backend, const N_I: usize, const N_O: usize>:
+    Module<B>
+{
+    fn forward_regression(
+        &self,
+        input: Tensor<B, N_I>,
+        expected: Tensor<B, N_O>,
+    ) -> RegressionOutput<B>;
+}
+
+impl<B, const N_I: usize, const N_D: usize, E, D> RegressionTrainable<B, N_I, N_I>
+    for SimpleAutoEncoder<B, E, D, N_I, N_D>
+where
+    B: Backend,
+    Self: SimpleForwardable<B, N_I, N_I>,
+{
+    fn forward_regression(
+        &self,
+        input: Tensor<B, N_I>,
+        expected: Tensor<B, N_I>,
+    ) -> RegressionOutput<B> {
+        let batch_size = input.dims()[0];
+        let actual = self.forward(input.clone());
+        let loss = MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Mean);
+
+        RegressionOutput::new(
+            loss,
+            actual.reshape([batch_size as i32, -1]),
+            expected.reshape([batch_size as i32, -1]),
+        )
+    }
+}
 
 pub struct RegressionTrainableModel<T, P = ()> {
     pub model: T,
@@ -80,10 +110,10 @@ impl<B: Backend, T: Module<B>, P> Module<B> for RegressionTrainableModel<T, P> {
 impl<B: AutodiffBackend, T: AutodiffModule<B>, P> AutodiffModule<B>
     for RegressionTrainableModel<T, P>
 {
-    type InnerModule = T::InnerModule;
+    type InnerModule = RegressionTrainableModel<T::InnerModule>;
 
     fn valid(&self) -> Self::InnerModule {
-        self.model.valid()
+        RegressionTrainableModel { model: self.model.valid(), phantom: PhantomData }
     }
 }
 
@@ -97,7 +127,7 @@ impl<B: AutodiffBackend> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>
     }
 }
 
-impl<B: AutodiffBackend> ValidStep<AutoEncoderImageBatch<B>, RegressionOutput<B>>
+impl<B: Backend> ValidStep<AutoEncoderImageBatch<B>, RegressionOutput<B>>
     for RegressionTrainableModel<LinearImageAutoEncoder<B>>
 {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> RegressionOutput<B> {
