@@ -105,6 +105,10 @@ pub trait LoadTraining<B: Backend>: Module<B> {
 
 
 pub trait SimpleForwardable<B: Backend, const N_I: usize, const N_O:usize>: Module<B> {
+    type Config;
+    
+    fn init(config: Self::Config, device: &B::Device) -> Self;
+    
     fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_O>;
 }
 

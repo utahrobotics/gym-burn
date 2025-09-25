@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 use crate::SimpleForwardable;
 
 use burn::{
-    Tensor, module::Module, nn::{
-        BatchNorm, Dropout, Gelu, Linear, Tanh, conv::{Conv2d, ConvTranspose2d}, interpolate::Interpolate2d, pool::AdaptiveAvgPool2d
-    }, prelude::Backend, record::Record
+    config::Config,
+    module::Module, nn::{
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, interpolate::{Interpolate2d, Interpolate2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid, Tanh
+    }, prelude::Backend, record::Record, Tensor
 };
 
 use serde::{Serialize, Deserialize};
@@ -23,6 +24,12 @@ pub struct SimpleLumaImageEncoder<B: Backend> {
 }
 
 impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
+    type Config = SimpleLumaImageEncoderConfig;
+
+    fn init(config: Self::Config, device: &B::Device) -> Self {
+        config.init(device)
+    }
+
     fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, image_width, image_height] = images.dims();
 
@@ -65,6 +72,34 @@ impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
     }
 }
 
+#[derive(Debug, Config)]
+pub struct SimpleLumaImageEncoderConfig {
+    pub encoder_convolutions: Vec<(Conv2dConfig, Option<BatchNormConfig>)>,
+    pub adaptive_avg_pooling: Option<AdaptiveAvgPool2dConfig>,
+    pub encoder_linears: Vec<(LinearConfig, Option<BatchNormConfig>)>,
+
+    pub linear_dropout: DropoutConfig,
+    pub conv_dropout: DropoutConfig,
+}
+
+impl SimpleLumaImageEncoderConfig {
+    pub fn init<B: Backend>(self, device: &B::Device) -> SimpleLumaImageEncoder<B> {
+        SimpleLumaImageEncoder {
+            encoder_convolutions: self.encoder_convolutions.into_iter().map(|(conv_config, bn_config)| {
+                (conv_config.init(device), bn_config.map(|bn_config| bn_config.init(device)))
+            }).collect(),
+            adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| x.init()),
+            encoder_linears: self.encoder_linears.into_iter().map(|(linear_config, bn_config)| {
+                (linear_config.init(device), bn_config.map(|bn_config| bn_config.init(device)))
+            }).collect(),
+            gelu: Gelu::new(),
+            tanh: Tanh::new(),
+            linear_dropout: self.linear_dropout.init(),
+            conv_dropout: self.conv_dropout.init(),
+        }
+    }
+}
+
 #[derive(Module, Debug)]
 pub struct SimpleLumaImageDecoder<B: Backend> {
     decoder_linears: Vec<(Linear<B>, Option<BatchNorm<B>>)>,
@@ -72,6 +107,7 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     decoder_convolutions: Vec<(ConvTranspose2d<B>, Option<BatchNorm<B>>)>,
 
     gelu: Gelu,
+    sigmoid: Sigmoid,
     linear_dropout: Dropout,
     conv_dropout: Dropout,
     output_size: [usize; 2],
@@ -79,30 +115,42 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
 }
 
 impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
+    type Config = SimpleLumaImageDecoderConfig;
+    
+    fn init(config: Self::Config, device: &B::Device) -> Self {
+        config.init(device)
+    }
+    
     fn forward(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
         let [batch_size, _] = latents.dims();
         let mut x = latents;
 
-        for (linear, norm) in &self.decoder_linears {
+        for (i, (linear, norm)) in self.decoder_linears.iter().enumerate() {
             x = linear.forward(x);
             if let Some(norm) = norm {
                 x = norm.forward(x);
+            }
+            if i == self.decoder_linears.len() - 1 && self.decoder_convolutions.is_empty() {
+                break;
             }
             x = self.gelu.forward(x);
             x = self.linear_dropout.forward(x);
         }
 
-        let x = if let Some((first_cnn, _)) = self.decoder_convolutions.first() {
+        let mut x = if let Some((first_cnn, _)) = self.decoder_convolutions.first() {
             let mut x = if let Some([width, height]) = self.cnn_input_shape {
                 x.reshape([batch_size, first_cnn.channels[0] as usize, width, height])
             } else {
                 let width = (x.dims()[1] as f64).sqrt().ceil() as i32;
                 x.reshape([batch_size as i32, first_cnn.channels[0] as i32, width, -1])
             };
-            for (cnn, norm) in &self.decoder_convolutions {
+            for (i, (cnn, norm)) in self.decoder_convolutions.iter().enumerate() {
                 x = cnn.forward(x);
                 if let Some(norm) = norm {
                     x = norm.forward(x);
+                }
+                if i == self.decoder_convolutions.len() - 1 {
+                    break;
                 }
                 x = self.gelu.forward(x);
                 x = self.linear_dropout.forward(x);
@@ -121,6 +169,8 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
 
             x.reshape([batch_size as i32, actual_width as i32, -1])
         };
+        
+        x = self.sigmoid.forward(x);
 
         if let Some(interpolate) = &self.interpolate {
             let [_, width, height] = x.dims();
@@ -134,6 +184,42 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
 }
 
 
+#[derive(Debug, Config)]
+pub struct SimpleLumaImageDecoderConfig {
+    pub decoder_linears: Vec<(LinearConfig, Option<BatchNormConfig>)>,
+    pub cnn_input_shape: Option<[usize; 2]>,
+    pub decoder_convolutions: Vec<(ConvTranspose2dConfig, Option<BatchNormConfig>)>,
+
+    pub linear_dropout: DropoutConfig,
+    pub conv_dropout: DropoutConfig,
+    pub output_size: [usize; 2],
+    pub interpolate: Option<Interpolate2dConfig>,
+}
+
+impl SimpleLumaImageDecoderConfig {
+    pub fn init<B: Backend>(self, device: &B::Device) -> SimpleLumaImageDecoder<B> {
+        SimpleLumaImageDecoder {
+            decoder_linears: self.decoder_linears.into_iter().map(|(config, norm)| {
+                let linear = config.init(device);
+                let norm = norm.map(|config| config.init(device));
+                (linear, norm)
+            }).collect(),
+            cnn_input_shape: self.cnn_input_shape,
+            decoder_convolutions: self.decoder_convolutions.into_iter().map(|(config, norm)| {
+                let conv = config.init(device);
+                let norm = norm.map(|config| config.init(device));
+                (conv, norm)
+            }).collect(),
+            gelu: Gelu::new(),
+            sigmoid: Sigmoid::new(),
+            linear_dropout: self.linear_dropout.init(),
+            conv_dropout: self.conv_dropout.init(),
+            output_size: self.output_size,
+            interpolate: self.interpolate.map(|x| x.init()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SimpleAutoEncoder<B, E, D, const N_I: usize, const N_D: usize> {
     pub encoder: E,
@@ -141,11 +227,38 @@ pub struct SimpleAutoEncoder<B, E, D, const N_I: usize, const N_D: usize> {
     _phantom: PhantomData<B>
 }
 
+#[derive(Debug, Clone)]
+pub struct SimpleAutoEncoderConfig<E, D> {
+    pub encoder_config: E,
+    pub decoder_config: D,
+}
+
+impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
+    pub fn init<B, const N_I: usize, const N_D: usize, E, D>(self, device: &B::Device) -> SimpleAutoEncoder<B, E, D, N_I, N_D>
+    where
+        B: Backend,
+        E: SimpleForwardable<B, N_I, N_D, Config=X>,
+        D: SimpleForwardable<B, N_D, N_I, Config=Y>
+    {
+        SimpleAutoEncoder::init(self, device)
+    }
+}
+
 /// An Image AutoEncoder with a linear Latent Space
 pub type LinearImageAutoEncoder<B> = SimpleAutoEncoder<B, Linear<B>, Linear<B>, 3, 2>;
 
 
 impl<B: Backend, const N_I: usize, const N_D: usize, E: SimpleForwardable<B, N_I, N_D>, D: SimpleForwardable<B, N_D, N_I>> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D> {
+    type Config = SimpleAutoEncoderConfig<E::Config, D::Config>;
+    
+    fn init(config: Self::Config, device: &B::Device) -> Self {
+        SimpleAutoEncoder {
+            encoder: E::init(config.encoder_config, device),
+            decoder: D::init(config.decoder_config, device),
+            _phantom: PhantomData,
+        }
+    }
+
     fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_I> {
         self.decoder.forward(self.encoder.forward(images))
     }
