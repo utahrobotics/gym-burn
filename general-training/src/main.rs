@@ -1,14 +1,19 @@
 #[cfg(feature = "app")]
 fn main() {
+    use burn::module::Module;
+    use burn::record::CompactRecorder;
     use burn::backend::Autodiff;
     use burn::config::Config;
     use general_models::autoencoder::LinearImageAutoEncoderConfig;
-    use general_training::{batches::AutoEncoderImageBatcher, dataset::{SqliteDataset, SqliteDatasetConfig}, training_loop::{simple_training_loop, SimpleTrainingConfig}};
+    use general_training::regression::RegressionTrainableModel;
+    use general_training::training_loop::simple_regression_training_loop;
+    use general_training::{batches::AutoEncoderImageBatcher, dataset::{SqliteDataset, SqliteDatasetConfig}, training_loop::SimpleTrainingConfig};
 
     let device;
     
     #[cfg(feature = "wgpu")]
-    type Backend = Autodiff<burn::backend::Wgpu>;
+    type Backend = burn::backend::Wgpu;
+    type AutodiffBackend = Autodiff<Backend>;
     
     #[cfg(feature = "wgpu")]
     {
@@ -22,8 +27,17 @@ fn main() {
     let train_dataset_config = SqliteDatasetConfig::load("training-data.json").unwrap();
     let test_dataset_config = SqliteDatasetConfig::load("test-data.json").unwrap();
     
-    let trained = simple_training_loop::<Backend, _, _, _, _, _, _, _>(
-        model_config.init(&device),
+    let trained = simple_regression_training_loop::<
+        AutodiffBackend,
+        RegressionTrainableModel<_>,
+        _,
+        _,
+        _,
+        _,
+        _,
+        _
+    >(
+        model_config.init::<_, 3, 2, _, _>(&device).into(),
         training_config,
         AutoEncoderImageBatcher,
         SqliteDataset::try_from(train_dataset_config).unwrap(),
@@ -31,6 +45,8 @@ fn main() {
         "artifacts",
         &device
     );
+    
+    trained.model.save_file("model.mpk", &CompactRecorder::new()).unwrap();
 }
 
 #[cfg(not(feature = "app"))]

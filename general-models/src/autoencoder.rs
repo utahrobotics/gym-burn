@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use crate::{FromConfig, SimpleForwardable};
 
@@ -259,6 +259,21 @@ pub struct SimpleAutoEncoder<B, E, D, const N_I: usize, const N_D: usize> {
     pub encoder: E,
     pub decoder: D,
     _phantom: PhantomData<B>,
+}
+
+impl<B, E, D, const N_I: usize, const N_D: usize> fmt::Display
+    for SimpleAutoEncoder<B, E, D, N_I, N_D>
+where
+    E: fmt::Display,
+    D: fmt::Display,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "SimpleAutoEncoder with input dimension {} and latent dimension {}\nEncoder: {}\nDecoder: {}",
+            N_I, N_D, self.encoder, self.decoder
+        )
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::{Debug, Display}, marker::PhantomData};
 
 use burn::{
     module::{AutodiffModule, Module}, nn::loss::{MseLoss, Reduction}, prelude::Backend, tensor::backend::AutodiffBackend, train::{RegressionOutput, TrainOutput, TrainStep, ValidStep}, Tensor
@@ -45,7 +45,22 @@ pub struct RegressionTrainableModel<T, P = ()> {
     pub phantom: PhantomData<fn() -> P>,
 }
 
+impl<T, P> From<T> for RegressionTrainableModel<T, P> {
+    fn from(model: T) -> Self {
+        Self {
+            model,
+            phantom: PhantomData
+        }
+    }
+}
+
 impl<T: Debug, P> Debug for RegressionTrainableModel<T, P> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.model.fmt(f)
+    }
+}
+
+impl<T: Display, P> Display for RegressionTrainableModel<T, P> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.model.fmt(f)
     }
@@ -122,7 +137,6 @@ impl<B: AutodiffBackend> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>
 {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> TrainOutput<RegressionOutput<B>> {
         let item = self.model.forward_regression(batch.input, batch.expected);
-
         TrainOutput::new(&self.model, item.loss.backward(), item)
     }
 }

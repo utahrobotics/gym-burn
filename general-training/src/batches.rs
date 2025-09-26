@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use burn::{data::dataloader::batcher::Batcher, prelude::Backend, tensor::TensorData, Tensor};
 use image::{load_from_memory_with_format, ImageFormat};
 use serde::{Deserialize, Serialize};
@@ -7,7 +9,19 @@ pub struct AutoEncoderImageBatch<B: Backend> {
     pub expected: Tensor<B, 3>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl<B: Backend> Clone for AutoEncoderImageBatch<B> {
+    fn clone(&self) -> Self {
+        Self { input: self.input.clone(), expected: self.expected.clone() }
+    }
+}
+
+impl<B: Backend> Debug for AutoEncoderImageBatch<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AutoEncoderImageBatch").field("input", &self.input).field("expected", &self.expected).finish()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AutoEncoderImageItem {
     pub luma_input: Option<Vec<f32>>,
     pub webp_input: Option<Vec<u8>>,
@@ -17,6 +31,7 @@ pub struct AutoEncoderImageItem {
     pub expected_image_size: [usize; 2],
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct AutoEncoderImageBatcher;
 
 impl<B: Backend> Batcher<B, AutoEncoderImageItem, AutoEncoderImageBatch<B>> for AutoEncoderImageBatcher {
