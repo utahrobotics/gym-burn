@@ -9,18 +9,13 @@ fn main() {
     use general_training::training_loop::simple_regression_training_loop;
     use general_training::{batches::AutoEncoderImageBatcher, dataset::{SqliteDataset, SqliteDatasetConfig}, training_loop::SimpleTrainingConfig};
 
-    let device;
-    
     #[cfg(feature = "wgpu")]
     type Backend = burn::backend::Wgpu;
+    
     type AutodiffBackend = Autodiff<Backend>;
     
     #[cfg(feature = "wgpu")]
-    {
-        use burn::backend::wgpu::WgpuDevice;
-    
-        device = WgpuDevice::default();
-    }
+    let device = general_models::wgpu::get_device();
     
     let model_config = LinearImageAutoEncoderConfig::load("model.json").unwrap();
     let training_config = SimpleTrainingConfig::load("training.json").unwrap();
@@ -37,7 +32,7 @@ fn main() {
         _,
         _
     >(
-        model_config.init::<_, 3, 2, _, _>(&device).into(),
+        model_config.init::<_, 3, 2, _, _>(device).into(),
         training_config,
         AutoEncoderImageBatcher,
         SqliteDataset::try_from(train_dataset_config).unwrap(),
