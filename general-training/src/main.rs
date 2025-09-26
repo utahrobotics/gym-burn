@@ -1,10 +1,15 @@
 #[cfg(feature = "app")]
 fn main() {
+    use std::num::NonZeroUsize;
+    use std::sync::Arc;
+
     use burn::module::Module;
     use burn::record::CompactRecorder;
     use burn::backend::Autodiff;
     use burn::config::Config;
     use general_models::autoencoder::LinearImageAutoEncoderConfig;
+    use general_training::batches::AutoEncoderImageItem;
+    use general_training::dataset::LruCache;
     use general_training::regression::RegressionTrainableModel;
     use general_training::training_loop::simple_regression_training_loop;
     use general_training::{batches::AutoEncoderImageBatcher, dataset::{SqliteDataset, SqliteDatasetConfig}, training_loop::SimpleTrainingConfig};
@@ -21,6 +26,7 @@ fn main() {
     let training_config = SimpleTrainingConfig::load("training.json").unwrap();
     let train_dataset_config = SqliteDatasetConfig::load("training-data.json").unwrap();
     let test_dataset_config = SqliteDatasetConfig::load("test-data.json").unwrap();
+    let max_cache_len = NonZeroUsize::new(32).unwrap();
     
     let trained = simple_regression_training_loop::<
         AutodiffBackend,
@@ -35,8 +41,8 @@ fn main() {
         model_config.init::<_, 3, 2, _, _>(device).into(),
         training_config,
         AutoEncoderImageBatcher,
-        SqliteDataset::try_from(train_dataset_config).unwrap(),
-        SqliteDataset::try_from(test_dataset_config).unwrap(),
+        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap().set_cache(LruCache::new(max_cache_len)),
+        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap().set_cache(LruCache::new(max_cache_len)),
         "artifacts",
         &device
     );

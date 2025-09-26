@@ -34,8 +34,8 @@ pub struct AutoEncoderImageItem {
 #[derive(Clone, Copy, Debug)]
 pub struct AutoEncoderImageBatcher;
 
-impl<B: Backend> Batcher<B, AutoEncoderImageItem, AutoEncoderImageBatch<B>> for AutoEncoderImageBatcher {
-    fn batch(&self, items: Vec<AutoEncoderImageItem>, device: &<B as Backend>::Device) -> AutoEncoderImageBatch<B> {
+impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageBatch<B>> for AutoEncoderImageBatcher {
+    fn batch(&self, items: Vec<I>, device: &<B as Backend>::Device) -> AutoEncoderImageBatch<B> {
         let slices_to_data = |webp_data: Option<&[u8]>, luma_data: Option<&[f32]>| {
             if let Some(luma_data) = luma_data {
                 TensorData::from(luma_data)
@@ -47,6 +47,7 @@ impl<B: Backend> Batcher<B, AutoEncoderImageItem, AutoEncoderImageBatch<B>> for 
         };
         let input = items
             .iter()
+            .map(AsRef::as_ref)
             .map(|item| {
                 (slices_to_data(item.webp_input.as_deref(), item.luma_input.as_deref()), item)
             })
@@ -58,6 +59,7 @@ impl<B: Backend> Batcher<B, AutoEncoderImageItem, AutoEncoderImageBatch<B>> for 
         
         let expected = items
             .iter()
+            .map(AsRef::as_ref)
             .map(|item| {
                 (slices_to_data(item.webp_expected.as_deref(), item.luma_expected.as_deref()), item)
             })

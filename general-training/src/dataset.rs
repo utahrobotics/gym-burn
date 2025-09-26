@@ -1,8 +1,10 @@
-use std::{marker::PhantomData, path::{Path, PathBuf}};
+use std::{marker::PhantomData, num::NonZeroUsize, path::{Path, PathBuf}, sync::atomic::{AtomicUsize, Ordering}};
 
 use burn::{config::Config, data::dataset::Dataset};
 use crossbeam::queue::SegQueue;
-use rusqlite::{params, Connection, OptionalExtension};
+use dashmap::DashMap;
+use parking_lot::Mutex;
+use rusqlite::{params, Connection};
 use serde::de::DeserializeOwned;
 use serde_json::Number;
 
@@ -13,11 +15,109 @@ pub struct SqliteDatasetConfig {
     pub len_sql: String,
 }
 
-pub struct SqliteDataset<I> {
+pub trait ItemCache<I>: Send + Sync {
+    fn noop(&self) -> bool;
+    fn has(&self, index: usize) -> bool;
+    fn get(&self, index: usize) -> Option<I>;
+    fn set(&self, index: usize, item: I) -> I;
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct NoCache;
+
+impl<I> ItemCache<I> for NoCache {
+    fn noop(&self) -> bool {
+        true
+    }
+    
+    fn get(&self, _: usize) -> Option<I> {
+        None
+    }
+
+    fn set(&self, _: usize, item: I) -> I {
+        item
+    }
+
+    fn has(&self, _: usize) -> bool {
+        false
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AlwaysCache<I> {
+    map: DashMap<usize, I, rustc_hash::FxBuildHasher>,
+}
+
+impl<I: Send + Sync + Clone> ItemCache<I> for AlwaysCache<I> {
+    fn noop(&self) -> bool {
+        false
+    }
+    
+    fn get(&self, index: usize) -> Option<I> {
+        self.map.get(&index).map(|x| x.clone())
+    }
+
+    fn set(&self, index: usize, item: I) -> I {
+        self.map.insert(index, item.clone());
+        item
+    }
+
+    fn has(&self, index: usize) -> bool {
+        self.map.contains_key(&index)
+    }
+}
+
+#[derive(Debug)]
+pub struct LruCache<I> {
+    lru: Option<Mutex<lru::LruCache<usize, I, rustc_hash::FxBuildHasher>>>
+}
+
+impl<I> LruCache<I> {
+    pub fn new(max_len: usize) -> Self {
+        if let Some(max_len) = NonZeroUsize::new(max_len) {
+            Self {
+                lru: Some(Mutex::new(lru::LruCache::with_hasher(max_len, Default::default())))
+            }
+        } else {
+            Self {
+                lru: None
+            }
+        }
+    }
+}
+
+impl<I: Send + Sync + Clone> ItemCache<I> for LruCache<I> {
+    fn noop(&self) -> bool {
+        self.lru.is_none()
+    }
+    
+    fn get(&self, index: usize) -> Option<I> {
+        self.lru.as_ref()?.lock().get(&index).map(|x| x.clone())
+    }
+
+    fn set(&self, index: usize, item: I) -> I {
+        if self.lru.is_none() {
+            return item;
+        }
+        self.lru.as_ref().unwrap().lock().push(index, item.clone());
+        item
+    }
+
+    fn has(&self, index: usize) -> bool {
+        if self.lru.is_none() {
+            return false;
+        }
+        self.lru.as_ref().unwrap().lock().contains(&index)
+    }
+}
+
+pub struct SqliteDataset<I, C=LruCache<I>> {
     conn_queue: SegQueue<Connection>,
     db_file: PathBuf,
     get_sql: String,
+    cache: C,
     len_sql: String,
+    cache_hits: AtomicUsize,
     _phantom: PhantomData<fn() -> I>
 }
 
@@ -33,16 +133,45 @@ impl<I> SqliteDataset<I> {
         Ok(Self {
             conn_queue,
             db_file,
+            cache: LruCache::new(32),
             get_sql,
+            cache_hits: AtomicUsize::default(),
             len_sql,
             _phantom: PhantomData
         })
+    }
+}
+
+impl<I, C> SqliteDataset<I, C> {
+    pub fn get_cache_hits(&self) -> usize {
+        self.cache_hits.load(Ordering::Relaxed)
+    }
+    
+    pub fn reset_cache_hits(&self) {
+        self.cache_hits.store(0, Ordering::Relaxed);
+    }
+    
+    pub fn get_cache(&mut self) -> &mut C {
+        &mut self.cache
+    }
+    
+    pub fn set_cache<C2>(self, cache: C2) -> SqliteDataset<I, C2> {
+        SqliteDataset {
+            conn_queue: self.conn_queue,
+            db_file: self.db_file,
+            get_sql: self.get_sql,
+            cache,
+            len_sql: self.len_sql,
+            cache_hits: AtomicUsize::default(),
+            _phantom: PhantomData,
+        }
     }
     
     fn get_conn(&self) -> Connection {
         self.conn_queue.pop().unwrap_or_else(|| Connection::open(&self.db_file).expect("Sqlite database should still be accessible"))
     }
 }
+
 impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
     type Error = rusqlite::Error;
 
@@ -51,15 +180,33 @@ impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
     }
 }
 
-impl<I: DeserializeOwned> Dataset<I> for SqliteDataset<I> {
+impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
     fn get(&self, index: usize) -> Option<I> {
+        if let Some(item) = self.cache.get(index) {
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
+            return Some(item);
+        }
         let conn = self.get_conn();
-        let item = conn
-            .prepare_cached(&self.get_sql)
-            .unwrap()
-            .query_one(params![index], |row| {
+        let mut selected_item = None;
+        {
+            let mut stmt = conn
+                .prepare_cached(&self.get_sql)
+                .unwrap();
+            let mut rows = stmt
+                .query(params![index])
+                .unwrap();
+            
+            while let Some(row) = rows.next().unwrap() {
+                let retrieved_index: usize = row.get("row_id").unwrap();
+                
+                let add_to_cache = !self.cache.noop() && !self.cache.has(retrieved_index);
+                if retrieved_index != index && !add_to_cache {
+                    continue;
+                }
+                
                 let stmt = row.as_ref();
                 let mut map = serde_json::Map::new();
+                
                 for column in stmt.column_names() {
                     let value: rusqlite::types::Value = row.get(column).unwrap();
                     let value = match value {
@@ -74,12 +221,19 @@ impl<I: DeserializeOwned> Dataset<I> for SqliteDataset<I> {
                         value
                     );
                 }
-                Ok(serde_json::from_value(map.into()).expect("Deserialization should be successful"))
-            })
-            .optional()
-            .unwrap();
+                
+                let mut item: I = serde_json::from_value(map.into()).expect("Deserialization should be successful");
+                if add_to_cache {
+                    item = self.cache.set(index, item);
+                }
+                if retrieved_index == index {
+                    selected_item = Some(item);
+                }
+            }
+        }
+        
         self.conn_queue.push(conn);
-        item
+        selected_item
     }
 
     fn len(&self) -> usize {
