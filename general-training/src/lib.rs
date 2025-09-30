@@ -1,8 +1,6 @@
 use std::{fmt::Debug, marker::PhantomData};
 
-use burn::{
-    prelude::Backend, record::Record
-};
+use burn::{prelude::Backend, record::Record};
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "app")]

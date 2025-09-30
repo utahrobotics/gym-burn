@@ -1,15 +1,24 @@
-use std::{fmt::{Debug, Display}, marker::PhantomData};
+use std::{
+    fmt::{Debug, Display},
+    marker::PhantomData,
+};
 
 use burn::{
-    module::{AutodiffModule, Module}, nn::loss::{MseLoss, Reduction}, prelude::Backend, tensor::backend::AutodiffBackend, train::{RegressionOutput, TrainOutput, TrainStep, ValidStep}, Tensor
+    Tensor,
+    module::{AutodiffModule, Module},
+    nn::loss::{MseLoss, Reduction},
+    prelude::Backend,
+    tensor::backend::AutodiffBackend,
+    train::{RegressionOutput, TrainOutput, TrainStep, ValidStep},
 };
-use general_models::{autoencoder::{LinearImageAutoEncoder, SimpleAutoEncoder}, SimpleForwardable};
+use general_models::{
+    SimpleForwardable,
+    autoencoder::{LinearImageAutoEncoder, SimpleAutoEncoder},
+};
 
 use crate::{TrainableModelRecord, batches::AutoEncoderImageBatch};
 
-pub trait RegressionTrainable<B: Backend, const N_I: usize, const N_O: usize>:
-    Module<B>
-{
+pub trait RegressionTrainable<B: Backend, const N_I: usize, const N_O: usize>: Module<B> {
     fn forward_regression(
         &self,
         input: Tensor<B, N_I>,
@@ -49,7 +58,7 @@ impl<T, P> From<T> for RegressionTrainableModel<T, P> {
     fn from(model: T) -> Self {
         Self {
             model,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
 }
@@ -128,7 +137,10 @@ impl<B: AutodiffBackend, T: AutodiffModule<B>, P> AutodiffModule<B>
     type InnerModule = RegressionTrainableModel<T::InnerModule>;
 
     fn valid(&self) -> Self::InnerModule {
-        RegressionTrainableModel { model: self.model.valid(), phantom: PhantomData }
+        RegressionTrainableModel {
+            model: self.model.valid(),
+            phantom: PhantomData,
+        }
     }
 }
 

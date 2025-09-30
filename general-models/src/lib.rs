@@ -1,8 +1,4 @@
-use burn::{
-    Tensor,
-    module::Module,
-    prelude::Backend,
-};
+use burn::{Tensor, module::Module, prelude::Backend};
 
 pub mod autoencoder;
 

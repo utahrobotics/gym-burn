@@ -1,9 +1,23 @@
-use std::{fmt::{Debug, Display}, path::Path};
+use std::{
+    fmt::{Debug, Display},
+    path::Path,
+};
 
 use burn::{
-    config::Config, data::{dataloader::{batcher::Batcher, DataLoaderBuilder}, dataset::Dataset}, module::AutodiffModule, optim::AdamConfig, prelude::Backend, record::CompactRecorder, tensor::backend::AutodiffBackend, train::{
-        metric::{Adaptor, ItemLazy, LossInput, LossMetric}, LearnerBuilder, RegressionOutput, TrainStep, ValidStep
-    }
+    config::Config,
+    data::{
+        dataloader::{DataLoaderBuilder, batcher::Batcher},
+        dataset::Dataset,
+    },
+    module::AutodiffModule,
+    optim::AdamConfig,
+    prelude::Backend,
+    record::CompactRecorder,
+    tensor::backend::AutodiffBackend,
+    train::{
+        LearnerBuilder, RegressionOutput, TrainStep, ValidStep,
+        metric::{Adaptor, ItemLazy, LossInput, LossMetric},
+    },
 };
 
 #[derive(Config, Debug)]
@@ -21,7 +35,19 @@ pub struct SimpleTrainingConfig {
     pub learning_rate: f64,
 }
 
-pub fn simple_training_loop<B, M, BatcherTy, BatchTraining, BatchValid, I, OutputTraining, OutputValid, D1, D2, BSync>(
+pub fn simple_training_loop<
+    B,
+    M,
+    BatcherTy,
+    BatchTraining,
+    BatchValid,
+    I,
+    OutputTraining,
+    OutputValid,
+    D1,
+    D2,
+    BSync,
+>(
     model: M,
     training_config: SimpleTrainingConfig,
     batcher: BatcherTy,
@@ -34,7 +60,8 @@ where
     B: AutodiffBackend,
     BSync: Backend,
     I: Clone + Debug + Send + Sync + 'static,
-    BatcherTy: Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    BatcherTy:
+        Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
     BatchTraining: Clone + Debug + Send + 'static,
     BatchValid: Clone + Debug + Send + 'static,
     OutputTraining: ItemLazy + 'static,
@@ -45,7 +72,7 @@ where
     M::Record: 'static,
     M::InnerModule: ValidStep<BatchValid, OutputValid>,
     <OutputTraining as ItemLazy>::ItemSync: Adaptor<LossInput<BSync>>,
-    <OutputValid as ItemLazy>::ItemSync: Adaptor<LossInput<BSync>>
+    <OutputValid as ItemLazy>::ItemSync: Adaptor<LossInput<BSync>>,
 {
     B::seed(&device, training_config.seed);
 
@@ -77,7 +104,6 @@ where
     model_trained.model
 }
 
-
 pub fn simple_regression_training_loop<B, M, BatcherTy, BatchTraining, BatchValid, I, D1, D2>(
     model: M,
     training_config: SimpleTrainingConfig,
@@ -90,7 +116,8 @@ pub fn simple_regression_training_loop<B, M, BatcherTy, BatchTraining, BatchVali
 where
     B: AutodiffBackend,
     I: Clone + Debug + Send + Sync + 'static,
-    BatcherTy: Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    BatcherTy:
+        Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
     BatchTraining: Clone + Debug + Send + 'static,
     BatchValid: Clone + Debug + Send + 'static,
     M: AutodiffModule<B> + Display + TrainStep<BatchTraining, RegressionOutput<B>> + 'static,
@@ -99,5 +126,13 @@ where
     M::Record: 'static,
     M::InnerModule: ValidStep<BatchValid, RegressionOutput<B::InnerBackend>>,
 {
-    simple_training_loop(model, training_config, batcher, training_dataset, validation_dataset, artifact_dir, device)
+    simple_training_loop(
+        model,
+        training_config,
+        batcher,
+        training_dataset,
+        validation_dataset,
+        artifact_dir,
+        device,
+    )
 }
