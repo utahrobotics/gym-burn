@@ -85,9 +85,9 @@ impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
 
 #[derive(Debug, Config)]
 pub struct SimpleLumaImageEncoderConfig {
-    pub encoder_convolutions: Vec<(Conv2dConfig, Option<BatchNormConfig>)>,
+    pub encoder_convolutions: Vec<(Conv2dConfig, bool)>,
     pub adaptive_avg_pooling: Option<AdaptiveAvgPool2dConfig>,
-    pub encoder_linears: Vec<(LinearConfig, Option<BatchNormConfig>)>,
+    pub encoder_linears: Vec<(LinearConfig, bool)>,
 
     pub linear_dropout: DropoutConfig,
     pub conv_dropout: DropoutConfig,
@@ -102,7 +102,7 @@ impl SimpleLumaImageEncoderConfig {
                 .map(|(conv_config, bn_config)| {
                     (
                         conv_config.init(device),
-                        bn_config.map(|bn_config| bn_config.init(device)),
+                        bn_config.then(|| BatchNormConfig::new(conv_config.channels[1]).init(device))
                     )
                 })
                 .collect(),
@@ -113,7 +113,7 @@ impl SimpleLumaImageEncoderConfig {
                 .map(|(linear_config, bn_config)| {
                     (
                         linear_config.init(device),
-                        bn_config.map(|bn_config| bn_config.init(device)),
+                        bn_config.then(|| BatchNormConfig::new(linear_config.d_output).init(device))
                     )
                 })
                 .collect(),
@@ -212,9 +212,9 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
 
 #[derive(Debug, Config)]
 pub struct SimpleLumaImageDecoderConfig {
-    pub decoder_linears: Vec<(LinearConfig, Option<BatchNormConfig>)>,
+    pub decoder_linears: Vec<(LinearConfig, bool)>,
     pub cnn_input_shape: Option<[usize; 2]>,
-    pub decoder_convolutions: Vec<(ConvTranspose2dConfig, Option<BatchNormConfig>)>,
+    pub decoder_convolutions: Vec<(ConvTranspose2dConfig, bool)>,
 
     pub linear_dropout: DropoutConfig,
     pub conv_dropout: DropoutConfig,
@@ -230,7 +230,7 @@ impl SimpleLumaImageDecoderConfig {
                 .into_iter()
                 .map(|(config, norm)| {
                     let linear = config.init(device);
-                    let norm = norm.map(|config| config.init(device));
+                    let norm = norm.then(|| BatchNormConfig::new(config.d_output).init(device));
                     (linear, norm)
                 })
                 .collect(),
@@ -240,7 +240,7 @@ impl SimpleLumaImageDecoderConfig {
                 .into_iter()
                 .map(|(config, norm)| {
                     let conv = config.init(device);
-                    let norm = norm.map(|config| config.init(device));
+                    let norm = norm.then(|| BatchNormConfig::new(config.channels[1]).init(device));
                     (conv, norm)
                 })
                 .collect(),

@@ -2326,7 +2326,6 @@ name = "general-training"
 version = "0.1.0"
 dependencies = [
  "burn",
- "clap",
  "crossbeam",
  "dashmap",
  "general-models",

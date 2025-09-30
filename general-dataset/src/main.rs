@@ -5,7 +5,7 @@ use rand_distr::{Distribution, Normal};
 use rayon::{join, prelude::*};
 use rusqlite::{Connection, params};
 use sha2::Digest;
-use std::{cmp::Reverse, collections::BinaryHeap, io::{Cursor, ErrorKind, Read}};
+use std::io::{Cursor, ErrorKind, Read};
 
 #[derive(Debug, Subcommand)]
 enum ProcessStdinPreset {
@@ -82,7 +82,7 @@ fn process_stdin(
                 if let Err(e) = stdin.read_exact(&mut size_buf[0..1]) {
                     match e.kind() {
                         ErrorKind::UnexpectedEof => {
-                            println!("Stored {image_count} images");
+                            println!("Processed {image_count} images");
                             break;
                         }
                         _ => panic!("{e}")
@@ -129,23 +129,10 @@ fn process_stdin(
                                         p.0 = [avg, avg, avg];
                                     });
                                 if color == ColorSetting::PrimarilyBlackThenWhite {
-                                    let mut max_heap = BinaryHeap::new();
-                                    let mut min_heap = BinaryHeap::new();
+                                    let mut bytes: Vec<_> = image.pixels().map(|p| p.0[0]).collect();
+                                    bytes.sort_unstable();
+                                    let median = bytes[bytes.len() / 2];
 
-                                    for pixel in image.pixels() {
-                                        let p = pixel.0[0];
-                                        max_heap.push(p);
-                                        min_heap.push(Reverse(p));
-                                        if min_heap.len() > max_heap.len() {
-                                            max_heap.push(min_heap.pop().unwrap().0);
-                                        }
-                                    }
-
-                                    let median = if max_heap.len() > min_heap.len() {
-                                        *max_heap.peek().unwrap()
-                                    } else {
-                                        ((*max_heap.peek().unwrap() as u16 + min_heap.peek().unwrap().0 as u16) / 2) as u8
-                                    };
                                     if median > 127 {
                                         image.par_pixels_mut()
                                             .for_each(|p| {
@@ -171,17 +158,33 @@ fn process_stdin(
                             .par_iter()
                             .map(|&std_dev| {
                                 let mut rng = SmallRng::from_rng(&mut rand::rng());
-                                let new_image_buf: Vec<_> = image
-                                    .iter()
-                                    .map(|&p| {
-                                        Normal::new(p as f32, std_dev)
-                                            .unwrap()
-                                            .sample(&mut rng)
-                                            .round()
-                                            .clamp(0.0, 255.0)
-                                            as u8
-                                    })
-                                    .collect();
+                                let new_image_buf: Vec<_>;
+                                if color == ColorSetting::Color {
+                                    new_image_buf = image
+                                        .iter()
+                                        .map(|&p| {
+                                            Normal::new(p as f32, std_dev)
+                                                .unwrap()
+                                                .sample(&mut rng)
+                                                .round()
+                                                .clamp(0.0, 255.0)
+                                                as u8
+                                        })
+                                        .collect();
+                                } else {
+                                    new_image_buf = image
+                                        .pixels()
+                                        .flat_map(|&p| {
+                                            let new_p = Normal::new(p.0[0] as f32, std_dev)
+                                                .unwrap()
+                                                .sample(&mut rng)
+                                                .round()
+                                                .clamp(0.0, 255.0)
+                                                as u8;
+                                            [new_p, new_p, new_p]
+                                        })
+                                        .collect();
+                                }
                                 let image = ImageBuffer::<Rgb<u8>, _>::from_raw(
                                     width,
                                     height,
@@ -193,7 +196,7 @@ fn process_stdin(
                                 webp_buf.into_inner()
                             })
                             .collect::<Vec<_>>()
-                    },
+                    }
                 );
                 let mut insert_image_stmt = conn
                     .prepare("INSERT OR IGNORE INTO images (sha256hex, webp) VALUES (?, ?)")

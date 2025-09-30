@@ -1,6 +1,3 @@
-use clap::{Parser, Subcommand};
-use rusqlite::{Connection, params};
-use std::io::Write;
 use std::sync::Arc;
 
 use crate::batches::AutoEncoderImageItem;
@@ -17,21 +14,17 @@ use burn::module::Module;
 use burn::record::CompactRecorder;
 use general_models::autoencoder::LinearImageAutoEncoderConfig;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[command(subcommand)]
-    command: Command,
-}
+// #[derive(Parser, Debug)]
+// #[command(version, about, long_about = None)]
+// struct Args {
+//     #[command(subcommand)]
+//     command: Command,
+// }
 
-#[derive(Debug, Subcommand)]
-enum Command {
-    Train,
-    ClearDb {
-        #[arg(short, long)]
-        db_path: String,
-    },
-}
+// #[derive(Debug, Subcommand)]
+// enum Command {
+//     Train,
+// }
 
 #[derive(Debug, Config)]
 struct ArtifactConfig {
@@ -80,33 +73,6 @@ fn train() {
         .unwrap();
 }
 
-fn clear_db(db_path: String) {
-    let conn = Connection::open(db_path).expect("SQLite database should be accessible");
-
-    let mut stmt = conn
-        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-        .unwrap();
-    let mut delete_stmt = conn.prepare("DROP TABLE ?1").unwrap();
-    loop {
-        let mut rows = stmt.query(()).unwrap();
-        let mut had_something = false;
-        while let Some(row) = rows.next().unwrap() {
-            had_something = true;
-            let name: String = row.get("name").unwrap();
-            print!("Deleting {name}: ");
-            std::io::stdout().flush().unwrap();
-            let n = delete_stmt.execute(params![name]).unwrap();
-            println!("{n}");
-        }
-        if !had_something {
-            break;
-        }
-    }
-}
-
 pub fn main() {
-    match Args::parse().command {
-        Command::Train => train(),
-        Command::ClearDb { db_path } => clear_db(db_path),
-    }
+    train()
 }
