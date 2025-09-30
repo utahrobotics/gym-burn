@@ -31,10 +31,12 @@ impl<B: Backend> Debug for AutoEncoderImageBatch<B> {
 pub struct AutoEncoderImageItem {
     pub luma_input: Option<Vec<f32>>,
     pub webp_input: Option<Vec<u8>>,
-    pub input_image_size: [usize; 2],
+    pub input_width: usize,
+    pub input_height: usize,
     pub luma_expected: Option<Vec<f32>>,
     pub webp_expected: Option<Vec<u8>>,
-    pub expected_image_size: [usize; 2],
+    pub expected_width: usize,
+    pub expected_height: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -67,7 +69,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
             .map(|(tensor, item)| {
-                tensor.reshape([1, item.input_image_size[0], item.input_image_size[1]])
+                tensor.reshape([1, item.input_width, item.input_height])
             })
             .collect();
 
@@ -84,7 +86,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
             .map(|(tensor, item)| {
-                tensor.reshape([1, item.expected_image_size[0], item.expected_image_size[1]])
+                tensor.reshape([1, item.expected_width, item.expected_height])
             })
             .collect();
 

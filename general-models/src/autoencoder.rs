@@ -1,16 +1,16 @@
 use std::{fmt, marker::PhantomData};
 
-use crate::{FromConfig, SimpleForwardable};
+use crate::{FromConfig, SimpleForwardable, serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig}};
 
 use burn::{
     Tensor,
     config::Config,
     module::{AutodiffModule, Module},
     nn::{
-        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, LinearConfig, Sigmoid,
+        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Sigmoid,
         Tanh,
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
-        interpolate::{Interpolate2d, Interpolate2dConfig},
+        conv::{Conv2d, ConvTranspose2d},
+        interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
     },
     prelude::Backend,
@@ -219,7 +219,7 @@ pub struct SimpleLumaImageDecoderConfig {
     pub linear_dropout: DropoutConfig,
     pub conv_dropout: DropoutConfig,
     pub output_size: [usize; 2],
-    pub interpolate: Option<Interpolate2dConfig>,
+    pub interpolate: Option<InterpolateMode>,
 }
 
 impl SimpleLumaImageDecoderConfig {
@@ -249,7 +249,7 @@ impl SimpleLumaImageDecoderConfig {
             linear_dropout: self.linear_dropout.init(),
             conv_dropout: self.conv_dropout.init(),
             output_size: self.output_size,
-            interpolate: self.interpolate.map(|x| x.init()),
+            interpolate: self.interpolate.map(|x| Interpolate2dConfig::new().with_mode(x).with_output_size(Some(self.output_size)).init()),
         }
     }
 }

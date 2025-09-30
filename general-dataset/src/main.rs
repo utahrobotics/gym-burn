@@ -57,7 +57,7 @@ fn process_stdin(
     let mut stdin = std::io::stdin().lock();
     let conn = Connection::open(db_path).expect("SQLite database should be accessible");
 
-    conn.execute(&format!("CREATE TABLE IF NOT EXISTS images (row_id INTEGER PRIMARY KEY, sha256hex TEXT NOT NULL UNIQUE, webp BLOB NOT NULL) STRICT"), ()).unwrap();
+    conn.execute(&format!("CREATE TABLE IF NOT EXISTS images (row_id INTEGER PRIMARY KEY, sha256hex TEXT NOT NULL UNIQUE, webp BLOB NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL) STRICT"), ()).unwrap();
     conn.execute(
         &format!(
             "CREATE TABLE IF NOT EXISTS {table_name} (
@@ -199,7 +199,7 @@ fn process_stdin(
                     }
                 );
                 let mut insert_image_stmt = conn
-                    .prepare("INSERT OR IGNORE INTO images (sha256hex, webp) VALUES (?, ?)")
+                    .prepare("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")
                     .unwrap();
                 let mut insert_table_stmt = conn
                     .prepare(&format!(
@@ -226,7 +226,7 @@ fn process_stdin(
                     .chain(Some((original_sha256hex.clone(), &original_webp_buf)))
                     .for_each(|(sha256hex, webp_buf)| {
                         insert_image_stmt
-                            .execute(params![sha256hex, webp_buf])
+                            .execute(params![sha256hex, webp_buf, width, height])
                             .unwrap();
                         insert_table_stmt
                             .execute(params![sha256hex, original_sha256hex])

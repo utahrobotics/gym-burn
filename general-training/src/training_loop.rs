@@ -22,7 +22,7 @@ use burn::{
 
 #[derive(Config, Debug)]
 pub struct SimpleTrainingConfig {
-    pub optimizer: AdamConfig,
+    pub optimizer: Option<AdamConfig>,
     #[config(default = 20)]
     pub num_epochs: usize,
     #[config(default = 64)]
@@ -96,7 +96,7 @@ where
         .summary()
         .build(
             model,
-            training_config.optimizer.init(),
+            training_config.optimizer.unwrap_or_else(|| AdamConfig::new()).init(),
             training_config.learning_rate,
         );
 

@@ -1,6 +1,7 @@
 use burn::{Tensor, module::Module, prelude::Backend};
 
 pub mod autoencoder;
+pub mod serde_fix;
 
 // #[derive(Debug, Clone)]
 // struct TrainingShim<T> {
