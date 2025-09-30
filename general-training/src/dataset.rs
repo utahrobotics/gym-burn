@@ -126,6 +126,7 @@ pub struct SqliteDataset<I, C = LruCache<I>> {
     cache: C,
     len_sql: String,
     cache_hits: AtomicUsize,
+    reads: AtomicUsize,
     _phantom: PhantomData<fn() -> I>,
 }
 
@@ -149,6 +150,7 @@ impl<I> SqliteDataset<I> {
             cache: LruCache::new(cache_len),
             get_sql,
             cache_hits: AtomicUsize::default(),
+            reads: AtomicUsize::default(),
             len_sql,
             _phantom: PhantomData,
         })
@@ -158,6 +160,10 @@ impl<I> SqliteDataset<I> {
 impl<I, C> SqliteDataset<I, C> {
     pub fn get_cache_hits(&self) -> usize {
         self.cache_hits.load(Ordering::Relaxed)
+    }
+    
+    pub fn get_reads(&self) -> usize {
+        self.reads.load(Ordering::Relaxed)
     }
 
     pub fn reset_cache_hits(&self) {
@@ -174,6 +180,7 @@ impl<I, C> SqliteDataset<I, C> {
             db_file: self.db_file,
             get_sql: self.get_sql,
             cache,
+            reads: AtomicUsize::default(),
             len_sql: self.len_sql,
             cache_hits: AtomicUsize::default(),
             _phantom: PhantomData,
@@ -197,6 +204,7 @@ impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
 
 impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
     fn get(&self, index: usize) -> Option<I> {
+        self.reads.fetch_add(1, Ordering::Relaxed);
         if let Some(item) = self.cache.get(index) {
             self.cache_hits.fetch_add(1, Ordering::Relaxed);
             return Some(item);
@@ -258,5 +266,16 @@ impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
             .unwrap();
         self.conn_queue.push(conn);
         len
+    }
+}
+
+
+impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for &SqliteDataset<I, C> {
+    fn get(&self, index: usize) -> Option<I> {
+        <SqliteDataset<I, C> as Dataset<I>>::get(self, index)
+    }
+
+    fn len(&self) -> usize {
+        <SqliteDataset<I, C> as Dataset<I>>::len(self)
     }
 }

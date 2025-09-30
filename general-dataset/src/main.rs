@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use image::{ImageBuffer, ImageFormat, Rgb};
+use image::{ImageBuffer, ImageFormat, Rgb, imageops::{FilterType, resize}};
 use rand::{SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, Normal};
 use rayon::{join, prelude::*};
@@ -43,6 +43,10 @@ struct Args {
     noise_levels: Vec<f32>,
     #[arg(short, long, value_enum, default_value_t = ColorSetting::Color)]
     color: ColorSetting,
+    #[arg(long, default_value_t = 28)]
+    width: u32,
+    #[arg(long, default_value_t = 28)]
+    height: u32,
     #[command(subcommand)]
     preset: ProcessStdinPreset,
 }
@@ -52,6 +56,8 @@ fn process_stdin(
     table_name: String,
     noise_levels: Vec<f32>,
     color: ColorSetting,
+    width: u32,
+    height: u32,
     preset: ProcessStdinPreset,
 ) {
     let mut stdin = std::io::stdin().lock();
@@ -89,8 +95,6 @@ fn process_stdin(
                     }
                 }
                 let format_byte = size_buf[0];
-                let width;
-                let height;
 
                 let mut image: ImageBuffer<Rgb<u8>, Vec<_>>;
                 match format_byte {
@@ -118,8 +122,8 @@ fn process_stdin(
                         image = image::load(Cursor::new(input_buf), ImageFormat::Jpeg)
                             .expect("Expected a valid JPEG")
                             .into_rgb8();
-                        width = image.width();
-                        height = image.height();
+                        image = resize(&image, width, height, FilterType::CatmullRom);
+                        
                         match color {
                             ColorSetting::Color => {},
                             ColorSetting::BlackAndWhite | ColorSetting::PrimarilyBlackThenWhite => {
@@ -244,6 +248,8 @@ fn main() {
         args.table_name,
         args.noise_levels,
         args.color,
+        args.width,
+        args.height,
         args.preset,
     );
 }

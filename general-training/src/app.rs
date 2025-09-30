@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::batches::AutoEncoderImageItem;
@@ -28,7 +29,7 @@ use general_models::autoencoder::LinearImageAutoEncoderConfig;
 
 #[derive(Debug, Config)]
 struct ArtifactConfig {
-    artifact_dir: String,
+    artifact_dir: PathBuf,
 }
 
 fn train() {
@@ -48,6 +49,9 @@ fn train() {
 
     std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
 
+    let training_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap());
+    let test_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap());
+
     let trained = simple_regression_training_loop::<
         AutodiffBackend,
         RegressionTrainableModel<_>,
@@ -61,15 +65,18 @@ fn train() {
         model_config.init::<_, 3, 2, _, _>(device).into(),
         training_config,
         AutoEncoderImageBatcher,
-        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap(),
-        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap(),
+        training_dataset.clone(),
+        test_dataset.clone(),
         &artifact_config.artifact_dir,
         &device,
     );
 
+    println!("{} / {}", training_dataset.get_cache_hits(), training_dataset.get_reads());
+    println!("{} / {}", test_dataset.get_cache_hits(), test_dataset.get_reads());
+
     trained
         .model
-        .save_file("model.mpk", &CompactRecorder::new())
+        .save_file(artifact_config.artifact_dir.join("model.mpk"), &CompactRecorder::new())
         .unwrap();
 }
 

@@ -51,10 +51,10 @@ impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
 
             for (cnn, norm) in &self.encoder_convolutions {
                 x = cnn.forward(x);
-                x = self.gelu.forward(x);
                 if let Some(norm) = norm {
                     x = norm.forward(x);
                 }
+                x = self.gelu.forward(x);
                 x = self.conv_dropout.forward(x);
             }
 
@@ -203,7 +203,7 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
             let [_, width, height] = x.dims();
             interpolate
                 .forward(x.reshape([batch_size, 1, width, height]))
-                .reshape([batch_size, width, height])
+                .reshape([batch_size, self.output_size[0], self.output_size[1]])
         } else {
             x
         }

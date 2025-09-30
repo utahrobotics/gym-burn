@@ -6,6 +6,7 @@ artifacts/
 **.sqlite-journal
 
 /model.json
+/*.json.tmp
 /training.json
 /training-data.json
 /test-data.json
