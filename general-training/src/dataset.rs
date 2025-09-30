@@ -13,6 +13,8 @@ pub struct SqliteDatasetConfig {
     pub db_file: PathBuf,
     pub get_sql: String,
     pub len_sql: String,
+    #[config(default = 32)]
+    pub cache_len: usize
 }
 
 pub trait ItemCache<I>: Send + Sync {
@@ -122,7 +124,7 @@ pub struct SqliteDataset<I, C=LruCache<I>> {
 }
 
 impl<I> SqliteDataset<I> {
-    pub fn new(db_file: impl AsRef<Path>, get_sql: String, len_sql: String) -> rusqlite::Result<Self> {
+    pub fn new(db_file: impl AsRef<Path>, get_sql: String, len_sql: String, cache_len: usize) -> rusqlite::Result<Self> {
         let db_file = db_file.as_ref().to_path_buf();
         let conn_queue = SegQueue::new();
         
@@ -133,7 +135,7 @@ impl<I> SqliteDataset<I> {
         Ok(Self {
             conn_queue,
             db_file,
-            cache: LruCache::new(32),
+            cache: LruCache::new(cache_len),
             get_sql,
             cache_hits: AtomicUsize::default(),
             len_sql,
@@ -176,7 +178,7 @@ impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
     type Error = rusqlite::Error;
 
     fn try_from(value: SqliteDatasetConfig) -> Result<Self, Self::Error> {
-        Self::new(value.db_file, value.get_sql, value.len_sql)
+        Self::new(value.db_file, value.get_sql, value.len_sql, value.cache_len)
     }
 }
 

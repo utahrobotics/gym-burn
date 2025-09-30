@@ -1,0 +1,14 @@
+[package]
+name = "general-dataset"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image = { workspace = true, default-features = true }
+clap.workspace = true
+rusqlite.workspace = true
+rand = { workspace = true, features = ["thread_rng"] }
+rand_distr = "0.5.1"
+rayon = "1.11.0"
+sha2 = "0.10.9"
+hex = "0.4.3"

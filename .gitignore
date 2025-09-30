@@ -4,3 +4,8 @@ isthatarock/handwritten/dataset/
 artifacts/
 **.sqlite
 **.sqlite-journal
+
+/model.json
+/training.json
+/training-data.json
+/test-data.json

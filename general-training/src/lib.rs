@@ -5,6 +5,8 @@ use burn::{
 };
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "app")]
+pub mod app;
 pub mod batches;
 pub mod dataset;
 pub mod regression;
