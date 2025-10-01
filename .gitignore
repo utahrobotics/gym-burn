@@ -1,12 +1,18 @@
 /target
-isthatarock/handwritten/dataset/
+datasets/
 .DS_Store
 artifacts/
 **.sqlite
 **.sqlite-journal
 
 /model.json
-/*.json.tmp
+/model.jsonc
+/*.tmp.json
+/*.tmp.jsonc
 /training.json
+/training.jsonc
 /training-data.json
+/training-data.jsonc
 /test-data.json
+/test-data.jsonc
+/dataset-config.jsonc

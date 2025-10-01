@@ -47,6 +47,7 @@ fn train() {
     let train_dataset_config = SqliteDatasetConfig::load("training-data.json").unwrap();
     let test_dataset_config = SqliteDatasetConfig::load("test-data.json").unwrap();
 
+    std::fs::remove_dir_all(&artifact_config.artifact_dir).unwrap();
     std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
 
     let training_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap());
@@ -71,8 +72,8 @@ fn train() {
         &device,
     );
 
-    println!("{} / {}", training_dataset.get_cache_hits(), training_dataset.get_reads());
-    println!("{} / {}", test_dataset.get_cache_hits(), test_dataset.get_reads());
+    println!("Training Cache Performance: {} / {}", training_dataset.get_cache_hits(), training_dataset.get_reads());
+    println!("Testing Cache Performance:  {} / {}", test_dataset.get_cache_hits(), test_dataset.get_reads());
 
     trained
         .model

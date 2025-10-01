@@ -1,66 +1,60 @@
-use clap::{Parser, Subcommand, ValueEnum};
 use image::{ImageBuffer, ImageFormat, Rgb, imageops::{FilterType, resize}};
 use rand::{SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, Normal};
 use rayon::{join, prelude::*};
 use rusqlite::{Connection, params};
+use serde::Deserialize;
 use sha2::Digest;
-use std::io::{Cursor, ErrorKind, Read};
+use utils::parse_json_file;
+use std::{io::{Cursor, ErrorKind, Read}, num::NonZeroU32, process::Stdio};
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Deserialize)]
 enum ProcessStdinPreset {
+    #[serde(rename = "auto-encoder")]
     AutoEncoder,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
 enum ColorSetting {
-    #[clap(name = "c")]
+    #[serde(alias = "c")]
+    #[default]
     Color,
-    #[clap(name = "bw")]
+    #[serde(alias = "bw")]
     BlackAndWhite,
-    #[clap(name = "pb-w")]
+    #[serde(alias = "pb-w")]
     PrimarilyBlackThenWhite,
 }
 
-impl std::fmt::Display for ColorSetting {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ColorSetting::Color => write!(f, "color"),
-            ColorSetting::BlackAndWhite => write!(f, "bw"),
-            ColorSetting::PrimarilyBlackThenWhite => write!(f, "pb-w"),
-        }
+#[derive(Deserialize)]
+pub struct Config {
+    db_path: String,
+    table_name: String,
+    #[serde(default)]
+    noise_levels: Vec<f32>,
+    #[serde(default)]
+    color: ColorSetting,
+    resize_to: Option<[NonZeroU32; 2]>,
+    #[serde(default)]
+    source_command: Vec<String>,
+    preset: ProcessStdinPreset
+}
+
+fn main() {
+    let Config { db_path, table_name, noise_levels, color, resize_to, preset, source_command }: Config = parse_json_file("dataset-config").unwrap();
+    let mut input_reader: Box<dyn Read>;
+    let child;
+    
+    if source_command.is_empty() {
+        input_reader = Box::new(std::io::stdin().lock());
+    } else {
+        let mut string_iter = source_command.into_iter();
+        child = std::process::Command::new(string_iter.next().unwrap())
+            .args(string_iter)
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("Failed to spawn source command");
+        input_reader = Box::new(child.stdout.unwrap());
     }
-}
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    #[arg(short, long)]
-    db_path: String,
-    #[arg(short, long)]
-    table_name: String,
-    #[arg(short, long)]
-    noise_levels: Vec<f32>,
-    #[arg(short, long, value_enum, default_value_t = ColorSetting::Color)]
-    color: ColorSetting,
-    #[arg(long, default_value_t = 28)]
-    width: u32,
-    #[arg(long, default_value_t = 28)]
-    height: u32,
-    #[command(subcommand)]
-    preset: ProcessStdinPreset,
-}
-
-fn process_stdin(
-    db_path: String,
-    table_name: String,
-    noise_levels: Vec<f32>,
-    color: ColorSetting,
-    width: u32,
-    height: u32,
-    preset: ProcessStdinPreset,
-) {
-    let mut stdin = std::io::stdin().lock();
     let conn = Connection::open(db_path).expect("SQLite database should be accessible");
 
     conn.execute(&format!("CREATE TABLE IF NOT EXISTS images (row_id INTEGER PRIMARY KEY, sha256hex TEXT NOT NULL UNIQUE, webp BLOB NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL) STRICT"), ()).unwrap();
@@ -79,13 +73,14 @@ fn process_stdin(
     )
     .unwrap();
 
-    println!("Using noise_levels: {noise_levels:?}");
+    let mut width;
+    let mut height;
 
     match preset {
         ProcessStdinPreset::AutoEncoder => {
             let mut size_buf = [0u8; 4];
             for image_count in 0.. {
-                if let Err(e) = stdin.read_exact(&mut size_buf[0..1]) {
+                if let Err(e) = input_reader.read_exact(&mut size_buf[0..1]) {
                     match e.kind() {
                         ErrorKind::UnexpectedEof => {
                             println!("Processed {image_count} images");
@@ -115,14 +110,20 @@ fn process_stdin(
                     //     stdin.read_exact(&mut image_buf).unwrap();
                     // }
                     1 => {
-                        stdin.read_exact(&mut size_buf).unwrap();
+                        input_reader.read_exact(&mut size_buf).unwrap();
                         let size = u32::from_le_bytes(size_buf);
                         let mut input_buf = vec![0u8; size as usize];
-                        stdin.read_exact(&mut input_buf).unwrap();
+                        input_reader.read_exact(&mut input_buf).unwrap();
                         image = image::load(Cursor::new(input_buf), ImageFormat::Jpeg)
                             .expect("Expected a valid JPEG")
                             .into_rgb8();
-                        image = resize(&image, width, height, FilterType::CatmullRom);
+                        width = image.width();
+                        height = image.height();
+                        if let Some([nwidth, nheight]) = resize_to {
+                            width = nwidth.get();
+                            height = nheight.get();
+                            image = resize(&image, nwidth.get(), nheight.get(), FilterType::CatmullRom);
+                        }
                         
                         match color {
                             ColorSetting::Color => {},
@@ -239,17 +240,4 @@ fn process_stdin(
             }
         }
     }
-}
-
-fn main() {
-    let args = Args::parse();
-    process_stdin(
-        args.db_path,
-        args.table_name,
-        args.noise_levels,
-        args.color,
-        args.width,
-        args.height,
-        args.preset,
-    );
 }
