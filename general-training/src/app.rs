@@ -1,7 +1,9 @@
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
-use crate::batches::AutoEncoderImageItem;
+use crate::batches::{AutoEncoderImageBatch, AutoEncoderImageItem};
 use crate::regression::RegressionTrainableModel;
 use crate::training_loop::simple_regression_training_loop;
 use crate::{
@@ -11,21 +13,50 @@ use crate::{
 };
 use burn::backend::Autodiff;
 use burn::config::Config;
+use burn::data::dataloader::batcher::Batcher;
+use burn::data::dataset::Dataset;
 use burn::module::Module;
-use burn::record::CompactRecorder;
-use general_models::autoencoder::LinearImageAutoEncoderConfig;
+use burn::record::{CompactRecorder, Recorder};
+use clap::{Parser, Subcommand, ValueEnum};
+use general_models::SimpleForwardable;
+use general_models::autoencoder::{LinearImageAutoEncoder, LinearImageAutoEncoderConfig};
+use image::{DynamicImage, ImageBuffer, Luma, LumaA, Rgb, Rgba};
+use rand::{Rng, SeedableRng};
+use rustc_hash::FxHashSet;
+use utils::parse_json_file;
 
-// #[derive(Parser, Debug)]
-// #[command(version, about, long_about = None)]
-// struct Args {
-//     #[command(subcommand)]
-//     command: Command,
-// }
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[command(subcommand)]
+    command: Command,
+}
 
-// #[derive(Debug, Subcommand)]
-// enum Command {
-//     Train,
-// }
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum ModelType {
+    #[clap(name = "auto-encoder")]
+    AutoEncoder
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    Train {
+        #[arg(short, long, value_enum)]
+        model_type: ModelType
+    },
+    Infer {
+        #[arg(short, long, value_enum)]
+        model_type: ModelType,
+        #[arg(short, long)]
+        weights_path: PathBuf,
+        #[arg(long, default_value = "model.json")]
+        config_path: PathBuf,
+        #[arg(short, long, default_value = "5")]
+        count: usize,
+        #[arg(long, default_value = "1")]
+        channels: NonZeroUsize
+    }
+}
 
 #[derive(Debug, Config)]
 struct ArtifactConfig {
@@ -38,47 +69,108 @@ fn train() {
 
     type AutodiffBackend = Autodiff<Backend>;
 
+    let args = Args::parse();
+
     #[cfg(feature = "wgpu")]
     let device = general_models::wgpu::get_device();
 
-    let model_config = LinearImageAutoEncoderConfig::load("model.json").unwrap();
-    let training_config = SimpleTrainingConfig::load("training.json").unwrap();
-    let artifact_config = ArtifactConfig::load("training.json").unwrap();
-    let train_dataset_config = SqliteDatasetConfig::load("training-data.json").unwrap();
-    let test_dataset_config = SqliteDatasetConfig::load("test-data.json").unwrap();
+    match args.command {
+        Command::Train { model_type } => {
+            let training_config: SimpleTrainingConfig = parse_json_file("training").unwrap();
+            let artifact_config: ArtifactConfig = parse_json_file("training").unwrap();
+            let train_dataset_config: SqliteDatasetConfig = parse_json_file("training-data").unwrap();
+            let test_dataset_config: SqliteDatasetConfig = parse_json_file("test-data").unwrap();
 
-    std::fs::remove_dir_all(&artifact_config.artifact_dir).unwrap();
-    std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
+            std::fs::remove_dir_all(&artifact_config.artifact_dir).unwrap();
+            std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
 
-    let training_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap());
-    let test_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap());
+            macro_rules! epilogue {
+                ($training_dataset: ident, $test_dataset: ident, $trained: ident) => {{
+                    println!("Training Cache Performance: {} / {}", $training_dataset.get_cache_hits(), $training_dataset.get_reads());
+                    println!("Testing Cache Performance:  {} / {}", $test_dataset.get_cache_hits(), $test_dataset.get_reads());
+                    $trained
+                        .model
+                        .save_file(artifact_config.artifact_dir.join("model.mpk"), &CompactRecorder::new())
+                        .unwrap();
+                }};
+            }
 
-    let trained = simple_regression_training_loop::<
-        AutodiffBackend,
-        RegressionTrainableModel<_>,
-        _,
-        _,
-        _,
-        _,
-        _,
-        _,
-    >(
-        model_config.init::<_, 3, 2, _, _>(device).into(),
-        training_config,
-        AutoEncoderImageBatcher,
-        training_dataset.clone(),
-        test_dataset.clone(),
-        &artifact_config.artifact_dir,
-        &device,
-    );
+            match model_type {
+                ModelType::AutoEncoder => {
+                    let model_config: LinearImageAutoEncoderConfig = parse_json_file("model").unwrap();
+                    let training_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap());
+                    let test_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap());
+            
+                    let trained = simple_regression_training_loop::<
+                        AutodiffBackend,
+                        RegressionTrainableModel<LinearImageAutoEncoder<_>>,
+                        _,
+                        _,
+                        _,
+                    >(
+                        model_config.init(device).into(),
+                        training_config,
+                        AutoEncoderImageBatcher,
+                        training_dataset.clone(),
+                        test_dataset.clone(),
+                        &artifact_config.artifact_dir,
+                        &device,
+                    );
 
-    println!("Training Cache Performance: {} / {}", training_dataset.get_cache_hits(), training_dataset.get_reads());
-    println!("Testing Cache Performance:  {} / {}", test_dataset.get_cache_hits(), test_dataset.get_reads());
+                    epilogue!(training_dataset, test_dataset, trained);
+                }
+            }
+        },
+        Command::Infer { model_type, weights_path, config_path, count, channels } => {
+            let channels = channels.get();
+            assert!(channels < 5, "Too many channels");
+            let test_dataset_config: SqliteDatasetConfig = parse_json_file("test-data").unwrap();
+            let mut rng = rand::rngs::SmallRng::seed_from_u64(SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs());
 
-    trained
-        .model
-        .save_file(artifact_config.artifact_dir.join("model.mpk"), &CompactRecorder::new())
-        .unwrap();
+            match model_type {
+                ModelType::AutoEncoder => {
+                    let model_config: LinearImageAutoEncoderConfig = parse_json_file(config_path).unwrap();
+                    let mut model: LinearImageAutoEncoder<Backend> = model_config.init(device);
+                    model = model.load_record(CompactRecorder::new().load(weights_path, device).expect("Failed to load weights"));
+                    let test_dataset = Arc::new(SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap());
+                    let mut set = FxHashSet::default();
+
+                    while set.len() < count {
+                        set.insert(rng.random_range(0..test_dataset.len()));
+                    }
+
+                    let batcher = AutoEncoderImageBatcher;
+                    let items: Vec<_> = set.iter().map(|&i| test_dataset.get(i).unwrap()).collect();
+
+                    let width = items.first().unwrap().input_width as u32;
+                    let height = items.first().unwrap().input_height as u32;
+
+                    let batch: AutoEncoderImageBatch<Backend> = batcher.batch(items, device);
+                    let actual = model.forward(batch.input.clone());
+
+                    let mut pixels = vec![];
+
+                    for (actual, input) in actual.iter_dim(0).zip(batch.input.iter_dim(0)) {
+                        pixels.extend(input.into_data().iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8));
+                        pixels.extend(actual.into_data().iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8));
+                    }
+
+                    let img: Option<DynamicImage> = match channels {
+                        1 => ImageBuffer::<Luma<u8>, _>::from_raw(width, height, pixels).map(Into::into),
+                        2 => ImageBuffer::<LumaA<u8>, _>::from_raw(width, height, pixels).map(Into::into),
+                        3 => ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, pixels).map(Into::into),
+                        4 => ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, pixels).map(Into::into),
+                        _ => unreachable!()
+                    };
+
+                    img
+                        .expect("Dimensions mismatch. The auto encoder must accept only one size of image and output that same size")
+                        .save("inferrence.png")
+                        .unwrap();
+                }
+            }
+        }
+    }
 }
 
 pub fn main() {

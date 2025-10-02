@@ -38,21 +38,18 @@ pub struct SimpleTrainingConfig {
 pub fn simple_training_loop<
     B,
     M,
-    BatcherTy,
     BatchTraining,
     BatchValid,
     I,
     OutputTraining,
     OutputValid,
-    D1,
-    D2,
     BSync,
 >(
     model: M,
     training_config: SimpleTrainingConfig,
-    batcher: BatcherTy,
-    training_dataset: D1,
-    validation_dataset: D2,
+    batcher: impl Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    training_dataset: impl Dataset<I> + 'static,
+    validation_dataset: impl Dataset<I> + 'static,
     artifact_dir: impl AsRef<Path>,
     device: &B::Device,
 ) -> M::InnerModule
@@ -60,15 +57,11 @@ where
     B: AutodiffBackend,
     BSync: Backend,
     I: Clone + Debug + Send + Sync + 'static,
-    BatcherTy:
-        Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
     BatchTraining: Clone + Debug + Send + 'static,
     BatchValid: Clone + Debug + Send + 'static,
     OutputTraining: ItemLazy + 'static,
     OutputValid: ItemLazy + 'static,
     M: AutodiffModule<B> + Display + TrainStep<BatchTraining, OutputTraining> + 'static,
-    D1: Dataset<I> + 'static,
-    D2: Dataset<I> + 'static,
     M::Record: 'static,
     M::InnerModule: ValidStep<BatchValid, OutputValid>,
     <OutputTraining as ItemLazy>::ItemSync: Adaptor<LossInput<BSync>>,
@@ -104,25 +97,21 @@ where
     model_trained.model
 }
 
-pub fn simple_regression_training_loop<B, M, BatcherTy, BatchTraining, BatchValid, I, D1, D2>(
+pub fn simple_regression_training_loop<B, M, BatchTraining, BatchValid, I>(
     model: M,
     training_config: SimpleTrainingConfig,
-    batcher: BatcherTy,
-    training_dataset: D1,
-    validation_dataset: D2,
+    batcher: impl Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    training_dataset: impl Dataset<I> + 'static,
+    validation_dataset: impl Dataset<I> + 'static,
     artifact_dir: impl AsRef<Path>,
     device: &B::Device,
 ) -> M::InnerModule
 where
     B: AutodiffBackend,
     I: Clone + Debug + Send + Sync + 'static,
-    BatcherTy:
-        Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
     BatchTraining: Clone + Debug + Send + 'static,
     BatchValid: Clone + Debug + Send + 'static,
     M: AutodiffModule<B> + Display + TrainStep<BatchTraining, RegressionOutput<B>> + 'static,
-    D1: Dataset<I> + 'static,
-    D2: Dataset<I> + 'static,
     M::Record: 'static,
     M::InnerModule: ValidStep<BatchValid, RegressionOutput<B::InnerBackend>>,
 {

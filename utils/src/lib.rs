@@ -6,7 +6,11 @@ use serde::de::{DeserializeOwned, Error};
 pub fn parse_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> serde_json::Result<T> {
     let path = path.as_ref();
 
-    assert!(path.extension().is_none(), "The given path should not have an extension");
+
+    assert!(
+        matches!(path.extension().map(|x| x.to_str()).flatten(), None | Some("json") | Some("jsonc")),
+        "The given path should not have an extension, or it should be json or jsonc"
+    );
 
     let mut path = path.with_extension("jsonc");
     if !path.exists() {

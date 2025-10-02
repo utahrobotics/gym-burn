@@ -3,7 +3,7 @@ use std::{fmt, marker::PhantomData};
 use crate::{FromConfig, SimpleForwardable, serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig}};
 
 use burn::{
-    Tensor,
+    tensor::Tensor,
     config::Config,
     module::{AutodiffModule, Module},
     nn::{
