@@ -8,7 +8,11 @@ use rusqlite::{Connection, params};
 use serde::Deserialize;
 use sha2::Digest;
 use std::{
-    collections::VecDeque, io::{Cursor, ErrorKind, Read}, num::NonZeroU32, process::Stdio, rc::Rc
+    collections::VecDeque,
+    io::{Cursor, ErrorKind, Read},
+    num::NonZeroU32,
+    process::Stdio,
+    rc::Rc,
 };
 use utils::parse_json_file;
 
@@ -107,13 +111,24 @@ fn main() {
     )
     .unwrap();
 
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_images_row_id ON images (row_id);", ()).unwrap();
-    conn.execute(&format!("CREATE INDEX IF NOT EXISTS idx_{table_name}_row_id_range ON {table_name} (row_id)"), ()).unwrap();
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_images_row_id ON images (row_id);",
+        (),
+    )
+    .unwrap();
+    conn.execute(
+        &format!(
+            "CREATE INDEX IF NOT EXISTS idx_{table_name}_row_id_range ON {table_name} (row_id)"
+        ),
+        (),
+    )
+    .unwrap();
     conn.execute(&format!("CREATE INDEX IF NOT EXISTS idx_{table_name}_input_expected ON {table_name} (input, expected)"), ()).unwrap();
 
     match preset {
         ProcessStdinPreset::AutoEncoder => {
-            let (sender, receiver) = std::sync::mpsc::sync_channel::<(u32, u32, Vec<u8>, Vec<Vec<u8>>)>(32);
+            let (sender, receiver) =
+                std::sync::mpsc::sync_channel::<(u32, u32, Vec<u8>, Vec<Vec<u8>>)>(32);
 
             let join = std::thread::spawn(move || {
                 let mut insert_image_stmt = conn
@@ -162,43 +177,41 @@ fn main() {
                         let (width1, height1, webp1, hash1) = images.pop_front().unwrap();
                         let (width2, height2, webp2, hash2) = images.pop_front().unwrap();
                         let (width3, height3, webp3, hash3) = images.pop_front().unwrap();
-                        multi_insert_image_stmt.execute(
-                            params![
-                                hash0, webp0, width0, height0,
-                                hash1, webp1, width1, height1,
-                                hash2, webp2, width2, height2,
-                                hash3, webp3, width3, height3
-                            ]
-                        ).unwrap();
+                        multi_insert_image_stmt
+                            .execute(params![
+                                hash0, webp0, width0, height0, hash1, webp1, width1, height1,
+                                hash2, webp2, width2, height2, hash3, webp3, width3, height3
+                            ])
+                            .unwrap();
                     }
                     while pairs.len() >= 4 {
                         let (original_hash0, noisy_hash0) = pairs.pop_front().unwrap();
                         let (original_hash1, noisy_hash1) = pairs.pop_front().unwrap();
                         let (original_hash2, noisy_hash2) = pairs.pop_front().unwrap();
                         let (original_hash3, noisy_hash3) = pairs.pop_front().unwrap();
-                        multi_insert_table_stmt.execute(
-                            params![
-                                noisy_hash0, original_hash0,
-                                noisy_hash1, original_hash1,
-                                noisy_hash2, original_hash2,
-                                noisy_hash3, original_hash3
-                            ]
-                        ).unwrap();
+                        multi_insert_table_stmt
+                            .execute(params![
+                                noisy_hash0,
+                                original_hash0,
+                                noisy_hash1,
+                                original_hash1,
+                                noisy_hash2,
+                                original_hash2,
+                                noisy_hash3,
+                                original_hash3
+                            ])
+                            .unwrap();
                     }
                 }
                 for (width, height, webp, hash) in images {
-                    insert_image_stmt.execute(
-                        params![
-                            webp, hash, width, height
-                        ]
-                    ).unwrap();
+                    insert_image_stmt
+                        .execute(params![webp, hash, width, height])
+                        .unwrap();
                 }
                 for (original_hash, noisy_hash) in pairs {
-                    insert_table_stmt.execute(
-                        params![
-                            noisy_hash, original_hash
-                        ]
-                    ).unwrap();
+                    insert_table_stmt
+                        .execute(params![noisy_hash, original_hash])
+                        .unwrap();
                 }
             });
 
@@ -256,7 +269,8 @@ fn main() {
                                     p.0 = [avg, avg, avg];
                                 });
                                 if color == ColorSetting::PrimarilyBlackThenWhite {
-                                    let white_count: usize = image.pixels().filter(|p| p.0[0] > 127).map(|_| 1).sum();
+                                    let white_count: usize =
+                                        image.pixels().filter(|p| p.0[0] > 127).map(|_| 1).sum();
                                     if white_count > width as usize * height as usize / 2 {
                                         image.par_pixels_mut().for_each(|p| {
                                             let inverted = 255 - p.0[0];
@@ -283,60 +297,70 @@ fn main() {
 
                 let x = flips(Some(image).into_par_iter());
                 let x = rotations(x, rotations_count, Rgb::black());
-                let x = translations(x, translations_count, translation_std_dev_multiplier, Rgb::black());
+                let x = translations(
+                    x,
+                    translations_count,
+                    translation_std_dev_multiplier,
+                    Rgb::black(),
+                );
                 let images: Vec<_> = x.collect();
 
-                images.into_iter()
-                    .for_each(|image| {
-                        let original_webp_buf = {
-                            let mut webp_buf = Cursor::new(vec![]);
-                            image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
-                            webp_buf.into_inner()
-                        };
-                        // let original_sha256hex = hex_hash(&original_webp_buf);
-                        
-                        // insert_image_stmt
-                        //     .execute(params![original_sha256hex, original_webp_buf, width, height])
-                        //     .unwrap();
+                images.into_iter().for_each(|image| {
+                    let original_webp_buf = {
+                        let mut webp_buf = Cursor::new(vec![]);
+                        image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
+                        webp_buf.into_inner()
+                    };
+                    // let original_sha256hex = hex_hash(&original_webp_buf);
 
-                        let x = noises(Some(image).into_par_iter(), noises_count, noise_levels.par_iter().copied());
-                        let webp_images: Vec<_> = to_webp(x).collect();
-                        sender.send((width, height, original_webp_buf, webp_images)).unwrap();
+                    // insert_image_stmt
+                    //     .execute(params![original_sha256hex, original_webp_buf, width, height])
+                    //     .unwrap();
 
-                        // webp_images
-                        //     .chunks(4)
-                        //     .for_each(|webp_bufs| {
-                        //         if webp_bufs.len() == 4 {
-                        //             let sha256hex0 = hex_hash(&webp_bufs[0]);
-                        //             let sha256hex1 = hex_hash(&webp_bufs[1]);
-                        //             let sha256hex2 = hex_hash(&webp_bufs[2]);
-                        //             let sha256hex3 = hex_hash(&webp_bufs[3]);
-                        //             multi_insert_image_stmt
-                        //                 .execute(params![
-                        //                     width, height,
-                        //                     sha256hex0, webp_bufs[0],
-                        //                     sha256hex1, webp_bufs[1],
-                        //                     sha256hex2, webp_bufs[2],
-                        //                     sha256hex3, webp_bufs[3],
-                        //                 ])
-                        //                 .unwrap();
-                        //             multi_insert_table_stmt
-                        //                 .execute(params![original_sha256hex, sha256hex0, sha256hex1, sha256hex2, sha256hex3])
-                        //                 .unwrap();
-                        //         } else {
-                        //             webp_bufs.iter()
-                        //                 .for_each(|webp_buf| {
-                        //                     let sha256hex = hex_hash(webp_buf);
-                        //                     insert_image_stmt
-                        //                         .execute(params![sha256hex, webp_buf, width, height])
-                        //                         .unwrap();
-                        //                     insert_table_stmt
-                        //                         .execute(params![sha256hex, original_sha256hex])
-                        //                         .unwrap();
-                        //                 });
-                        //         }
-                        //     });
-                    });
+                    let x = noises(
+                        Some(image).into_par_iter(),
+                        noises_count,
+                        noise_levels.par_iter().copied(),
+                    );
+                    let webp_images: Vec<_> = to_webp(x).collect();
+                    sender
+                        .send((width, height, original_webp_buf, webp_images))
+                        .unwrap();
+
+                    // webp_images
+                    //     .chunks(4)
+                    //     .for_each(|webp_bufs| {
+                    //         if webp_bufs.len() == 4 {
+                    //             let sha256hex0 = hex_hash(&webp_bufs[0]);
+                    //             let sha256hex1 = hex_hash(&webp_bufs[1]);
+                    //             let sha256hex2 = hex_hash(&webp_bufs[2]);
+                    //             let sha256hex3 = hex_hash(&webp_bufs[3]);
+                    //             multi_insert_image_stmt
+                    //                 .execute(params![
+                    //                     width, height,
+                    //                     sha256hex0, webp_bufs[0],
+                    //                     sha256hex1, webp_bufs[1],
+                    //                     sha256hex2, webp_bufs[2],
+                    //                     sha256hex3, webp_bufs[3],
+                    //                 ])
+                    //                 .unwrap();
+                    //             multi_insert_table_stmt
+                    //                 .execute(params![original_sha256hex, sha256hex0, sha256hex1, sha256hex2, sha256hex3])
+                    //                 .unwrap();
+                    //         } else {
+                    //             webp_bufs.iter()
+                    //                 .for_each(|webp_buf| {
+                    //                     let sha256hex = hex_hash(webp_buf);
+                    //                     insert_image_stmt
+                    //                         .execute(params![sha256hex, webp_buf, width, height])
+                    //                         .unwrap();
+                    //                     insert_table_stmt
+                    //                         .execute(params![sha256hex, original_sha256hex])
+                    //                         .unwrap();
+                    //                 });
+                    //         }
+                    //     });
+                });
             }
         }
     }

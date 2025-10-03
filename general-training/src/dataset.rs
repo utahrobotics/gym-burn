@@ -198,12 +198,9 @@ impl<I, C> SqliteDataset<I, C> {
 #[derive(Error, Debug)]
 pub enum SqliteConfigError {
     #[error("Failed to read the SQL file {path}: {error}")]
-    ReadSQLFile {
-        path: String,
-        error: std::io::Error
-    },
+    ReadSQLFile { path: String, error: std::io::Error },
     #[error("{0}")]
-    RusqliteError(#[from] rusqlite::Error)
+    RusqliteError(#[from] rusqlite::Error),
 }
 
 impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
@@ -211,7 +208,10 @@ impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
 
     fn try_from(value: SqliteDatasetConfig) -> Result<Self, Self::Error> {
         let get_sql = if let Some(path) = value.get_sql.strip_prefix('@') {
-            std::fs::read_to_string(path).map_err(|error| SqliteConfigError::ReadSQLFile { path: path.into(), error })?
+            std::fs::read_to_string(path).map_err(|error| SqliteConfigError::ReadSQLFile {
+                path: path.into(),
+                error,
+            })?
         } else {
             value.get_sql
         };
