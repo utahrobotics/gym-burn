@@ -4,6 +4,7 @@ datasets/
 artifacts/
 **.sqlite
 **.sqlite-journal
+/.venv/
 
 /model.json
 /model.jsonc
@@ -17,6 +18,7 @@ artifacts/
 /test-data.jsonc
 /dataset-config.jsonc
 /*.sql
+/pca_visualization.png
 
 inference.webp
 
