@@ -8,11 +8,14 @@ general-models.workspace = true
 burn.workspace = true
 linfa.workspace = true
 utils.workspace = true
+rustc-hash.workspace = true
 linfa-clustering = "0.8.0"
 image = { workspace = true, optional = true, default-features = true }
 imageproc.workspace = true
 clap = { workspace = true, optional = true }
+general-training = { path = "../../general-training", optional = true, default-features = false }
+ndarray = { version = "0.16.1", optional = true }
 
 [features]
-app = ["image", "general-models/wgpu", "clap"]
+app = ["image", "general-models/wgpu", "clap", "general-training", "ndarray"]
 default = ["app"]

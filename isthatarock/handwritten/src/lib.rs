@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use std::path::Path;
 
 use burn::{
@@ -35,6 +36,10 @@ impl<B: Backend> ImageEncoder<B> {
             encoder,
             device: device.clone(),
         })
+    }
+
+    pub fn get_encoder(&self) -> &SimpleLumaImageEncoder<B> {
+        &self.encoder
     }
 
     /// Encodes the given Luma images with edge-detection already performed.

@@ -24,5 +24,6 @@ inference.webp
 /*.sh
 **.out
 **.log
+/*.csv
 
 **/slurmjob-*
