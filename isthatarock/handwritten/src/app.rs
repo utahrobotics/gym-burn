@@ -56,7 +56,7 @@ pub fn main() {
                 let dataset: SqliteDataset<Arc<AutoEncoderImageItem>> = dataset_config.try_into().unwrap();
 
                 let mut batch_items = Vec::with_capacity(batch_size);
-                for i in 1..dataset.len() {
+                for i in 0..dataset.len() {
                     batch_items.push(dataset.get(i).unwrap());
                     if batch_items.len() >= batch_size {
                         let batch = batcher.batch(std::mem::replace(&mut batch_items, Vec::with_capacity(batch_size)), device);

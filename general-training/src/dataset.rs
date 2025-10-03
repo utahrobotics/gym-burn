@@ -1,8 +1,5 @@
 use std::{
-    marker::PhantomData,
-    num::NonZeroUsize,
-    path::{Path, PathBuf},
-    sync::atomic::{AtomicUsize, Ordering},
+    marker::PhantomData, num::NonZeroUsize, path::{Path, PathBuf}, sync::atomic::{AtomicUsize, Ordering}
 };
 
 use burn::{config::Config, data::dataset::Dataset};
@@ -142,8 +139,11 @@ impl<I> SqliteDataset<I> {
         let conn_queue = SegQueue::new();
 
         let conn = Connection::open(&db_file)?;
-        conn.prepare_cached(&get_sql)?;
-        conn.prepare_cached(&len_sql)?;
+        let stmt = conn.prepare_cached(&get_sql)?;
+        assert!(stmt.column_names().iter().find(|name| **name == "row_id").is_some(), "get_sql does not output a `row_id` column");
+
+        let stmt = conn.prepare_cached(&len_sql)?;
+        assert!(stmt.column_names().iter().find(|name| **name == "len").is_some(), "len_sql does not output a `len` column");
 
         Ok(Self {
             conn_queue,
@@ -220,7 +220,9 @@ impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
 }
 
 impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
-    fn get(&self, index: usize) -> Option<I> {
+    fn get(&self, mut index: usize) -> Option<I> {
+        // sqlite starts at 1
+        index += 1;
         self.reads.fetch_add(1, Ordering::Relaxed);
         if let Some(item) = self.cache.get(index) {
             self.cache_hits.fetch_add(1, Ordering::Relaxed);
@@ -262,7 +264,7 @@ impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
                 let mut item: I = serde_json::from_value(map.into())
                     .expect("Deserialization should be successful");
                 if add_to_cache {
-                    item = self.cache.set(index, item);
+                    item = self.cache.set(retrieved_index, item);
                 }
                 if retrieved_index == index {
                     selected_item = Some(item);

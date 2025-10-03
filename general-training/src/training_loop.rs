@@ -74,19 +74,19 @@ where
 
     let dataloader_train = DataLoaderBuilder::new(batcher.clone())
         .batch_size(training_config.batch_size)
-        .shuffle(training_config.seed)
+        // .shuffle(training_config.seed)
         .num_workers(training_config.num_workers)
         .build(training_dataset);
 
     let dataloader_valid = DataLoaderBuilder::new(batcher)
         .batch_size(training_config.batch_size)
-        .shuffle(training_config.seed)
+        // .shuffle(training_config.seed)
         .num_workers(training_config.num_workers)
         .build(validation_dataset);
 
     let learner = LearnerBuilder::new(artifact_dir)
         .metric_train_numeric(LossMetric::new())
-        // .metric_valid_numeric(LossMetric::new())
+        .metric_valid_numeric(LossMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
         .num_epochs(training_config.num_epochs)
         .summary()
