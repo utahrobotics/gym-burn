@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "general-dataset", "general-models", "general-training", "utils"]
+members = [ "general-dataset", "general-models", "general-training", "isthatarock/handwritten", "utils"]
 
 [workspace.dependencies]
 general-models.path = "general-models"
@@ -16,3 +16,5 @@ clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 serde_json = "1.0.145"
 json_comments = "0.2.2"
+thiserror = "2.0.17"
+imageproc = "0.25.0"

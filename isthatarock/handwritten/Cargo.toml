@@ -1,0 +1,18 @@
+[package]
+name = "handwritten"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+general-models.workspace = true
+burn.workspace = true
+linfa.workspace = true
+utils.workspace = true
+linfa-clustering = "0.8.0"
+image = { workspace = true, optional = true, default-features = true }
+imageproc.workspace = true
+clap = { workspace = true, optional = true }
+
+[features]
+app = ["image", "general-models/wgpu", "clap"]
+default = ["app"]

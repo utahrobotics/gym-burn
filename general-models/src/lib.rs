@@ -2,6 +2,9 @@ use burn::{Tensor, module::Module, prelude::Backend};
 
 pub mod autoencoder;
 pub mod serde_fix;
+
+pub mod error;
+
 pub trait FromConfig<B: Backend> {
     type Config;
 

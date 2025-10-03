@@ -16,10 +16,10 @@ dashmap = "6.1.0"
 parking_lot = "0.12.4"
 lru = "0.16.1"
 serde_json.workspace = true
+thiserror.workspace = true
 utils = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
-thiserror = "2.0.17"
 quanta = "0.12.6"
 
 [features]

@@ -6,6 +6,8 @@ edition = "2024"
 [dependencies]
 burn.workspace = true
 serde.workspace = true
+thiserror.workspace = true
+serde_json.workspace = true
 
 [features]
 wgpu = ["burn/wgpu"]
