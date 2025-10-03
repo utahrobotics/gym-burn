@@ -2,9 +2,8 @@ use image::{
     ImageBuffer, ImageFormat, Rgb,
     imageops::{FilterType, resize},
 };
-use rand::{SeedableRng, rngs::SmallRng};
-use rand_distr::{Distribution, Normal};
-use rayon::{join, prelude::*};
+use imageproc::definitions::HasBlack;
+use rayon::prelude::*;
 use rusqlite::{Connection, params};
 use serde::Deserialize;
 use sha2::Digest;
@@ -14,6 +13,10 @@ use std::{
     process::Stdio,
 };
 use utils::parse_json_file;
+
+use crate::image_gen::{flips, noises, rotations, to_webp, translations};
+
+mod image_gen;
 
 #[derive(Debug, Deserialize)]
 enum ProcessStdinPreset {
@@ -36,8 +39,12 @@ enum ColorSetting {
 pub struct Config {
     db_path: String,
     table_name: String,
+    rotations_count: usize,
+    translations_count: usize,
+    translation_std_dev_multiplier: f32,
+    noises_count: usize,
     #[serde(default)]
-    noise_levels: Vec<f32>,
+    noise_levels: Vec<f64>,
     #[serde(default)]
     color: ColorSetting,
     resize_to: Option<[NonZeroU32; 2]>,
@@ -55,6 +62,10 @@ fn main() {
         resize_to,
         preset,
         source_command,
+        rotations_count,
+        translations_count,
+        translation_std_dev_multiplier,
+        noises_count,
     }: Config = parse_json_file("dataset-config").unwrap();
     let mut input_reader: Box<dyn Read>;
     let child;
@@ -109,21 +120,6 @@ fn main() {
                 let mut image: ImageBuffer<Rgb<u8>, Vec<_>>;
                 match format_byte {
                     0 => unimplemented!("Raw pixel data is currently unsupported"),
-                    // 0 => {
-                    //     stdin.read_exact(&mut size_buf).unwrap();
-                    //     width = u32::from_le_bytes(size_buf);
-                    //     stdin.read_exact(&mut size_buf).unwrap();
-                    //     height = u32::from_le_bytes(size_buf);
-                    //     stdin.read_exact(&mut size_buf[0..1]).unwrap();
-                    //     channels = size_buf[0];
-
-                    //     if !matches!(channels, 1 | 2 | 3 | 4) {
-                    //         panic!("Unsupported number of channels: {channels}");
-                    //     }
-
-                    //     image_buf = vec![0u8; width as usize * height as usize * channels as usize];
-                    //     stdin.read_exact(&mut image_buf).unwrap();
-                    // }
                     1 => {
                         input_reader.read_exact(&mut size_buf).unwrap();
                         let size = u32::from_le_bytes(size_buf);
@@ -150,17 +146,24 @@ fn main() {
                                     p.0 = [avg, avg, avg];
                                 });
                                 if color == ColorSetting::PrimarilyBlackThenWhite {
-                                    let mut bytes: Vec<_> =
-                                        image.pixels().map(|p| p.0[0]).collect();
-                                    bytes.sort_unstable();
-                                    let median = bytes[bytes.len() / 2];
-
-                                    if median > 127 {
+                                    let white_count: usize = image.pixels().filter(|p| p.0[0] > 127).map(|_| 1).sum();
+                                    if white_count > width as usize * height as usize / 2 {
                                         image.par_pixels_mut().for_each(|p| {
                                             let inverted = 255 - p.0[0];
                                             p.0 = [inverted, inverted, inverted];
                                         });
                                     }
+                                    // let mut bytes: Vec<_> =
+                                    //     image.pixels().map(|p| p.0[0]).collect();
+                                    // bytes.sort_unstable();
+                                    // let median = bytes[bytes.len() / 2];
+
+                                    // if median > 127 {
+                                    //     image.par_pixels_mut().for_each(|p| {
+                                    //         let inverted = 255 - p.0[0];
+                                    //         p.0 = [inverted, inverted, inverted];
+                                    //     });
+                                    // }
                                 }
                             }
                         }
@@ -168,62 +171,36 @@ fn main() {
                     _ => panic!("Unsupported format byte: {format_byte}"),
                 }
 
-                let (original_webp_buf, noisy_webp_bufs) = join(
-                    || {
-                        let mut webp_buf = Cursor::new(vec![]);
-                        image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
-                        webp_buf.into_inner()
-                    },
-                    || {
-                        noise_levels
-                            .par_iter()
-                            .map(|&std_dev| {
-                                let mut rng = SmallRng::from_rng(&mut rand::rng());
-                                let new_image_buf: Vec<_>;
-                                if color == ColorSetting::Color {
-                                    new_image_buf = image
-                                        .iter()
-                                        .map(|&p| {
-                                            Normal::new(p as f32, std_dev)
-                                                .unwrap()
-                                                .sample(&mut rng)
-                                                .round()
-                                                .clamp(0.0, 255.0)
-                                                as u8
-                                        })
-                                        .collect();
-                                } else {
-                                    new_image_buf = image
-                                        .pixels()
-                                        .flat_map(|&p| {
-                                            let new_p = Normal::new(p.0[0] as f32, std_dev)
-                                                .unwrap()
-                                                .sample(&mut rng)
-                                                .round()
-                                                .clamp(0.0, 255.0)
-                                                as u8;
-                                            [new_p, new_p, new_p]
-                                        })
-                                        .collect();
-                                }
-                                let image = ImageBuffer::<Rgb<u8>, _>::from_raw(
-                                    width,
-                                    height,
-                                    new_image_buf,
-                                )
-                                .unwrap();
-                                let mut webp_buf = Cursor::new(vec![]);
-                                image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
-                                webp_buf.into_inner()
-                            })
-                            .collect::<Vec<_>>()
-                    },
-                );
+                let original_webp_buf = {
+                    let mut webp_buf = Cursor::new(vec![]);
+                    image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
+                    webp_buf.into_inner()
+                };
+                let hash = sha2::Sha256::digest(&original_webp_buf);
+                let mut hex_out = vec![0u8; 64];
+                hex::encode_to_slice(hash, &mut hex_out).unwrap();
+                let original_sha256hex = String::from_utf8(hex_out).unwrap();
+
+                let x = flips(Some(image).into_par_iter());
+                let x = rotations(x, rotations_count, Rgb::black());
+                let x = translations(x, translations_count, translation_std_dev_multiplier, Rgb::black());
+                let x = noises(x, noises_count, noise_levels.par_iter().copied());
+                let webp_images: Vec<_> = to_webp(x).collect();
+
                 let mut insert_image_stmt = conn
-                    .prepare("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")
+                    .prepare_cached("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")
                     .unwrap();
+
+                insert_image_stmt
+                    .execute(params![original_sha256hex, original_webp_buf, width, height])
+                    .unwrap();
+
+                let mut multi_insert_image_stmt = conn
+                    .prepare_cached("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?3, ?4, ?1, ?2), (?5, ?6, ?1, ?2), (?7, ?8, ?1, ?2), (?9, ?10, ?1, ?2)")
+                    .unwrap();
+
                 let mut insert_table_stmt = conn
-                    .prepare(&format!(
+                    .prepare_cached(&format!(
                         "INSERT OR IGNORE INTO {table_name} (input, expected) 
                             SELECT i1.row_id, i2.row_id 
                             FROM images i1, images i2 
@@ -231,27 +208,59 @@ fn main() {
                     ))
                     .unwrap();
 
-                let hash = sha2::Sha256::digest(&original_webp_buf);
-                let mut hex_out = vec![0u8; 64];
-                hex::encode_to_slice(hash, &mut hex_out).unwrap();
-                let original_sha256hex = String::from_utf8(hex_out).unwrap();
+                let mut multi_insert_table_stmt = conn
+                    .prepare_cached(&format!(
+                        "INSERT OR IGNORE INTO {table_name} (input, expected) 
+                            SELECT i1.row_id, i2.row_id 
+                            FROM images i1, images i2 
+                            WHERE
+                                (i1.sha256hex = ?2 AND i2.sha256hex = ?1) OR
+                                (i1.sha256hex = ?3 AND i2.sha256hex = ?1) OR
+                                (i1.sha256hex = ?4 AND i2.sha256hex = ?1) OR
+                                (i1.sha256hex = ?5 AND i2.sha256hex = ?1)"
+                    ))
+                    .unwrap();
 
-                noisy_webp_bufs
-                    .iter()
-                    .map(|webp_buf| {
-                        let hash = sha2::Sha256::digest(&webp_buf);
-                        let mut hex_out = vec![0u8; 64];
-                        hex::encode_to_slice(hash, &mut hex_out).unwrap();
-                        (String::from_utf8(hex_out).unwrap(), webp_buf)
-                    })
-                    .chain(Some((original_sha256hex.clone(), &original_webp_buf)))
-                    .for_each(|(sha256hex, webp_buf)| {
-                        insert_image_stmt
-                            .execute(params![sha256hex, webp_buf, width, height])
-                            .unwrap();
-                        insert_table_stmt
-                            .execute(params![sha256hex, original_sha256hex])
-                            .unwrap();
+                let hex_hash = |bytes: &[u8]| {
+                    let hash = sha2::Sha256::digest(bytes);
+                    let mut hex_out = vec![0u8; 64];
+                    hex::encode_to_slice(hash, &mut hex_out).unwrap();
+                    String::from_utf8(hex_out).unwrap()
+                };
+                let original_sha256hex = hex_hash(&original_webp_buf);
+
+                webp_images
+                    .chunks(4)
+                    .for_each(|webp_bufs| {
+                        if webp_bufs.len() == 4 {
+                            let sha256hex0 = hex_hash(&webp_bufs[0]);
+                            let sha256hex1 = hex_hash(&webp_bufs[1]);
+                            let sha256hex2 = hex_hash(&webp_bufs[2]);
+                            let sha256hex3 = hex_hash(&webp_bufs[3]);
+                            multi_insert_image_stmt
+                                .execute(params![
+                                    width, height,
+                                    sha256hex0, webp_bufs[0],
+                                    sha256hex1, webp_bufs[1],
+                                    sha256hex2, webp_bufs[2],
+                                    sha256hex3, webp_bufs[3],
+                                ])
+                                .unwrap();
+                            multi_insert_table_stmt
+                                .execute(params![original_sha256hex, sha256hex0, sha256hex1, sha256hex2, sha256hex3])
+                                .unwrap();
+                        } else {
+                            webp_bufs.iter()
+                                .for_each(|webp_buf| {
+                                    let sha256hex = hex_hash(webp_buf);
+                                    insert_image_stmt
+                                        .execute(params![sha256hex, webp_buf, width, height])
+                                        .unwrap();
+                                    insert_table_stmt
+                                        .execute(params![sha256hex, original_sha256hex])
+                                        .unwrap();
+                                });
+                        }
                     });
             }
         }

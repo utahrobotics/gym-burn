@@ -14,3 +14,4 @@ sha2 = "0.10.9"
 hex = "0.4.3"
 serde_json.workspace = true
 utils.workspace = true
+imageproc = "0.25.0"
