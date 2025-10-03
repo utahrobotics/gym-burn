@@ -1,0 +1,27 @@
+{
+    "encoder_config": {
+        "encoder_convolutions": [],
+        "encoder_linears": [
+            [{ "d_input": 784, "d_output": 250 }, true],
+            [{ "d_input": 250, "d_output": 80 }, true],
+            [{ "d_input": 80, "d_output": 25 }, true],
+            [{ "d_input": 25, "d_output": 8 }, true]
+        ],
+        "linear_dropout": { "prob": 0.0 },
+        "conv_dropout": { "prob": 0.0 }
+    },
+    "decoder_config": {
+        "decoder_linears": [
+            [{ "d_input": 8, "d_output": 96 }, true],
+            [{ "d_input": 96, "d_output": 1024 }, true]
+        ],
+        "cnn_input_shape": [8, 8],
+        "decoder_convolutions": [
+            [{ "channels": [16, 8], "kernel_size": [3, 3], "stride": [2, 2], "padding": [1, 1] }, true],
+            [{ "channels": [8, 1], "kernel_size": [5, 5], "stride": [2, 2], "padding": [3, 3], "padding_out": [1, 1] }, true]
+        ],
+        "linear_dropout": { "prob": 0.0 },
+        "conv_dropout": { "prob": 0.0 },
+        "output_size": [24, 24]
+    }
+}
