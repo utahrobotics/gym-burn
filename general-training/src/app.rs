@@ -70,6 +70,9 @@ pub fn main() {
     #[cfg(feature = "rocm")]
     type Backend = general_models::rocm::RocmBackend;
 
+    #[cfg(feature = "cuda")]
+    type Backend = general_models::cuda::CudaBackend;
+
     type AutodiffBackend = Autodiff<Backend>;
 
     let args = Args::parse();
@@ -80,6 +83,9 @@ pub fn main() {
     #[cfg(feature = "rocm")]
     let device = general_models::rocm::get_device();
 
+    #[cfg(feature = "cuda")]
+    let device = general_models::cuda::get_device();
+
     match args.command {
         Command::Train { model_type } => {
             let training_config: SimpleTrainingConfig = parse_json_file("training").unwrap();
@@ -88,7 +94,7 @@ pub fn main() {
                 parse_json_file("training-data").unwrap();
             let test_dataset_config: SqliteDatasetConfig = parse_json_file("test-data").unwrap();
 
-            std::fs::remove_dir_all(&artifact_config.artifact_dir).unwrap();
+            let _ = std::fs::remove_dir_all(&artifact_config.artifact_dir);
             std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
 
             macro_rules! epilogue {

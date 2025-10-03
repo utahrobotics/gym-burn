@@ -18,3 +18,10 @@ artifacts/
 /dataset-config.jsonc
 
 inference.webp
+
+/*.bat
+/*.sh
+**.out
+**.log
+
+**/slurmjob-*
