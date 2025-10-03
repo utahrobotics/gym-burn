@@ -222,7 +222,10 @@ pub fn main() {
                     let mosaic_height = height * count as u32;
 
                     let batch: AutoEncoderImageBatch<Backend> = batcher.batch(items, device);
+                    let now = quanta::Instant::now();
                     let actual = model.forward(batch.input.clone()).clamp(0.0, 1.0);
+                    let elapsed = now.elapsed();
+                    println!("Forwarded in {:.2}s", elapsed.as_secs_f32());
 
                     let mut pixels = vec![];
 
