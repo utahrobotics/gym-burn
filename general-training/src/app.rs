@@ -143,7 +143,9 @@ fn train() {
                     let items: Vec<_> = set.iter().map(|&i| test_dataset.get(i).unwrap()).collect();
 
                     let width = items.first().unwrap().input_width as u32;
+                    let mosaic_width = width as u32 * 2;
                     let height = items.first().unwrap().input_height as u32;
+                    let mosaic_height = height * count as u32;
 
                     let batch: AutoEncoderImageBatch<Backend> = batcher.batch(items, device);
                     let actual = model.forward(batch.input.clone());
@@ -151,21 +153,28 @@ fn train() {
                     let mut pixels = vec![];
 
                     for (actual, input) in actual.iter_dim(0).zip(batch.input.iter_dim(0)) {
-                        pixels.extend(input.into_data().iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8));
-                        pixels.extend(actual.into_data().iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8));
+                        let input = input.into_data();
+                        let actual = actual.into_data();
+                        let mut input_iter = input.iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8);
+                        let mut actual_iter = actual.iter::<f32>().map(|x| (x * 255.0).round().clamp(0.0, 255.0) as u8);
+                        for _ in 0..height {
+                            pixels.extend((&mut input_iter).take(width as usize));
+                            pixels.extend((&mut actual_iter).take(width as usize));
+                        }
                     }
 
                     let img: Option<DynamicImage> = match channels {
-                        1 => ImageBuffer::<Luma<u8>, _>::from_raw(width, height, pixels).map(Into::into),
-                        2 => ImageBuffer::<LumaA<u8>, _>::from_raw(width, height, pixels).map(Into::into),
-                        3 => ImageBuffer::<Rgb<u8>, _>::from_raw(width, height, pixels).map(Into::into),
-                        4 => ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, pixels).map(Into::into),
+                        1 => ImageBuffer::<Luma<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels).map(Into::into),
+                        2 => ImageBuffer::<LumaA<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels).map(Into::into),
+                        3 => ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels).map(Into::into),
+                        4 => ImageBuffer::<Rgba<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels).map(Into::into),
                         _ => unreachable!()
                     };
 
                     img
                         .expect("Dimensions mismatch. The auto encoder must accept only one size of image and output that same size")
-                        .save("inferrence.png")
+                        .into_rgb8()
+                        .save("inference.webp")
                         .unwrap();
                 }
             }

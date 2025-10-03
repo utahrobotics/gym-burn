@@ -1,3 +1,4 @@
+#![recursion_limit = "256"]
 use std::{fmt::Debug, marker::PhantomData};
 
 use burn::{prelude::Backend, record::Record};

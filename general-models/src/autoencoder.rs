@@ -3,15 +3,11 @@ use std::{fmt, marker::PhantomData};
 use crate::{FromConfig, SimpleForwardable, serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig}};
 
 use burn::{
-    tensor::Tensor,
+    Tensor,
     config::Config,
     module::{AutodiffModule, Module},
     nn::{
-        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Sigmoid,
-        Tanh,
-        conv::{Conv2d, ConvTranspose2d},
-        interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
-        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Relu, Tanh, conv::{Conv2d, ConvTranspose2d}, interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}
     },
     prelude::Backend,
     record::Record,
@@ -132,7 +128,7 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     decoder_convolutions: Vec<(ConvTranspose2d<B>, Option<BatchNorm<B>>)>,
 
     gelu: Gelu,
-    sigmoid: Sigmoid,
+    relu: Relu,
     linear_dropout: Dropout,
     conv_dropout: Dropout,
     output_size: [usize; 2],
@@ -197,7 +193,8 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
             x.reshape([batch_size as i32, actual_width as i32, -1])
         };
 
-        x = self.sigmoid.forward(x);
+        x = self.relu.forward(x);
+        x = x.clamp_max(1.0);
 
         if let Some(interpolate) = &self.interpolate {
             let [_, width, height] = x.dims();
@@ -245,7 +242,7 @@ impl SimpleLumaImageDecoderConfig {
                 })
                 .collect(),
             gelu: Gelu::new(),
-            sigmoid: Sigmoid::new(),
+            relu: Relu::new(),
             linear_dropout: self.linear_dropout.init(),
             conv_dropout: self.conv_dropout.init(),
             output_size: self.output_size,
