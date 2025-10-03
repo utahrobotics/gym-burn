@@ -65,7 +65,10 @@ struct ArtifactConfig {
 
 pub fn main() {
     #[cfg(feature = "wgpu")]
-    type Backend = burn::backend::Wgpu;
+    type Backend = general_models::wgpu::WgpuBackend;
+
+    #[cfg(feature = "rocm")]
+    type Backend = general_models::rocm::RocmBackend;
 
     type AutodiffBackend = Autodiff<Backend>;
 
@@ -73,6 +76,9 @@ pub fn main() {
 
     #[cfg(feature = "wgpu")]
     let device = general_models::wgpu::get_device();
+
+    #[cfg(feature = "rocm")]
+    let device = general_models::rocm::get_device();
 
     match args.command {
         Command::Train { model_type } => {
@@ -210,7 +216,7 @@ pub fn main() {
                     let mosaic_height = height * count as u32;
 
                     let batch: AutoEncoderImageBatch<Backend> = batcher.batch(items, device);
-                    let actual = model.forward(batch.input.clone());
+                    let actual = model.forward(batch.input.clone()).clamp(0.0, 1.0);
 
                     let mut pixels = vec![];
 

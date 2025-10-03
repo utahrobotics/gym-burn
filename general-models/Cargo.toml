@@ -9,3 +9,6 @@ serde.workspace = true
 
 [features]
 wgpu = ["burn/wgpu"]
+rocm = ["burn/rocm"]
+cuda = ["burn/cuda"]
+macos = ["burn/accelerate"]

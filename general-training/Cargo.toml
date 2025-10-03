@@ -23,5 +23,7 @@ rand = { workspace = true, optional = true }
 [features]
 tui = ["burn/tui"]
 wgpu = ["general-models/wgpu"]
+rocm = ["general-models/rocm"]
 app = ["tui", "utils", "clap", "rand"]
 default = ["app", "wgpu"]
+macos = ["general-models/macos"]

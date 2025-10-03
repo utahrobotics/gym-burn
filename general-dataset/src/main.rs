@@ -8,9 +8,7 @@ use rusqlite::{Connection, params};
 use serde::Deserialize;
 use sha2::Digest;
 use std::{
-    io::{Cursor, ErrorKind, Read},
-    num::NonZeroU32,
-    process::Stdio,
+    collections::VecDeque, io::{Cursor, ErrorKind, Read}, num::NonZeroU32, process::Stdio, rc::Rc
 };
 use utils::parse_json_file;
 
@@ -44,6 +42,8 @@ pub struct Config {
     translation_std_dev_multiplier: f32,
     noises_count: usize,
     #[serde(default)]
+    limit: usize,
+    #[serde(default)]
     noise_levels: Vec<f64>,
     #[serde(default)]
     color: ColorSetting,
@@ -53,12 +53,20 @@ pub struct Config {
     preset: ProcessStdinPreset,
 }
 
+fn hex_hash(bytes: &[u8]) -> String {
+    let hash = sha2::Sha256::digest(bytes);
+    let mut hex_out = vec![0u8; 64];
+    hex::encode_to_slice(hash, &mut hex_out).unwrap();
+    String::from_utf8(hex_out).unwrap()
+}
+
 fn main() {
     let Config {
         db_path,
         table_name,
         noise_levels,
         color,
+        limit,
         resize_to,
         preset,
         source_command,
@@ -99,16 +107,111 @@ fn main() {
     )
     .unwrap();
 
-    let mut width;
-    let mut height;
-
     match preset {
         ProcessStdinPreset::AutoEncoder => {
+            let (sender, receiver) = std::sync::mpsc::sync_channel::<(u32, u32, Vec<u8>, Vec<Vec<u8>>)>(32);
+
+            let join = std::thread::spawn(move || {
+                let mut insert_image_stmt = conn
+                    .prepare("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")
+                    .unwrap();
+
+                let mut multi_insert_image_stmt = conn
+                    .prepare("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)")
+                    .unwrap();
+
+                let mut insert_table_stmt = conn
+                    .prepare(&format!(
+                        "INSERT OR IGNORE INTO {table_name} (input, expected) 
+                            SELECT i1.row_id, i2.row_id 
+                            FROM images i1, images i2 
+                            WHERE i1.sha256hex = ? AND i2.sha256hex = ?"
+                    ))
+                    .unwrap();
+
+                let mut multi_insert_table_stmt = conn
+                    .prepare(&format!(
+                        "INSERT OR IGNORE INTO {table_name} (input, expected) 
+                            SELECT i1.row_id, i2.row_id 
+                            FROM images i1, images i2 
+                            WHERE
+                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
+                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
+                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
+                                (i1.sha256hex = ? AND i2.sha256hex = ?)"
+                    ))
+                    .unwrap();
+
+                let mut images = VecDeque::new();
+                let mut pairs = VecDeque::new();
+                while let Ok((width, height, original, noisies)) = receiver.recv() {
+                    let original_hash = Rc::new(hex_hash(&original));
+                    images.push_back((width, height, original, original_hash.clone()));
+                    for noisy in noisies {
+                        let noisy_hash = Rc::new(hex_hash(&noisy));
+                        pairs.push_back((original_hash.clone(), noisy_hash.clone()));
+                        images.push_back((width, height, noisy, noisy_hash));
+                    }
+
+                    while images.len() >= 4 {
+                        let (width0, height0, webp0, hash0) = images.pop_front().unwrap();
+                        let (width1, height1, webp1, hash1) = images.pop_front().unwrap();
+                        let (width2, height2, webp2, hash2) = images.pop_front().unwrap();
+                        let (width3, height3, webp3, hash3) = images.pop_front().unwrap();
+                        multi_insert_image_stmt.execute(
+                            params![
+                                hash0, webp0, width0, height0,
+                                hash1, webp1, width1, height1,
+                                hash2, webp2, width2, height2,
+                                hash3, webp3, width3, height3
+                            ]
+                        ).unwrap();
+                    }
+                    while pairs.len() >= 4 {
+                        let (original_hash0, noisy_hash0) = pairs.pop_front().unwrap();
+                        let (original_hash1, noisy_hash1) = pairs.pop_front().unwrap();
+                        let (original_hash2, noisy_hash2) = pairs.pop_front().unwrap();
+                        let (original_hash3, noisy_hash3) = pairs.pop_front().unwrap();
+                        multi_insert_table_stmt.execute(
+                            params![
+                                noisy_hash0, original_hash0,
+                                noisy_hash1, original_hash1,
+                                noisy_hash2, original_hash2,
+                                noisy_hash3, original_hash3
+                            ]
+                        ).unwrap();
+                    }
+                }
+                for (width, height, webp, hash) in images {
+                    insert_image_stmt.execute(
+                        params![
+                            webp, hash, width, height
+                        ]
+                    ).unwrap();
+                }
+                for (original_hash, noisy_hash) in pairs {
+                    insert_table_stmt.execute(
+                        params![
+                            noisy_hash, original_hash
+                        ]
+                    ).unwrap();
+                }
+            });
+
             let mut size_buf = [0u8; 4];
-            for image_count in 0.. {
+
+            for image_count in 0usize.. {
+                if limit > 0 && image_count == limit {
+                    drop(sender);
+                    join.join().unwrap();
+                    println!("Processed {image_count} images");
+                    break;
+                }
                 if let Err(e) = input_reader.read_exact(&mut size_buf[0..1]) {
                     match e.kind() {
                         ErrorKind::UnexpectedEof => {
+                            drop(sender);
+                            join.join().unwrap();
                             println!("Processed {image_count} images");
                             break;
                         }
@@ -118,6 +221,9 @@ fn main() {
                 let format_byte = size_buf[0];
 
                 let mut image: ImageBuffer<Rgb<u8>, Vec<_>>;
+                let mut width;
+                let mut height;
+
                 match format_byte {
                     0 => unimplemented!("Raw pixel data is currently unsupported"),
                     1 => {
@@ -171,96 +277,61 @@ fn main() {
                     _ => panic!("Unsupported format byte: {format_byte}"),
                 }
 
-                let original_webp_buf = {
-                    let mut webp_buf = Cursor::new(vec![]);
-                    image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
-                    webp_buf.into_inner()
-                };
-                let hash = sha2::Sha256::digest(&original_webp_buf);
-                let mut hex_out = vec![0u8; 64];
-                hex::encode_to_slice(hash, &mut hex_out).unwrap();
-                let original_sha256hex = String::from_utf8(hex_out).unwrap();
-
                 let x = flips(Some(image).into_par_iter());
                 let x = rotations(x, rotations_count, Rgb::black());
                 let x = translations(x, translations_count, translation_std_dev_multiplier, Rgb::black());
-                let x = noises(x, noises_count, noise_levels.par_iter().copied());
-                let webp_images: Vec<_> = to_webp(x).collect();
+                let images: Vec<_> = x.collect();
 
-                let mut insert_image_stmt = conn
-                    .prepare_cached("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")
-                    .unwrap();
+                images.into_iter()
+                    .for_each(|image| {
+                        let original_webp_buf = {
+                            let mut webp_buf = Cursor::new(vec![]);
+                            image.write_to(&mut webp_buf, ImageFormat::WebP).unwrap();
+                            webp_buf.into_inner()
+                        };
+                        // let original_sha256hex = hex_hash(&original_webp_buf);
+                        
+                        // insert_image_stmt
+                        //     .execute(params![original_sha256hex, original_webp_buf, width, height])
+                        //     .unwrap();
 
-                insert_image_stmt
-                    .execute(params![original_sha256hex, original_webp_buf, width, height])
-                    .unwrap();
+                        let x = noises(Some(image).into_par_iter(), noises_count, noise_levels.par_iter().copied());
+                        let webp_images: Vec<_> = to_webp(x).collect();
+                        sender.send((width, height, original_webp_buf, webp_images)).unwrap();
 
-                let mut multi_insert_image_stmt = conn
-                    .prepare_cached("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?3, ?4, ?1, ?2), (?5, ?6, ?1, ?2), (?7, ?8, ?1, ?2), (?9, ?10, ?1, ?2)")
-                    .unwrap();
-
-                let mut insert_table_stmt = conn
-                    .prepare_cached(&format!(
-                        "INSERT OR IGNORE INTO {table_name} (input, expected) 
-                            SELECT i1.row_id, i2.row_id 
-                            FROM images i1, images i2 
-                            WHERE i1.sha256hex = ? AND i2.sha256hex = ?"
-                    ))
-                    .unwrap();
-
-                let mut multi_insert_table_stmt = conn
-                    .prepare_cached(&format!(
-                        "INSERT OR IGNORE INTO {table_name} (input, expected) 
-                            SELECT i1.row_id, i2.row_id 
-                            FROM images i1, images i2 
-                            WHERE
-                                (i1.sha256hex = ?2 AND i2.sha256hex = ?1) OR
-                                (i1.sha256hex = ?3 AND i2.sha256hex = ?1) OR
-                                (i1.sha256hex = ?4 AND i2.sha256hex = ?1) OR
-                                (i1.sha256hex = ?5 AND i2.sha256hex = ?1)"
-                    ))
-                    .unwrap();
-
-                let hex_hash = |bytes: &[u8]| {
-                    let hash = sha2::Sha256::digest(bytes);
-                    let mut hex_out = vec![0u8; 64];
-                    hex::encode_to_slice(hash, &mut hex_out).unwrap();
-                    String::from_utf8(hex_out).unwrap()
-                };
-                let original_sha256hex = hex_hash(&original_webp_buf);
-
-                webp_images
-                    .chunks(4)
-                    .for_each(|webp_bufs| {
-                        if webp_bufs.len() == 4 {
-                            let sha256hex0 = hex_hash(&webp_bufs[0]);
-                            let sha256hex1 = hex_hash(&webp_bufs[1]);
-                            let sha256hex2 = hex_hash(&webp_bufs[2]);
-                            let sha256hex3 = hex_hash(&webp_bufs[3]);
-                            multi_insert_image_stmt
-                                .execute(params![
-                                    width, height,
-                                    sha256hex0, webp_bufs[0],
-                                    sha256hex1, webp_bufs[1],
-                                    sha256hex2, webp_bufs[2],
-                                    sha256hex3, webp_bufs[3],
-                                ])
-                                .unwrap();
-                            multi_insert_table_stmt
-                                .execute(params![original_sha256hex, sha256hex0, sha256hex1, sha256hex2, sha256hex3])
-                                .unwrap();
-                        } else {
-                            webp_bufs.iter()
-                                .for_each(|webp_buf| {
-                                    let sha256hex = hex_hash(webp_buf);
-                                    insert_image_stmt
-                                        .execute(params![sha256hex, webp_buf, width, height])
-                                        .unwrap();
-                                    insert_table_stmt
-                                        .execute(params![sha256hex, original_sha256hex])
-                                        .unwrap();
-                                });
-                        }
+                        // webp_images
+                        //     .chunks(4)
+                        //     .for_each(|webp_bufs| {
+                        //         if webp_bufs.len() == 4 {
+                        //             let sha256hex0 = hex_hash(&webp_bufs[0]);
+                        //             let sha256hex1 = hex_hash(&webp_bufs[1]);
+                        //             let sha256hex2 = hex_hash(&webp_bufs[2]);
+                        //             let sha256hex3 = hex_hash(&webp_bufs[3]);
+                        //             multi_insert_image_stmt
+                        //                 .execute(params![
+                        //                     width, height,
+                        //                     sha256hex0, webp_bufs[0],
+                        //                     sha256hex1, webp_bufs[1],
+                        //                     sha256hex2, webp_bufs[2],
+                        //                     sha256hex3, webp_bufs[3],
+                        //                 ])
+                        //                 .unwrap();
+                        //             multi_insert_table_stmt
+                        //                 .execute(params![original_sha256hex, sha256hex0, sha256hex1, sha256hex2, sha256hex3])
+                        //                 .unwrap();
+                        //         } else {
+                        //             webp_bufs.iter()
+                        //                 .for_each(|webp_buf| {
+                        //                     let sha256hex = hex_hash(webp_buf);
+                        //                     insert_image_stmt
+                        //                         .execute(params![sha256hex, webp_buf, width, height])
+                        //                         .unwrap();
+                        //                     insert_table_stmt
+                        //                         .execute(params![sha256hex, original_sha256hex])
+                        //                         .unwrap();
+                        //                 });
+                        //         }
+                        //     });
                     });
             }
         }
