@@ -9,7 +9,9 @@ use burn::{
     tensor::TensorData,
 };
 use general_models::{
-    SimpleForwardable, autoencoder::{LinearImageAutoEncoderConfig, SimpleLumaImageEncoder}, error::LoadModelError
+    SimpleForwardable,
+    autoencoder::{LinearImageAutoEncoderConfig, SimpleLumaImageEncoder},
+    error::LoadModelError,
 };
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
@@ -43,10 +45,13 @@ impl<B: Backend> ImageEncoder<B> {
     }
 
     /// Encodes the given Luma images with edge-detection already performed.
-    /// 
+    ///
     /// # Panic
     /// Panics if a slice is not exactly 28 * 28 floats.
-    pub fn encode_sized_edges<T>(&self, iter: impl IntoIterator<Item = T>) -> Encodings where T: AsRef<[f32]> {
+    pub fn encode_sized_edges<T>(&self, iter: impl IntoIterator<Item = T>) -> Encodings
+    where
+        T: AsRef<[f32]>,
+    {
         let tensors = iter
             .into_iter()
             .map(|x| TensorData::from(x.as_ref()))
@@ -58,29 +63,33 @@ impl<B: Backend> ImageEncoder<B> {
         let [_, latent_size] = latent_dims.dims();
         Encodings {
             data: latent_dims.into_data().into_vec::<f32>().unwrap(),
-            latent_size
+            latent_size,
         }
     }
 
     /// Encodes the given Luma images, after performing edge-detection using canny.
-    /// 
+    ///
     /// This step *may* be quite slow. There are a lot of heap allocations.
-    /// 
+    ///
     /// # Panic
     /// Panics if a slice is not exactly 28 * 28 floats.
-    pub fn encode_sized<T>(&self, iter: impl IntoIterator<Item = T>, low_threshold: f32, high_threshold: f32) -> Encodings where T: Into<Vec<f32>> {
+    pub fn encode_sized<T>(
+        &self,
+        iter: impl IntoIterator<Item = T>,
+        low_threshold: f32,
+        high_threshold: f32,
+    ) -> Encodings
+    where
+        T: Into<Vec<f32>>,
+    {
         self.encode_sized_edges(
             iter.into_iter()
                 .map(Into::into)
-                .map(|buf| {
-                    ImageBuffer::<Luma<f32>, _>::from_raw(28, 28, buf).unwrap()
-                })
+                .map(|buf| ImageBuffer::<Luma<f32>, _>::from_raw(28, 28, buf).unwrap())
                 .map(|img| img.convert())
-                .map(|img| {
-                    imageproc::edges::canny(&img, low_threshold, high_threshold)
-                })
+                .map(|img| imageproc::edges::canny(&img, low_threshold, high_threshold))
                 .map(|img| img.convert())
-                .map(|img: ImageBuffer<Luma<f32>, Vec<_>>| img.into_vec())
+                .map(|img: ImageBuffer<Luma<f32>, Vec<_>>| img.into_vec()),
         )
     }
 }
@@ -88,14 +97,14 @@ impl<B: Backend> ImageEncoder<B> {
 #[derive(Debug, Clone)]
 pub struct Encodings {
     data: Vec<f32>,
-    latent_size: usize
+    latent_size: usize,
 }
 
 impl Encodings {
     pub fn get_latent_size(&self) -> usize {
         self.latent_size
     }
-    
+
     pub fn iter(&self) -> std::slice::Chunks<f32> {
         self.data.chunks(self.latent_size)
     }

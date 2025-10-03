@@ -1,5 +1,8 @@
 use std::{
-    marker::PhantomData, num::NonZeroUsize, path::{Path, PathBuf}, sync::atomic::{AtomicUsize, Ordering}
+    marker::PhantomData,
+    num::NonZeroUsize,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
 };
 
 use burn::{config::Config, data::dataset::Dataset};
@@ -140,10 +143,22 @@ impl<I> SqliteDataset<I> {
 
         let conn = Connection::open(&db_file)?;
         let stmt = conn.prepare_cached(&get_sql)?;
-        assert!(stmt.column_names().iter().find(|name| **name == "row_id").is_some(), "get_sql does not output a `row_id` column");
+        assert!(
+            stmt.column_names()
+                .iter()
+                .find(|name| **name == "row_id")
+                .is_some(),
+            "get_sql does not output a `row_id` column"
+        );
 
         let stmt = conn.prepare_cached(&len_sql)?;
-        assert!(stmt.column_names().iter().find(|name| **name == "len").is_some(), "len_sql does not output a `len` column");
+        assert!(
+            stmt.column_names()
+                .iter()
+                .find(|name| **name == "len")
+                .is_some(),
+            "len_sql does not output a `len` column"
+        );
 
         Ok(Self {
             conn_queue,
