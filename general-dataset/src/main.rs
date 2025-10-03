@@ -1,12 +1,19 @@
-use image::{ImageBuffer, ImageFormat, Rgb, imageops::{FilterType, resize}};
+use image::{
+    ImageBuffer, ImageFormat, Rgb,
+    imageops::{FilterType, resize},
+};
 use rand::{SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, Normal};
 use rayon::{join, prelude::*};
 use rusqlite::{Connection, params};
 use serde::Deserialize;
 use sha2::Digest;
+use std::{
+    io::{Cursor, ErrorKind, Read},
+    num::NonZeroU32,
+    process::Stdio,
+};
 use utils::parse_json_file;
-use std::{io::{Cursor, ErrorKind, Read}, num::NonZeroU32, process::Stdio};
 
 #[derive(Debug, Deserialize)]
 enum ProcessStdinPreset {
@@ -36,14 +43,22 @@ pub struct Config {
     resize_to: Option<[NonZeroU32; 2]>,
     #[serde(default)]
     source_command: Vec<String>,
-    preset: ProcessStdinPreset
+    preset: ProcessStdinPreset,
 }
 
 fn main() {
-    let Config { db_path, table_name, noise_levels, color, resize_to, preset, source_command }: Config = parse_json_file("dataset-config").unwrap();
+    let Config {
+        db_path,
+        table_name,
+        noise_levels,
+        color,
+        resize_to,
+        preset,
+        source_command,
+    }: Config = parse_json_file("dataset-config").unwrap();
     let mut input_reader: Box<dyn Read>;
     let child;
-    
+
     if source_command.is_empty() {
         input_reader = Box::new(std::io::stdin().lock());
     } else {
@@ -86,7 +101,7 @@ fn main() {
                             println!("Processed {image_count} images");
                             break;
                         }
-                        _ => panic!("{e}")
+                        _ => panic!("{e}"),
                     }
                 }
                 let format_byte = size_buf[0];
@@ -122,28 +137,29 @@ fn main() {
                         if let Some([nwidth, nheight]) = resize_to {
                             width = nwidth.get();
                             height = nheight.get();
-                            image = resize(&image, nwidth.get(), nheight.get(), FilterType::CatmullRom);
+                            image =
+                                resize(&image, nwidth.get(), nheight.get(), FilterType::CatmullRom);
                         }
-                        
+
                         match color {
-                            ColorSetting::Color => {},
+                            ColorSetting::Color => {}
                             ColorSetting::BlackAndWhite | ColorSetting::PrimarilyBlackThenWhite => {
-                                image.pixels_mut()
-                                    .for_each(|p| {
-                                        let avg = ((p.0[0] as u16 + p.0[1] as u16 + p.0[2] as u16) / 3) as u8;
-                                        p.0 = [avg, avg, avg];
-                                    });
+                                image.pixels_mut().for_each(|p| {
+                                    let avg =
+                                        ((p.0[0] as u16 + p.0[1] as u16 + p.0[2] as u16) / 3) as u8;
+                                    p.0 = [avg, avg, avg];
+                                });
                                 if color == ColorSetting::PrimarilyBlackThenWhite {
-                                    let mut bytes: Vec<_> = image.pixels().map(|p| p.0[0]).collect();
+                                    let mut bytes: Vec<_> =
+                                        image.pixels().map(|p| p.0[0]).collect();
                                     bytes.sort_unstable();
                                     let median = bytes[bytes.len() / 2];
 
                                     if median > 127 {
-                                        image.par_pixels_mut()
-                                            .for_each(|p| {
-                                                let inverted = 255 - p.0[0];
-                                                p.0 = [inverted, inverted, inverted];
-                                            });
+                                        image.par_pixels_mut().for_each(|p| {
+                                            let inverted = 255 - p.0[0];
+                                            p.0 = [inverted, inverted, inverted];
+                                        });
                                     }
                                 }
                             }
@@ -201,7 +217,7 @@ fn main() {
                                 webp_buf.into_inner()
                             })
                             .collect::<Vec<_>>()
-                    }
+                    },
                 );
                 let mut insert_image_stmt = conn
                     .prepare("INSERT OR IGNORE INTO images (sha256hex, webp, width, height) VALUES (?, ?, ?, ?)")

@@ -68,9 +68,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
                 )
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
-            .map(|(tensor, item)| {
-                tensor.reshape([1, item.input_width, item.input_height])
-            })
+            .map(|(tensor, item)| tensor.reshape([1, item.input_width, item.input_height]))
             .collect();
 
         let input = Tensor::cat(input, 0);
@@ -85,9 +83,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
                 )
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
-            .map(|(tensor, item)| {
-                tensor.reshape([1, item.expected_width, item.expected_height])
-            })
+            .map(|(tensor, item)| tensor.reshape([1, item.expected_width, item.expected_height]))
             .collect();
 
         let expected = Tensor::cat(expected, 0);

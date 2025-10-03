@@ -161,7 +161,7 @@ impl<I, C> SqliteDataset<I, C> {
     pub fn get_cache_hits(&self) -> usize {
         self.cache_hits.load(Ordering::Relaxed)
     }
-    
+
     pub fn get_reads(&self) -> usize {
         self.reads.load(Ordering::Relaxed)
     }
@@ -268,7 +268,6 @@ impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
         len
     }
 }
-
 
 impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for &SqliteDataset<I, C> {
     fn get(&self, index: usize) -> Option<I> {

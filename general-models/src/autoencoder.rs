@@ -1,13 +1,19 @@
 use std::{fmt, marker::PhantomData};
 
-use crate::{FromConfig, SimpleForwardable, serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig}};
+use crate::{
+    FromConfig, SimpleForwardable,
+    serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig},
+};
 
 use burn::{
     Tensor,
     config::Config,
     module::{AutodiffModule, Module},
     nn::{
-        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Relu, Tanh, conv::{Conv2d, ConvTranspose2d}, interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}
+        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Relu, Tanh,
+        conv::{Conv2d, ConvTranspose2d},
+        interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
+        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
     },
     prelude::Backend,
     record::Record,
@@ -98,7 +104,8 @@ impl SimpleLumaImageEncoderConfig {
                 .map(|(conv_config, bn_config)| {
                     (
                         conv_config.init(device),
-                        bn_config.then(|| BatchNormConfig::new(conv_config.channels[1]).init(device))
+                        bn_config
+                            .then(|| BatchNormConfig::new(conv_config.channels[1]).init(device)),
                     )
                 })
                 .collect(),
@@ -109,7 +116,8 @@ impl SimpleLumaImageEncoderConfig {
                 .map(|(linear_config, bn_config)| {
                     (
                         linear_config.init(device),
-                        bn_config.then(|| BatchNormConfig::new(linear_config.d_output).init(device))
+                        bn_config
+                            .then(|| BatchNormConfig::new(linear_config.d_output).init(device)),
                     )
                 })
                 .collect(),
@@ -246,7 +254,12 @@ impl SimpleLumaImageDecoderConfig {
             linear_dropout: self.linear_dropout.init(),
             conv_dropout: self.conv_dropout.init(),
             output_size: self.output_size,
-            interpolate: self.interpolate.map(|x| Interpolate2dConfig::new().with_mode(x).with_output_size(Some(self.output_size)).init()),
+            interpolate: self.interpolate.map(|x| {
+                Interpolate2dConfig::new()
+                    .with_mode(x)
+                    .with_output_size(Some(self.output_size))
+                    .init()
+            }),
         }
     }
 }

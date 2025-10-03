@@ -47,7 +47,10 @@ pub fn simple_training_loop<
 >(
     model: M,
     training_config: SimpleTrainingConfig,
-    batcher: impl Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    batcher: impl Batcher<B, I, BatchTraining>
+    + Batcher<B::InnerBackend, I, BatchValid>
+    + Clone
+    + 'static,
     training_dataset: impl Dataset<I> + 'static,
     validation_dataset: impl Dataset<I> + 'static,
     artifact_dir: impl AsRef<Path>,
@@ -89,7 +92,10 @@ where
         .summary()
         .build(
             model,
-            training_config.optimizer.unwrap_or_else(|| AdamConfig::new()).init(),
+            training_config
+                .optimizer
+                .unwrap_or_else(|| AdamConfig::new())
+                .init(),
             training_config.learning_rate,
         );
 
@@ -100,7 +106,10 @@ where
 pub fn simple_regression_training_loop<B, M, BatchTraining, BatchValid, I>(
     model: M,
     training_config: SimpleTrainingConfig,
-    batcher: impl Batcher<B, I, BatchTraining> + Batcher<B::InnerBackend, I, BatchValid> + Clone + 'static,
+    batcher: impl Batcher<B, I, BatchTraining>
+    + Batcher<B::InnerBackend, I, BatchValid>
+    + Clone
+    + 'static,
     training_dataset: impl Dataset<I> + 'static,
     validation_dataset: impl Dataset<I> + 'static,
     artifact_dir: impl AsRef<Path>,

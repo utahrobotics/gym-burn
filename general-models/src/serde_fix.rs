@@ -1,4 +1,11 @@
-use burn::{config::Config, nn::{Initializer, Linear, LinearLayout, PaddingConfig2d, conv::{Conv2d, ConvTranspose2d}}, prelude::Backend};
+use burn::{
+    config::Config,
+    nn::{
+        Initializer, Linear, LinearLayout, PaddingConfig2d,
+        conv::{Conv2d, ConvTranspose2d},
+    },
+    prelude::Backend,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -116,7 +123,8 @@ impl Config for ConvTranspose2dConfig {}
 
 impl ConvTranspose2dConfig {
     pub(crate) fn into_burn(&self) -> burn::nn::conv::ConvTranspose2dConfig {
-        let mut config = burn::nn::conv::ConvTranspose2dConfig::new(self.channels, self.kernel_size);
+        let mut config =
+            burn::nn::conv::ConvTranspose2dConfig::new(self.channels, self.kernel_size);
         if let Some(stride) = self.stride {
             config.stride = stride;
         }
