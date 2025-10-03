@@ -10,7 +10,7 @@ use burn::{
     config::Config,
     module::{AutodiffModule, Module},
     nn::{
-        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Relu, Tanh,
+        BatchNorm, BatchNormConfig, Dropout, DropoutConfig, Gelu, Linear, Tanh,
         conv::{Conv2d, ConvTranspose2d},
         interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
@@ -136,7 +136,6 @@ pub struct SimpleLumaImageDecoder<B: Backend> {
     decoder_convolutions: Vec<(ConvTranspose2d<B>, Option<BatchNorm<B>>)>,
 
     gelu: Gelu,
-    relu: Relu,
     linear_dropout: Dropout,
     conv_dropout: Dropout,
     output_size: [usize; 2],
@@ -168,7 +167,7 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
             x = self.linear_dropout.forward(x);
         }
 
-        let mut x = if let Some((first_cnn, _)) = self.decoder_convolutions.first() {
+        let x = if let Some((first_cnn, _)) = self.decoder_convolutions.first() {
             let mut x = if let Some([width, height]) = self.cnn_input_shape {
                 x.reshape([batch_size, first_cnn.channels[0] as usize, width, height])
             } else {
@@ -200,9 +199,6 @@ impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
 
             x.reshape([batch_size as i32, actual_width as i32, -1])
         };
-
-        x = self.relu.forward(x);
-        x = x.clamp_max(1.0);
 
         if let Some(interpolate) = &self.interpolate {
             let [_, width, height] = x.dims();
@@ -250,7 +246,6 @@ impl SimpleLumaImageDecoderConfig {
                 })
                 .collect(),
             gelu: Gelu::new(),
-            relu: Relu::new(),
             linear_dropout: self.linear_dropout.init(),
             conv_dropout: self.conv_dropout.init(),
             output_size: self.output_size,

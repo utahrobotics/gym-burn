@@ -140,6 +140,24 @@ fn train() {
                         &device,
                     );
 
+                    trained
+                        .model
+                        .encoder
+                        .clone()
+                        .save_file(
+                            artifact_config.artifact_dir.join("encoder.mpk"),
+                            &CompactRecorder::new(),
+                        )
+                        .unwrap();
+                    trained
+                        .model
+                        .decoder
+                        .clone()
+                        .save_file(
+                            artifact_config.artifact_dir.join("decoder.mpk"),
+                            &CompactRecorder::new(),
+                        )
+                        .unwrap();
                     epilogue!(training_dataset, test_dataset, trained);
                 }
             }
