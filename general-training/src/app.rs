@@ -63,7 +63,7 @@ struct ArtifactConfig {
     artifact_dir: PathBuf,
 }
 
-fn train() {
+pub fn main() {
     #[cfg(feature = "wgpu")]
     type Backend = burn::backend::Wgpu;
 
@@ -246,8 +246,4 @@ fn train() {
             }
         }
     }
-}
-
-pub fn main() {
-    train()
 }
