@@ -11,4 +11,6 @@ serde.workspace = true
 wgpu = ["burn/wgpu"]
 rocm = ["burn/rocm"]
 cuda = ["burn/cuda"]
+openblas = ["burn/openblas"]
+openblas-system = ["burn/openblas-system"]
 macos = ["burn/accelerate"]

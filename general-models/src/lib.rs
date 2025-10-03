@@ -55,3 +55,16 @@ pub mod cuda {
         &DEVICE
     }
 }
+
+pub mod cpu {
+    use std::sync::LazyLock;
+
+    use burn::backend::{NdArray, ndarray::NdArrayDevice};
+    pub type NdArrayBackend = NdArray<f32, i32>;
+
+    static DEVICE: LazyLock<NdArrayDevice> = LazyLock::new(Default::default);
+
+    pub fn get_device() -> &'static NdArrayDevice {
+        &DEVICE
+    }
+}

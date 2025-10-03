@@ -16,6 +16,7 @@ artifacts/
 /test-data.json
 /test-data.jsonc
 /dataset-config.jsonc
+/*.sql
 
 inference.webp
 

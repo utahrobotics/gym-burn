@@ -107,6 +107,10 @@ fn main() {
     )
     .unwrap();
 
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_images_row_id ON images (row_id);", ()).unwrap();
+    conn.execute(&format!("CREATE INDEX IF NOT EXISTS idx_{table_name}_row_id_range ON {table_name} (row_id)"), ()).unwrap();
+    conn.execute(&format!("CREATE INDEX IF NOT EXISTS idx_{table_name}_input_expected ON {table_name} (input, expected)"), ()).unwrap();
+
     match preset {
         ProcessStdinPreset::AutoEncoder => {
             let (sender, receiver) = std::sync::mpsc::sync_channel::<(u32, u32, Vec<u8>, Vec<Vec<u8>>)>(32);

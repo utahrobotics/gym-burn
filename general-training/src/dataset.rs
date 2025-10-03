@@ -12,6 +12,7 @@ use parking_lot::Mutex;
 use rusqlite::{Connection, params};
 use serde::de::DeserializeOwned;
 use serde_json::Number;
+use thiserror::Error;
 
 #[derive(Debug, Config)]
 pub struct SqliteDatasetConfig {
@@ -194,11 +195,27 @@ impl<I, C> SqliteDataset<I, C> {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum SqliteConfigError {
+    #[error("Failed to read the SQL file {path}: {error}")]
+    ReadSQLFile {
+        path: String,
+        error: std::io::Error
+    },
+    #[error("{0}")]
+    RusqliteError(#[from] rusqlite::Error)
+}
+
 impl<I> TryFrom<SqliteDatasetConfig> for SqliteDataset<I> {
-    type Error = rusqlite::Error;
+    type Error = SqliteConfigError;
 
     fn try_from(value: SqliteDatasetConfig) -> Result<Self, Self::Error> {
-        Self::new(value.db_file, value.get_sql, value.len_sql, value.cache_len)
+        let get_sql = if let Some(path) = value.get_sql.strip_prefix('@') {
+            std::fs::read_to_string(path).map_err(|error| SqliteConfigError::ReadSQLFile { path: path.into(), error })?
+        } else {
+            value.get_sql
+        };
+        Self::new(value.db_file, get_sql, value.len_sql, value.cache_len).map_err(Into::into)
     }
 }
 

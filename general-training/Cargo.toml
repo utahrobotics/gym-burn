@@ -19,6 +19,7 @@ serde_json.workspace = true
 utils = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
+thiserror = "2.0.17"
 
 [features]
 tui = ["burn/tui"]
