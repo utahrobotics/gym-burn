@@ -105,7 +105,7 @@ impl Encodings {
         self.latent_size
     }
 
-    pub fn iter(&self) -> std::slice::Chunks<f32> {
+    pub fn iter(&self) -> std::slice::Chunks<'_, f32> {
         self.data.chunks(self.latent_size)
     }
 }

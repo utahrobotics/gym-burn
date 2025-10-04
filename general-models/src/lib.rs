@@ -1,6 +1,7 @@
 use burn::{Tensor, module::Module, prelude::Backend};
 
 pub mod autoencoder;
+pub mod common;
 pub mod serde_fix;
 
 pub mod error;
