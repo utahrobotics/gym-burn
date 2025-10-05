@@ -12,7 +12,7 @@ use burn::{
     train::{RegressionOutput, TrainOutput, TrainStep, ValidStep},
 };
 use general_models::{
-    SimpleForwardable,
+    SimpleInfer,
     autoencoder::{LinearImageAutoEncoder, SimpleAutoEncoder},
 };
 
@@ -30,7 +30,7 @@ impl<B, const N_I: usize, const N_D: usize, E, D> RegressionTrainable<B, N_I, N_
     for SimpleAutoEncoder<B, E, D, N_I, N_D>
 where
     B: Backend,
-    Self: SimpleForwardable<B, N_I, N_I>,
+    Self: SimpleInfer<B, N_I, N_I>,
 {
     fn forward_regression(
         &self,

@@ -18,7 +18,7 @@ use burn::data::dataset::Dataset;
 use burn::module::Module;
 use burn::record::{CompactRecorder, Recorder};
 use clap::{Parser, Subcommand, ValueEnum};
-use general_models::SimpleForwardable;
+use general_models::SimpleInfer;
 use general_models::autoencoder::{LinearImageAutoEncoder, LinearImageAutoEncoderConfig};
 use image::{DynamicImage, ImageBuffer, Luma, LumaA, Rgb, Rgba};
 use rand::{Rng, SeedableRng};

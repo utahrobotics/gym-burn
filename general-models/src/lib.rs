@@ -14,7 +14,13 @@ pub trait FromConfig<B: Backend> {
     fn init(config: Self::Config, device: &B::Device) -> Self;
 }
 
-pub trait SimpleForwardable<B: Backend, const N_I: usize, const N_O: usize>:
+pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize>:
+    Module<B>
+{
+    fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
+}
+
+pub trait SimpleTrain<B: Backend, const N_I: usize, const N_O: usize>:
     Module<B>
 {
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;

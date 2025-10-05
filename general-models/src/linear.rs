@@ -1,14 +1,15 @@
-use burn::{module::Module, nn::{Dropout, Linear}, prelude::Backend};
+use burn::{module::Module, nn::{Dropout, DropoutConfig, Linear, LinearConfig, activation::{Activation, ActivationConfig}}, prelude::Backend};
+use serde::{Deserialize, Serialize};
 
-use crate::{SimpleForwardable, common::{Activation, Norm}};
+use crate::{SimpleInfer, SimpleTrain, common::{Norm, NormConfig}};
 
 #[derive(Debug, Module)]
 pub struct LinearModel<B: Backend> {
-    layers: Vec<(Linear<B>, Option<Norm<B>>, Activation)>,
+    layers: Vec<(Linear<B>, Option<Norm<B>>, Activation<B>)>,
     dropout: Dropout
 }
 
-impl<B: Backend> SimpleForwardable<B, 2, 2> for LinearModel<B> {
+impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
         for (i, (linear, norm, activation)) in self.layers.iter().enumerate() {
             tensor = linear.forward(tensor);
@@ -21,5 +22,51 @@ impl<B: Backend> SimpleForwardable<B, 2, 2> for LinearModel<B> {
             }
         }
         tensor
+    }
+}
+
+impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
+    fn forward(&self, mut tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
+        for (linear, norm, activation) in self.layers.iter() {
+            tensor = linear.forward(tensor);
+            if let Some(norm) = norm {
+                tensor = norm.forward(tensor);
+            }
+            tensor = activation.forward(tensor);
+        }
+        tensor
+    }
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+pub struct LinearModelConfig {
+    pub input_size: usize,
+    pub default_activation: Option<ActivationConfig>,
+    pub default_norm: Option<NormConfig>,
+    pub layers: Vec<(usize, Option<NormConfig>, Option<ActivationConfig>)>,
+    pub dropout: f64
+}
+
+impl LinearModelConfig {
+    pub fn init<B: Backend>(self, device: &B::Device) -> LinearModel<B> {
+        let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
+        let mut input_size = self.input_size;
+        let mut layers = vec![];
+        for (output_size, norm, activation) in self.layers {
+            layers.push(
+                (
+                    LinearConfig::new(input_size, output_size)
+                        .with_bias(norm.is_none())
+                        .init(device),
+                    norm.map(|norm| norm.init(device, output_size)),
+                    activation.unwrap_or_else(|| default_activation.clone()).init(device)
+                )
+            );
+            input_size = output_size;
+        }
+        LinearModel {
+            layers,
+            dropout: DropoutConfig::new(self.dropout).init()
+        }
     }
 }

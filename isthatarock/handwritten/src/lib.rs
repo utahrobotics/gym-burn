@@ -9,7 +9,7 @@ use burn::{
     tensor::TensorData,
 };
 use general_models::{
-    SimpleForwardable,
+    SimpleInfer,
     autoencoder::{LinearImageAutoEncoderConfig, SimpleLumaImageEncoder},
     error::LoadModelError,
 };

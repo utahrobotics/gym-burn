@@ -3,7 +3,7 @@ use delegate::delegate;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 
-use crate::{FromConfig, SimpleForwardable};
+use crate::{FromConfig, SimpleInfer};
 
 macro_rules! default_f {
     ($ident: ident, $ty: ty, $expr: expr) => {
@@ -13,86 +13,86 @@ macro_rules! default_f {
     };
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Module)]
-pub enum Activation {
-    Relu,
-    #[default]
-    Gelu,
-    Sigmoid,
-    Tanh,
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Module)]
+// pub enum Activation {
+//     Relu,
+//     #[default]
+//     Gelu,
+//     Sigmoid,
+//     Tanh,
+// }
 
-// impl<B: Backend> Module<B> for Activation {
-//     type Record = ConstantRecord;
+// // impl<B: Backend> Module<B> for Activation {
+// //     type Record = ConstantRecord;
 
-//     fn collect_devices(&self, devices: Devices<B>) -> Devices<B> {
-//         devices
-//     }
+// //     fn collect_devices(&self, devices: Devices<B>) -> Devices<B> {
+// //         devices
+// //     }
 
-//     fn fork(self, _: &B::Device) -> Self {
-//         self
-//     }
+// //     fn fork(self, _: &B::Device) -> Self {
+// //         self
+// //     }
 
-//     fn to_device(self, _: &B::Device) -> Self {
-//         self
-//     }
+// //     fn to_device(self, _: &B::Device) -> Self {
+// //         self
+// //     }
 
-//     fn visit<Visitor: ModuleVisitor<B>>(&self, _: &mut Visitor) {
-//     }
+// //     fn visit<Visitor: ModuleVisitor<B>>(&self, _: &mut Visitor) {
+// //     }
 
-//     fn map<Mapper: ModuleMapper<B>>(self, _: &mut Mapper) -> Self {
-//         self
-//     }
+// //     fn map<Mapper: ModuleMapper<B>>(self, _: &mut Mapper) -> Self {
+// //         self
+// //     }
 
-//     fn load_record(self, _: Self::Record) -> Self {
-//         self
-//     }
+// //     fn load_record(self, _: Self::Record) -> Self {
+// //         self
+// //     }
 
-//     fn into_record(self) -> Self::Record {
-//         ConstantRecord
+// //     fn into_record(self) -> Self::Record {
+// //         ConstantRecord
+// //     }
+// // }
+
+// impl<B: Backend, const D: usize> SimpleInfer<B, D, D> for Activation {
+//     fn forward(&self, tensor: Tensor<B, D>) -> Tensor<B, D> {
+//         match self {
+//             Activation::Relu => relu(tensor),
+//             Activation::Gelu => gelu(tensor),
+//             Activation::Sigmoid => sigmoid(tensor),
+//             Activation::Tanh => tanh(tensor),
+//         }
 //     }
 // }
 
-impl<B: Backend, const D: usize> SimpleForwardable<B, D, D> for Activation {
-    fn forward(&self, tensor: Tensor<B, D>) -> Tensor<B, D> {
-        match self {
-            Activation::Relu => relu(tensor),
-            Activation::Gelu => gelu(tensor),
-            Activation::Sigmoid => sigmoid(tensor),
-            Activation::Tanh => tanh(tensor),
-        }
-    }
-}
+// impl<B: Backend> FromConfig<B> for Activation {
+//     type Config = ActivationConfig;
 
-impl<B: Backend> FromConfig<B> for Activation {
-    type Config = ActivationConfig;
+//     fn init(config: Self::Config, _: &B::Device) -> Self {
+//         config.init()
+//     }
+// }
 
-    fn init(config: Self::Config, _: &B::Device) -> Self {
-        config.init()
-    }
-}
+// #[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
+// pub enum ActivationConfig {
+//     Relu,
+//     #[default]
+//     Gelu,
+//     Sigmoid,
+//     Tanh
+// }
 
-#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq, Clone, Copy)]
-pub enum ActivationConfig {
-    Relu,
-    #[default]
-    Gelu,
-    Sigmoid,
-    Tanh
-}
+// impl ActivationConfig {
+//     pub fn init(self) -> Activation {
+//         match self {
+//             ActivationConfig::Relu => Activation::Relu,
+//             ActivationConfig::Gelu => Activation::Gelu,
+//             ActivationConfig::Sigmoid => Activation::Sigmoid,
+//             ActivationConfig::Tanh => Activation::Tanh,
+//         }
+//     }
+// }
 
-impl ActivationConfig {
-    pub fn init(self) -> Activation {
-        match self {
-            ActivationConfig::Relu => Activation::Relu,
-            ActivationConfig::Gelu => Activation::Gelu,
-            ActivationConfig::Sigmoid => Activation::Sigmoid,
-            ActivationConfig::Tanh => Activation::Tanh,
-        }
-    }
-}
-
-impl Config for ActivationConfig {}
+// impl Config for ActivationConfig {}
 
 #[derive(Debug, From, Module)]
 pub enum Norm<B: Backend> {
@@ -103,7 +103,7 @@ pub enum Norm<B: Backend> {
     InstanceNorm(InstanceNorm<B>),
 }
 
-impl<B: Backend, const D: usize> SimpleForwardable<B, D, D> for Norm<B> {
+impl<B: Backend, const D: usize> SimpleInfer<B, D, D> for Norm<B> {
     delegate! {
         to match self {
             Norm::BatchNorm(x) => x,

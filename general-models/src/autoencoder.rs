@@ -1,7 +1,7 @@
 use std::{fmt, marker::PhantomData};
 
 use crate::{
-    FromConfig, SimpleForwardable,
+    FromConfig, SimpleInfer,
     serde_fix::{Conv2dConfig, ConvTranspose2dConfig, LinearConfig},
 };
 
@@ -42,7 +42,7 @@ impl<B: Backend> FromConfig<B> for SimpleLumaImageEncoder<B> {
     }
 }
 
-impl<B: Backend> SimpleForwardable<B, 3, 2> for SimpleLumaImageEncoder<B> {
+impl<B: Backend> SimpleInfer<B, 3, 2> for SimpleLumaImageEncoder<B> {
     fn forward(&self, images: Tensor<B, 3>) -> Tensor<B, 2> {
         let [batch_size, image_width, image_height] = images.dims();
 
@@ -150,7 +150,7 @@ impl<B: Backend> FromConfig<B> for SimpleLumaImageDecoder<B> {
     }
 }
 
-impl<B: Backend> SimpleForwardable<B, 2, 3> for SimpleLumaImageDecoder<B> {
+impl<B: Backend> SimpleInfer<B, 2, 3> for SimpleLumaImageDecoder<B> {
     fn forward(&self, latents: Tensor<B, 2>) -> Tensor<B, 3> {
         let [batch_size, _] = latents.dims();
         let mut x = latents;
@@ -296,8 +296,8 @@ impl<X, Y> SimpleAutoEncoderConfig<X, Y> {
     ) -> SimpleAutoEncoder<B, E, D, N_I, N_D>
     where
         B: Backend,
-        E: SimpleForwardable<B, N_I, N_D, Config = X>,
-        D: SimpleForwardable<B, N_D, N_I, Config = Y>,
+        E: SimpleInfer<B, N_I, N_D, Config = X>,
+        D: SimpleInfer<B, N_D, N_I, Config = Y>,
     {
         SimpleAutoEncoder::init(self, device)
     }
@@ -313,8 +313,8 @@ impl<
     B: Backend,
     const N_I: usize,
     const N_D: usize,
-    E: SimpleForwardable<B, N_I, N_D>,
-    D: SimpleForwardable<B, N_D, N_I>,
+    E: SimpleInfer<B, N_I, N_D>,
+    D: SimpleInfer<B, N_D, N_I>,
 > FromConfig<B> for SimpleAutoEncoder<B, E, D, N_I, N_D>
 {
     type Config = SimpleAutoEncoderConfig<E::Config, D::Config>;
@@ -331,9 +331,9 @@ impl<
     B: Backend,
     const N_I: usize,
     const N_D: usize,
-    E: SimpleForwardable<B, N_I, N_D>,
-    D: SimpleForwardable<B, N_D, N_I>,
-> SimpleForwardable<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D>
+    E: SimpleInfer<B, N_I, N_D>,
+    D: SimpleInfer<B, N_D, N_I>,
+> SimpleInfer<B, N_I, N_I> for SimpleAutoEncoder<B, E, D, N_I, N_D>
 {
     fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_I> {
         self.decoder.forward(self.encoder.forward(images))

@@ -8,7 +8,7 @@ use std::{
 
 use burn::data::{dataloader::batcher::Batcher, dataset::Dataset};
 use clap::{Parser, Subcommand};
-use general_models::{SimpleForwardable, wgpu::WgpuBackend};
+use general_models::{SimpleInfer, wgpu::WgpuBackend};
 use general_training::{
     batches::{AutoEncoderImageBatcher, AutoEncoderImageItem},
     dataset::{SqliteDataset, SqliteDatasetConfig},
