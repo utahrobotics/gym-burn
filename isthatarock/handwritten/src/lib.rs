@@ -17,10 +17,10 @@ use utils::parse_json_file;
 #[cfg(feature = "app")]
 pub mod app;
 
-// type Model<B> = VariationalEncoder<B, ConvLinearModel<B>>;
-// type Config = VariationalEncoderConfig<ConvLinearModelConfig>;
-type Model<B> = ConvLinearModel<B>;
-type Config = ConvLinearModelConfig;
+type Model<B> = VariationalEncoder<B, ConvLinearModel<B>>;
+type Config = VariationalEncoderConfig<ConvLinearModelConfig>;
+// type Model<B> = ConvLinearModel<B>;
+// type Config = ConvLinearModelConfig;
 
 pub struct ImageEncoder<B: Backend> {
     encoder: Model<B>,
