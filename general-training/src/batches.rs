@@ -5,8 +5,8 @@ use image::{ImageFormat, load_from_memory_with_format};
 use serde::{Deserialize, Serialize};
 
 pub struct AutoEncoderImageBatch<B: Backend> {
-    pub input: Tensor<B, 3>,
-    pub expected: Tensor<B, 3>,
+    pub input: Tensor<B, 4>,
+    pub expected: Tensor<B, 4>,
 }
 
 impl<B: Backend> Clone for AutoEncoderImageBatch<B> {
@@ -40,7 +40,9 @@ pub struct AutoEncoderImageItem {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct AutoEncoderImageBatcher;
+pub struct AutoEncoderImageBatcher {
+    pub channels: usize
+}
 
 impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageBatch<B>>
     for AutoEncoderImageBatcher
@@ -68,7 +70,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
                 )
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
-            .map(|(tensor, item)| tensor.reshape([1, item.input_width, item.input_height]))
+            .map(|(tensor, item)| tensor.reshape([1, self.channels, item.input_width, item.input_height]))
             .collect();
 
         let input = Tensor::cat(input, 0);
@@ -83,7 +85,7 @@ impl<B: Backend, I: AsRef<AutoEncoderImageItem>> Batcher<B, I, AutoEncoderImageB
                 )
             })
             .map(|(data, item)| (Tensor::<B, 1>::from_data(data, device), item))
-            .map(|(tensor, item)| tensor.reshape([1, item.expected_width, item.expected_height]))
+            .map(|(tensor, item)| tensor.reshape([1, self.channels, item.expected_width, item.expected_height]))
             .collect();
 
         let expected = Tensor::cat(expected, 0);

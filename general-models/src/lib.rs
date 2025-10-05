@@ -1,19 +1,16 @@
 use burn::{Tensor, module::Module, prelude::Backend};
 
-// pub mod autoencoder;
 pub mod common;
 pub mod composite;
 pub mod error;
 pub mod linear;
 pub mod conv;
-// pub mod serde_fix;
 
-
-// pub trait FromConfig<B: Backend> {
-//     type Config;
-
-//     fn init(config: Self::Config, device: &B::Device) -> Self;
-// }
+pub trait Init<B: Backend> {
+    type Output;
+    
+    fn init(self, device: &B::Device) -> Self::Output;
+}
 
 pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize>:
     Module<B>

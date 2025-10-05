@@ -1,6 +1,7 @@
-use burn::{nn::pool::AdaptiveAvgPool2d, prelude::*};
+use burn::{nn::pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, prelude::*};
+use serde::{Deserialize, Serialize};
 
-use crate::{conv::Conv2dModel, linear::{LinearClassifierModel, LinearModel}, SimpleInfer, SimpleTrain};
+use crate::{conv::{Conv2dModel, Conv2dModelConfig}, linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig}, Init, SimpleInfer, SimpleTrain};
 
 #[derive(Debug, Module)]
 pub struct ConvLinearImageModel<B: Backend> {
@@ -31,6 +32,25 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageModel<B> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConvLinearImageModelConfig {
+    pub conv: Conv2dModelConfig,
+    pub adaptive_avg_pooling: Option<AdaptiveAvgPool2dConfig>,
+    pub linear: LinearModelConfig,
+}
+
+impl<B: Backend> Init<B> for ConvLinearImageModelConfig {
+    type Output = ConvLinearImageModel<B>;
+
+    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+        ConvLinearImageModel {
+            conv: self.conv.init(device),
+            adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| x.init()),
+            linear: self.linear.init(device),
+        }
+    }
+}
+
 #[derive(Debug, Module)]
 pub struct ConvLinearImageClassifierModel<B: Backend> {
     conv_linear: ConvLinearImageModel<B>,
@@ -46,5 +66,22 @@ impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearImageClassifierModel<B> {
 impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageClassifierModel<B> {
     fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         self.classifier.train(self.conv_linear.train(tensor))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ConvLinearImageClassifierModelConfig {
+    pub conv_linear: ConvLinearImageModelConfig,
+    pub classifier: LinearClassifierModelConfig
+}
+
+impl<B: Backend> Init<B> for ConvLinearImageClassifierModelConfig {
+    type Output = ConvLinearImageClassifierModel<B>;
+
+    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+        ConvLinearImageClassifierModel {
+            conv_linear: self.conv_linear.init(device),
+            classifier: self.classifier.init(device),
+        }
     }
 }

@@ -1,7 +1,7 @@
 use burn::{module::Module, nn::{activation::{Activation, ActivationConfig}, Dropout, DropoutConfig, Linear, LinearConfig}, prelude::*, tensor::activation::softmax};
 use serde::{Deserialize, Serialize};
 
-use crate::{SimpleInfer, SimpleTrain, common::{Norm, NormConfig}};
+use crate::{common::{Norm, NormConfig}, Init, SimpleInfer, SimpleTrain};
 
 #[derive(Debug, Module)]
 pub struct LinearModel<B: Backend> {
@@ -38,7 +38,7 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
     }
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct LinearModelConfig {
     pub input_size: usize,
     pub default_activation: Option<ActivationConfig>,
@@ -47,8 +47,10 @@ pub struct LinearModelConfig {
     pub dropout: f64
 }
 
-impl LinearModelConfig {
-    pub fn init<B: Backend>(self, device: &B::Device) -> LinearModel<B> {
+impl<B: Backend> Init<B> for LinearModelConfig {
+    type Output = LinearModel<B>;
+    
+    fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_size = self.input_size;
         let mut layers = vec![];
@@ -88,3 +90,16 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearClassifierModel<B> {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LinearClassifierModelConfig(LinearModelConfig);
+
+
+impl<B: Backend> Init<B> for LinearClassifierModelConfig {
+    type Output = LinearClassifierModel<B>;
+    
+    fn init(self, device: &B::Device) -> Self::Output {
+        LinearClassifierModel {
+            linear: self.0.init(device)
+        }
+    }
+}

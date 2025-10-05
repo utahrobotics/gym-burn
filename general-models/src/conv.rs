@@ -1,7 +1,7 @@
 use burn::{module::Module, nn::{activation::{Activation, ActivationConfig}, conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, Dropout, DropoutConfig}, prelude::*};
 use serde::{Deserialize, Serialize};
 
-use crate::{common::{Norm, NormConfig}, default_f, SimpleInfer, SimpleTrain};
+use crate::{common::{Norm, NormConfig}, default_f, Init, SimpleInfer, SimpleTrain};
 
 #[derive(Debug, Module)]
 pub struct Conv2dModel<B: Backend> {
@@ -38,7 +38,7 @@ impl<B: Backend> SimpleTrain<B, 4, 4> for Conv2dModel<B> {
     }
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Clone, Copy)]
 pub struct Conv2dLayerConfig {
     pub output_channels: usize,
     pub kernel_size: [usize; 2],
@@ -50,7 +50,7 @@ pub struct Conv2dLayerConfig {
     pub groups: usize,
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
@@ -59,8 +59,10 @@ pub struct Conv2dModelConfig {
     pub dropout: f64,
 }
 
-impl Conv2dModelConfig {
-    pub fn init<B: Backend>(self, device: &B::Device) -> Conv2dModel<B> {
+impl<B: Backend> Init<B> for Conv2dModelConfig {
+    type Output = Conv2dModel<B>;
+    
+    fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
@@ -121,11 +123,13 @@ impl<B: Backend> SimpleTrain<B, 4, 4> for ConvTranspose2dModel<B> {
     }
 }
 
-#[derive(Serialize, Debug, Deserialize)]
+#[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct ConvTranspose2dModelConfig(Conv2dModelConfig);
 
-impl ConvTranspose2dModelConfig {
-    pub fn init<B: Backend>(self, device: &B::Device) -> ConvTranspose2dModel<B> {
+impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
+    type Output = ConvTranspose2dModel<B>;
+    
+    fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.0.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_channels = self.0.input_channels;
         let mut layers = vec![];

@@ -1,6 +1,7 @@
 use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
+use serde::{Deserialize, Serialize};
 
-use crate::{linear::LinearModel, SimpleInfer, SimpleTrain};
+use crate::{linear::{LinearModel, LinearModelConfig}, Init, SimpleInfer, SimpleTrain};
 
 #[derive(Module, Debug)]
 pub struct VariationalEncoder<B: Backend, M> {
@@ -46,5 +47,28 @@ where
 
         // z = mu + std * epsilon
         mu + std.mul(epsilon)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct VariationalEncoderConfig<M> {
+    pub model: M,
+    pub mean: LinearModelConfig,
+    pub logvar: LinearModelConfig,
+}
+
+impl<B, M> Init<B> for VariationalEncoderConfig<M>
+where
+    B: Backend,
+    M: Init<B>
+{
+    type Output = VariationalEncoder<B, M::Output>;
+
+    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+        VariationalEncoder {
+            model: self.model.init(device),
+            mean: self.mean.init(device),
+            logvar: self.logvar.init(device),
+        }
     }
 }
