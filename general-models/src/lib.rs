@@ -2,9 +2,11 @@ use burn::{Tensor, module::Module, prelude::Backend};
 
 pub mod autoencoder;
 pub mod common;
+pub mod error;
+pub mod linear;
+pub mod conv;
 pub mod serde_fix;
 
-pub mod error;
 
 pub trait FromConfig<B: Backend> {
     type Config;
@@ -13,9 +15,9 @@ pub trait FromConfig<B: Backend> {
 }
 
 pub trait SimpleForwardable<B: Backend, const N_I: usize, const N_O: usize>:
-    Module<B> + FromConfig<B>
+    Module<B>
 {
-    fn forward(&self, images: Tensor<B, N_I>) -> Tensor<B, N_O>;
+    fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
 }
 
 #[cfg(feature = "wgpu")]

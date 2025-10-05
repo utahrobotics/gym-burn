@@ -8,6 +8,8 @@ burn.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 serde_json.workspace = true
+delegate = "0.13.4"
+derive_more = "2.0.1"
 
 [features]
 wgpu = ["burn/wgpu"]
