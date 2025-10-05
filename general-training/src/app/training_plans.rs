@@ -9,7 +9,7 @@ use general_models::{
             vae::{VariationalEncoder, VariationalEncoderConfig},
         },
         image::{
-            ConvLinearModel, ConvLinearModelConfig, LinearConvModelConfig,
+            ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig,
             LinearConvTransposedModel,
         },
     },
@@ -53,7 +53,7 @@ pub fn train_image_autoencoder<B: AutodiffBackend>(
     artifact_config: ArtifactConfig,
     device: &B::Device,
 ) {
-    let model_config: AutoEncoderModelConfig<ConvLinearModelConfig, LinearConvModelConfig> =
+    let model_config: AutoEncoderModelConfig<ConvLinearModelConfig, LinearConvTransposedModelConfig> =
         parse_json_file("model").unwrap();
     let channels = model_config.encoder.conv.input_channels;
     let training_dataset = Arc::new(
@@ -113,7 +113,7 @@ pub fn train_image_v_autoencoder<B: AutodiffBackend>(
 ) {
     let model_config: AutoEncoderModelConfig<
         VariationalEncoderConfig<ConvLinearModelConfig>,
-        LinearConvModelConfig,
+        LinearConvTransposedModelConfig,
     > = parse_json_file("model").unwrap();
     let channels = model_config.encoder.model.conv.input_channels;
     let training_dataset = Arc::new(

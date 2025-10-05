@@ -1,0 +1,6 @@
+{
+    "db_file": "isthatarock-handwritten.sqlite",
+    "get_sql": "@get-test-data.sql",
+    "len_sql": "SELECT COUNT(*) as len FROM test",
+    "cache_len": 1024
+}

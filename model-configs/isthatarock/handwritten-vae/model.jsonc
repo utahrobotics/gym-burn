@@ -1,0 +1,82 @@
+{
+    "encoder": {
+        "kld_weight": 0.1,
+        "model": {
+            "conv": {
+                "input_channels": 1,
+                "default_activation": "Gelu",
+                "default_norm": { "batch_norm": {} },
+                "layers": [
+                    {
+                        "output_channels": 8,
+                        "kernel_size": [5, 5]
+                    },
+                    {
+                        "output_channels": 1,
+                        "kernel_size": [3, 3]
+                    }
+                ]
+            },
+            "adaptive_avg_pooling": [8, 8],
+            "linear": {
+                "input_size": 64,
+                "default_activation": "Gelu",
+                "default_norm": { "batch_norm": {} },
+                "layers": [
+                    54,
+                    44,
+                    32
+                ]
+            }
+        },
+        "mean": {
+            "input_size": 32,
+            "default_activation": "Gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                16,
+                8
+            ]
+        },
+        "logvar": {
+            "input_size": 32,
+            "default_activation": "Gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                16,8
+            ]
+        }
+    },
+    "decoder": {
+        "linear": {
+            "input_size": 8,
+            "default_activation": "Gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                96,
+                1024
+            ]
+        },
+        "conv_input_size": [8, 8],
+        "conv": {
+            "input_channels": 16,
+            "default_activation": "Gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                {
+                    "output_channels": 8,
+                    "kernel_size": [3, 3],
+                    "stride": [2, 2],
+                    "padding": [1, 1]
+                },
+                {
+                    "output_channels": 1,
+                    "kernel_size": [5, 5],
+                    "stride": [2, 2],
+                    "padding": [3, 3],
+                    "padding_out": [1, 1]
+                }
+            ]
+        }
+    }
+}

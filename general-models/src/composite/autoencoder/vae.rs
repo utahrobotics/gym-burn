@@ -34,6 +34,10 @@ where
         let latent = self.model.train(tensor);
         (self.mean.train(latent.clone()), self.logvar.train(latent))
     }
+    
+    pub fn get_model(&self) -> &M {
+        &self.model
+    }
 
     pub fn reparameterize(&self, mu: Tensor<B, 2>, logvar: Tensor<B, 2>) -> Tensor<B, 2> {
         let std = logvar.mul_scalar(0.5).exp();

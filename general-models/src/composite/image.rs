@@ -41,6 +41,12 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
     }
 }
 
+impl<B: Backend>  ConvLinearModel<B> {
+    pub fn get_input_channels(&self) -> usize {
+        self.conv.get_input_channels()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConvLinearModelConfig {
     pub conv: Conv2dModelConfig,
@@ -75,6 +81,12 @@ impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearClassifierModel<B> {
 impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearClassifierModel<B> {
     fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         self.classifier.train(self.conv_linear.train(tensor))
+    }
+}
+
+impl<B: Backend>  ConvLinearClassifierModel<B> {
+    pub fn get_input_channels(&self) -> usize {
+        self.conv_linear.get_input_channels()
     }
 }
 
@@ -144,7 +156,7 @@ impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LinearConvModelConfig {
+pub struct LinearConvTransposedModelConfig {
     pub linear: LinearModelConfig,
     pub intermediate_interpolate: Option<InterpolateMode>,
     pub conv_input_size: [usize; 2],
@@ -152,7 +164,7 @@ pub struct LinearConvModelConfig {
     pub output_interpolate: Option<Interpolate2dConfig>,
 }
 
-impl<B: Backend> Init<B> for LinearConvModelConfig {
+impl<B: Backend> Init<B> for LinearConvTransposedModelConfig {
     type Output = LinearConvTransposedModel<B>;
 
     fn init(self, device: &<B as Backend>::Device) -> Self::Output {
