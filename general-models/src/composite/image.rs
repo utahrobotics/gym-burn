@@ -23,23 +23,21 @@ pub struct ConvLinearModel<B: Backend> {
 
 impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
-        let batch_size = tensor.dims()[0] as i32;
         tensor = self.conv.infer(tensor);
         if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
             tensor = adaptive_avg_pooling.forward(tensor);
         }
-        self.linear.infer(tensor.reshape([batch_size, -1]))
+        self.linear.infer(tensor.flatten(1, 3))
     }
 }
 
 impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
-        let batch_size = tensor.dims()[0] as i32;
         tensor = self.conv.train(tensor);
         if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
             tensor = adaptive_avg_pooling.forward(tensor);
         }
-        self.linear.train(tensor.reshape([batch_size, -1]))
+        self.linear.train(tensor.flatten(1, 3))
     }
 }
 
@@ -100,7 +98,7 @@ impl<B: Backend> Init<B> for ConvLinearClassifierModelConfig {
 #[derive(Debug, Module)]
 pub struct LinearConvTransposedModel<B: Backend> {
     linear: LinearModel<B>,
-    conv_input_size: Ignored<[i32; 2]>,
+    conv_input_size: Ignored<[usize; 2]>,
     intermediate_interpolate: Option<Interpolate2d>,
     conv: ConvTranspose2dModel<B>,
     output_interpolate: Option<Interpolate2d>,
@@ -108,10 +106,10 @@ pub struct LinearConvTransposedModel<B: Backend> {
 
 impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
     fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
-        let batch_size = tensor.dims()[0] as i32;
+        let batch_size = tensor.dims()[0];
         let tensor = self.conv.infer(self.linear.infer(tensor).reshape([
             batch_size,
-            -1,
+            self.conv.get_input_channels(),
             self.conv_input_size[0],
             self.conv_input_size[1],
         ]));
@@ -125,11 +123,11 @@ impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
 
 impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 2>) -> Tensor<B, 4> {
-        let batch_size = tensor.dims()[0] as i32;
+        let batch_size = tensor.dims()[0];
         tensor = self.linear.train(tensor);
         let mut tensor = tensor.reshape([
             batch_size,
-            -1,
+            self.conv.get_input_channels(),
             self.conv_input_size[0],
             self.conv_input_size[1],
         ]);
@@ -149,7 +147,7 @@ impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
 pub struct LinearConvModelConfig {
     pub linear: LinearModelConfig,
     pub intermediate_interpolate: Option<InterpolateMode>,
-    pub conv_input_size: [u32; 2],
+    pub conv_input_size: [usize; 2],
     pub conv: ConvTranspose2dModelConfig,
     pub output_interpolate: Option<Interpolate2dConfig>,
 }
@@ -160,10 +158,7 @@ impl<B: Backend> Init<B> for LinearConvModelConfig {
     fn init(self, device: &<B as Backend>::Device) -> Self::Output {
         LinearConvTransposedModel {
             linear: self.linear.init(device),
-            conv_input_size: Ignored([
-                self.conv_input_size[0] as i32,
-                self.conv_input_size[1] as i32,
-            ]),
+            conv_input_size: Ignored(self.conv_input_size),
             intermediate_interpolate: self.intermediate_interpolate.map(
                 |mode| Interpolate2dConfig::new().with_mode(mode).with_output_size(Some([
                     self.conv_input_size[0] as usize,

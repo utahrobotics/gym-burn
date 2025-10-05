@@ -2,13 +2,13 @@ use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain,
-    linear::{LinearModel, LinearModelConfig},
+    Init, SimpleInfer, SimpleTrain, default_f, linear::{LinearModel, LinearModelConfig}
 };
 
 #[derive(Module, Debug)]
 pub struct VariationalEncoder<B: Backend, M> {
     model: M,
+    kld_weight: f64,
     mean: LinearModel<B>,
     logvar: LinearModel<B>,
 }
@@ -44,11 +44,17 @@ where
         // z = mu + std * epsilon
         mu + std.mul(epsilon)
     }
+    
+    pub fn get_kld_weight(&self) -> f64 {
+        self.kld_weight
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VariationalEncoderConfig<M> {
     pub model: M,
+    #[serde(default = "default_kld_weight")]
+    pub kld_weight: f64,
     pub mean: LinearModelConfig,
     pub logvar: LinearModelConfig,
 }
@@ -64,7 +70,10 @@ where
         VariationalEncoder {
             model: self.model.init(device),
             mean: self.mean.init(device),
+            kld_weight: self.kld_weight,
             logvar: self.logvar.init(device),
         }
     }
 }
+
+default_f!(default_kld_weight, f64, 0.1);

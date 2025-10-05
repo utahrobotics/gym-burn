@@ -39,13 +39,12 @@ where
     M: SimpleTrain<B, 4, 4> + AutodiffModule<B>,
 {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> TrainOutput<RegressionOutput<B>> {
-        let batch_size = batch.input.dims()[0];
         let actual = self.model.train(batch.input.clone());
         let loss = MseLoss::new().forward(actual.clone(), batch.expected.clone(), Reduction::Mean);
         let item = RegressionOutput::new(
             loss,
-            actual.reshape([batch_size as i32, -1]),
-            batch.expected.reshape([batch_size as i32, -1]),
+            actual.flatten(1, 3),
+            batch.expected.flatten(1, 3),
         );
 
         TrainOutput::new(&self.model, item.loss.backward(), item)
@@ -58,13 +57,12 @@ where
     M: SimpleInfer<B, 4, 4>,
 {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> RegressionOutput<B> {
-        let batch_size = batch.input.dims()[0];
         let actual = self.model.infer(batch.input.clone());
         let loss = MseLoss::new().forward(actual.clone(), batch.expected.clone(), Reduction::Mean);
         RegressionOutput::new(
             loss,
-            actual.reshape([batch_size as i32, -1]),
-            batch.expected.reshape([batch_size as i32, -1]),
+            actual.flatten(1, 3),
+            batch.expected.flatten(1, 3),
         )
     }
 }
@@ -81,7 +79,6 @@ where
     AutoEncoderModel<B, VariationalEncoder<B, E>, D>: AutodiffModule<B>,
 {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> TrainOutput<RegressionOutput<B>> {
-        let batch_size = batch.input.dims()[0];
         let (actual_mean, actual_logvar) = self.model.encoder.train(batch.input.clone());
         let sampled_latent = self
             .model
@@ -94,29 +91,19 @@ where
             Reduction::Mean,
         );
 
-        let kld_element = actual_logvar
-            .clone()
-            .exp()
-            .add(actual_mean.powf_scalar(2.0))
+        let kld_element = actual_mean
+            .powf_scalar(2.0)
+            .add(actual_logvar.clone().exp())
             .sub_scalar(1.0)
             .sub(actual_logvar);
-        let kld = kld_element.sum().mul_scalar(-0.5);
+        let kld = kld_element.sum_dim(1).mean().mul_scalar(0.5);
 
-        let total_loss = mse_loss + kld;
-
-        // // 2. KL Divergence Loss
-        // // logvar.exp() is sigma^2
-        // let kld_element = logvar.exp().add(mu.powf(2.0)).sub_scalar(1.0).sub(logvar);
-        // let kld = kld_element.sum().mul_scalar(-0.5);
-
-        // // 3. Total VAE Loss (Negative ELBO)
-        // // Note: If you want a beta-VAE, you would multiply the kld term by beta.
-        // bce.add(kld)
+        let total_loss = mse_loss + (kld * self.model.encoder.get_kld_weight());
 
         let item = RegressionOutput::new(
             total_loss,
-            actual_reconstructed.reshape([batch_size as i32, -1]),
-            batch.expected.reshape([batch_size as i32, -1]),
+            actual_reconstructed.flatten(1, 3),
+            batch.expected.flatten(1, 3),
         );
 
         TrainOutput::new(&self.model, item.loss.backward(), item)

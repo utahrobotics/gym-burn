@@ -1,5 +1,5 @@
 use burn::{
-    module::Module,
+    module::{Ignored, Module},
     nn::{
         Dropout, DropoutConfig, PaddingConfig2d, activation::Activation, conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}
     },
@@ -15,8 +15,15 @@ use crate::{
 
 #[derive(Debug, Module)]
 pub struct Conv2dModel<B: Backend> {
+    input_channels: Ignored<usize>,
     layers: Vec<(Conv2d<B>, Option<Norm<B>>, Activation<B>)>,
     dropout: Dropout,
+}
+
+impl<B: Backend> Conv2dModel<B> {
+    pub fn get_input_channels(&self) -> usize {
+        self.input_channels.0
+    }
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 4> for Conv2dModel<B> {
@@ -103,7 +110,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
                     .with_groups(groups)
                     .with_padding(padding.map(|[x, y]| PaddingConfig2d::Explicit(x, y)).unwrap_or(PaddingConfig2d::Valid))
                     .init(device),
-                norm.map(|norm| norm.init(device, output_channels)),
+                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_channels)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),
@@ -111,6 +118,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
             input_channels = output_channels;
         }
         Conv2dModel {
+            input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
         }
@@ -119,8 +127,15 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
 
 #[derive(Debug, Module)]
 pub struct ConvTranspose2dModel<B: Backend> {
+    input_channels: Ignored<usize>,
     layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Activation<B>)>,
     dropout: Dropout,
+}
+
+impl<B: Backend> ConvTranspose2dModel<B> {
+    pub fn get_input_channels(&self) -> usize {
+        self.input_channels.0
+    }
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 4> for ConvTranspose2dModel<B> {
@@ -212,7 +227,7 @@ impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
                     .with_padding_out(padding_out)
                     .with_groups(groups)
                     .init(device),
-                norm.map(|norm| norm.init(device, output_channels)),
+                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_channels)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),
@@ -220,6 +235,7 @@ impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
             input_channels = output_channels;
         }
         ConvTranspose2dModel {
+            input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
         }

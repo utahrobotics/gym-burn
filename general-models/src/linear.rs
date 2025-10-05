@@ -70,7 +70,7 @@ impl<B: Backend> Init<B> for LinearModelConfig {
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())
                     .init(device),
-                norm.map(|norm| norm.init(device, output_size)),
+                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_size)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),
