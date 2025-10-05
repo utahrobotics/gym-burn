@@ -1,4 +1,4 @@
-use burn::{module::ModuleDisplay, prelude::*};
+use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
 
 use crate::{linear::LinearModel, SimpleInfer, SimpleTrain};
 
@@ -19,7 +19,6 @@ where
     }
 }
 
-
 impl<B: Backend, M> VariationalEncoder<B, M>
 where
     B: Backend
@@ -33,5 +32,19 @@ where
             self.mean.train(latent.clone()),
             self.logvar.train(latent),
         )
+    }
+    
+    pub fn reparameterize(&self, mu: Tensor<B, 2>, logvar: Tensor<B, 2>) -> Tensor<B, 2> {
+        let std = logvar.mul_scalar(0.5).exp();
+        
+        // Sample epsilon from standard Gaussian (0, 1)
+        let epsilon = Tensor::random(
+            mu.shape(), 
+            Distribution::Normal(0.0, 1.0),
+            &mu.device(),
+        );
+
+        // z = mu + std * epsilon
+        mu + std.mul(epsilon)
     }
 }
