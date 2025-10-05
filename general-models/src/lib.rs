@@ -1,29 +1,36 @@
 use burn::{Tensor, module::Module, prelude::Backend};
 
-pub mod autoencoder;
+// pub mod autoencoder;
 pub mod common;
+pub mod composite;
 pub mod error;
 pub mod linear;
 pub mod conv;
-pub mod serde_fix;
+// pub mod serde_fix;
 
 
-pub trait FromConfig<B: Backend> {
-    type Config;
+// pub trait FromConfig<B: Backend> {
+//     type Config;
 
-    fn init(config: Self::Config, device: &B::Device) -> Self;
-}
+//     fn init(config: Self::Config, device: &B::Device) -> Self;
+// }
 
 pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize>:
     Module<B>
 {
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
+    fn infer(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
+        self.forward(tensor)
+    }
 }
 
 pub trait SimpleTrain<B: Backend, const N_I: usize, const N_O: usize>:
     Module<B>
 {
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
+    fn train(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
+        self.forward(tensor)
+    }
 }
 
 #[cfg(feature = "wgpu")]

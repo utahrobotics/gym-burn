@@ -1,4 +1,4 @@
-use burn::{module::Module, nn::{Dropout, DropoutConfig, Linear, LinearConfig, activation::{Activation, ActivationConfig}}, prelude::Backend};
+use burn::{module::Module, nn::{activation::{Activation, ActivationConfig}, Dropout, DropoutConfig, Linear, LinearConfig}, prelude::*, tensor::activation::softmax};
 use serde::{Deserialize, Serialize};
 
 use crate::{SimpleInfer, SimpleTrain, common::{Norm, NormConfig}};
@@ -70,3 +70,21 @@ impl LinearModelConfig {
         }
     }
 }
+
+#[derive(Module, Debug)]
+pub struct LinearClassifierModel<B: Backend> {
+    linear: LinearModel<B>
+}
+
+impl<B: Backend> SimpleInfer<B, 2, 2> for LinearClassifierModel<B> {
+    fn forward(&self, tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
+        softmax(self.linear.infer(tensor), 1)
+    }
+}
+
+impl<B: Backend> SimpleTrain<B, 2, 2> for LinearClassifierModel<B> {
+    fn forward(&self, tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
+        self.linear.train(tensor)
+    }
+}
+
