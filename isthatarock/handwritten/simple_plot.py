@@ -52,5 +52,3 @@ plt.grid(True, alpha=0.3)
 # Save and show the plot
 plt.savefig('pca_visualization.png', dpi=300, bbox_inches='tight')
 plt.show()
-
-print("Visualization complete! Plot saved as 'pca_visualization.png'")

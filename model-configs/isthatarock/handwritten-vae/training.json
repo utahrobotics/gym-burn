@@ -1,5 +1,5 @@
 {
-    "num_epochs": 5,
+    "num_epochs": 3,
     "batch_size": 64,
     "num_workers": 4,
     "seed": 42,

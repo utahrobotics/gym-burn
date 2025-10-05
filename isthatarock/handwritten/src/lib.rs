@@ -9,9 +9,7 @@ use burn::{
     tensor::TensorData,
 };
 use general_models::{
-    SimpleInfer,
-    autoencoder::{LinearImageAutoEncoderConfig, SimpleLumaImageEncoder},
-    error::LoadModelError,
+    Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, vae::{VariationalEncoder, VariationalEncoderConfig}}, image::{ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig}}, error::LoadModelError
 };
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
@@ -19,8 +17,13 @@ use utils::parse_json_file;
 #[cfg(feature = "app")]
 pub mod app;
 
+// type Model<B> = VariationalEncoder<B, ConvLinearModel<B>>;
+// type Config = VariationalEncoderConfig<ConvLinearModelConfig>;
+type Model<B> = ConvLinearModel<B>;
+type Config = ConvLinearModelConfig;
+
 pub struct ImageEncoder<B: Backend> {
-    encoder: SimpleLumaImageEncoder<B>,
+    encoder: Model<B>,
     device: B::Device,
 }
 
@@ -30,8 +33,8 @@ impl<B: Backend> ImageEncoder<B> {
         encoder_weights: impl AsRef<Path>,
         device: &B::Device,
     ) -> Result<Self, LoadModelError> {
-        let autoencoder_config: LinearImageAutoEncoderConfig = parse_json_file(autoencoder_config)?;
-        let mut encoder = autoencoder_config.encoder_config.init(device);
+        let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTransposedModelConfig> = parse_json_file(autoencoder_config)?;
+        let mut encoder = autoencoder_config.encoder.init(device);
         encoder = encoder
             .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);
         Ok(Self {
@@ -40,7 +43,7 @@ impl<B: Backend> ImageEncoder<B> {
         })
     }
 
-    pub fn get_encoder(&self) -> &SimpleLumaImageEncoder<B> {
+    pub fn get_encoder(&self) -> &Model<B> {
         &self.encoder
     }
 
@@ -56,7 +59,7 @@ impl<B: Backend> ImageEncoder<B> {
             .into_iter()
             .map(|x| TensorData::from(x.as_ref()))
             .map(|data| Tensor::<B, 1>::from_data(data, &self.device))
-            .map(|tensor| tensor.reshape([1, 28, 28]))
+            .map(|tensor| tensor.reshape([1, 1, 28, 28]))
             .collect();
         let tensor = Tensor::cat(tensors, 0);
         let latent_dims = self.encoder.forward(tensor);

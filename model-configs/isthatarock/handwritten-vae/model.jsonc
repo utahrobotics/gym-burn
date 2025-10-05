@@ -4,7 +4,7 @@
         "model": {
             "conv": {
                 "input_channels": 1,
-                "default_activation": "Gelu",
+                "default_activation": "gelu",
                 "default_norm": { "batch_norm": {} },
                 "layers": [
                     {
@@ -20,7 +20,7 @@
             "adaptive_avg_pooling": [8, 8],
             "linear": {
                 "input_size": 64,
-                "default_activation": "Gelu",
+                "default_activation": "gelu",
                 "default_norm": { "batch_norm": {} },
                 "layers": [
                     54,
@@ -31,26 +31,27 @@
         },
         "mean": {
             "input_size": 32,
-            "default_activation": "Gelu",
+            "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
                 16,
-                8
+                [8, "none"]
             ]
         },
         "logvar": {
             "input_size": 32,
-            "default_activation": "Gelu",
+            "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
-                16,8
+                16,
+                [8, "none"]
             ]
         }
     },
     "decoder": {
         "linear": {
             "input_size": 8,
-            "default_activation": "Gelu",
+            "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
                 96,
@@ -60,7 +61,7 @@
         "conv_input_size": [8, 8],
         "conv": {
             "input_channels": 16,
-            "default_activation": "Gelu",
+            "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
                 {
@@ -69,13 +70,16 @@
                     "stride": [2, 2],
                     "padding": [1, 1]
                 },
-                {
-                    "output_channels": 1,
-                    "kernel_size": [5, 5],
-                    "stride": [2, 2],
-                    "padding": [3, 3],
-                    "padding_out": [1, 1]
-                }
+                [
+                    {
+                        "output_channels": 1,
+                        "kernel_size": [5, 5],
+                        "stride": [2, 2],
+                        "padding": [3, 3],
+                        "padding_out": [1, 1]
+                    },
+                    "none"
+                ]
             ]
         }
     }

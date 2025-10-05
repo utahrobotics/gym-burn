@@ -15,18 +15,20 @@ use crate::{
 
 #[derive(Debug, Module)]
 pub struct LinearModel<B: Backend> {
-    layers: Vec<(Linear<B>, Option<Norm<B>>, Activation<B>)>,
+    layers: Vec<(Linear<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
 }
 
-impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
+impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
         for (i, (linear, norm, activation)) in self.layers.iter().enumerate() {
             tensor = linear.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
             if i < self.layers.len() - 1 {
                 tensor = self.dropout.forward(tensor);
             }
@@ -35,14 +37,16 @@ impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
+impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
         for (linear, norm, activation) in self.layers.iter() {
             tensor = linear.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
         }
         tensor
     }
@@ -53,7 +57,7 @@ pub struct LinearModelConfig {
     pub input_size: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<usize, NormConfig, ActivationConfig>>,
+    pub layers: Vec<Either<usize, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
 }
@@ -62,10 +66,10 @@ impl<B: Backend> Init<B> for LinearModelConfig {
     type Output = LinearModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
+        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_size = self.input_size;
         let mut layers = vec![];
-        for (output_size, norm, activation) in self.layers.into_iter().map(Either::into_tuple) {
+        for (output_size, activation, norm) in self.layers.into_iter().map(Either::into_tuple) {
             layers.push((
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())

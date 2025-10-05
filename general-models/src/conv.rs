@@ -16,7 +16,7 @@ use crate::{
 #[derive(Debug, Module)]
 pub struct Conv2dModel<B: Backend> {
     input_channels: Ignored<usize>,
-    layers: Vec<(Conv2d<B>, Option<Norm<B>>, Activation<B>)>,
+    layers: Vec<(Conv2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
 }
 
@@ -26,14 +26,16 @@ impl<B: Backend> Conv2dModel<B> {
     }
 }
 
-impl<B: Backend> SimpleInfer<B, 4, 4> for Conv2dModel<B> {
+impl<B: Backend> SimpleTrain<B, 4, 4> for Conv2dModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 4>) -> burn::Tensor<B, 4> {
         for (i, (conv, norm, activation)) in self.layers.iter().enumerate() {
             tensor = conv.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
             if i < self.layers.len() - 1 {
                 tensor = self.dropout.forward(tensor);
             }
@@ -42,14 +44,16 @@ impl<B: Backend> SimpleInfer<B, 4, 4> for Conv2dModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 4, 4> for Conv2dModel<B> {
+impl<B: Backend> SimpleInfer<B, 4, 4> for Conv2dModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 4>) -> burn::Tensor<B, 4> {
         for (conv, norm, activation) in self.layers.iter() {
             tensor = conv.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
         }
         tensor
     }
@@ -75,8 +79,8 @@ pub struct Conv2dModelConfig {
     pub default_norm: Option<NormConfig>,
     pub layers: Vec<Either<
         Conv2dLayerConfig,
-        NormConfig,
         ActivationConfig,
+        NormConfig,
     >>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
@@ -86,7 +90,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
     type Output = Conv2dModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
+        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
         for (
@@ -98,8 +102,8 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
                 groups,
                 padding
             },
-            norm,
             activation,
+            norm,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
             layers.push((
@@ -128,7 +132,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
 #[derive(Debug, Module)]
 pub struct ConvTranspose2dModel<B: Backend> {
     input_channels: Ignored<usize>,
-    layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Activation<B>)>,
+    layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
 }
 
@@ -138,14 +142,16 @@ impl<B: Backend> ConvTranspose2dModel<B> {
     }
 }
 
-impl<B: Backend> SimpleInfer<B, 4, 4> for ConvTranspose2dModel<B> {
+impl<B: Backend> SimpleTrain<B, 4, 4> for ConvTranspose2dModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 4>) -> burn::Tensor<B, 4> {
         for (i, (conv, norm, activation)) in self.layers.iter().enumerate() {
             tensor = conv.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
             if i < self.layers.len() - 1 {
                 tensor = self.dropout.forward(tensor);
             }
@@ -154,14 +160,16 @@ impl<B: Backend> SimpleInfer<B, 4, 4> for ConvTranspose2dModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 4, 4> for ConvTranspose2dModel<B> {
+impl<B: Backend> SimpleInfer<B, 4, 4> for ConvTranspose2dModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 4>) -> burn::Tensor<B, 4> {
         for (conv, norm, activation) in self.layers.iter() {
             tensor = conv.forward(tensor);
             if let Some(norm) = norm {
                 tensor = norm.forward(tensor);
             }
-            tensor = activation.forward(tensor);
+            if let Some(activation) = activation {
+                tensor = activation.forward(tensor);
+            }
         }
         tensor
     }
@@ -190,8 +198,8 @@ pub struct ConvTranspose2dModelConfig {
     pub default_norm: Option<NormConfig>,
     pub layers: Vec<Either<
         ConvTranspose2dLayerConfig,
-        NormConfig,
         ActivationConfig,
+        NormConfig,
     >>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
@@ -201,7 +209,7 @@ impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
     type Output = ConvTranspose2dModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
+        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
         for (
@@ -214,8 +222,8 @@ impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
                 padding_out,
                 groups,
             },
-            norm,
             activation,
+            norm,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
             layers.push((

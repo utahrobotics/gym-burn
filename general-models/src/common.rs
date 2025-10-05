@@ -182,14 +182,38 @@ impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, From)]
-#[serde(transparent, rename_all = "snake_case")]
-pub struct ActivationConfig(pub burn::nn::activation::ActivationConfig);
+use burn::nn::{PReluConfig, LeakyReluConfig, SwiGluConfig, HardSigmoidConfig};
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivationConfig {
+    Gelu,
+    PRelu(PReluConfig),
+    Relu,
+    LeakyRelu(LeakyReluConfig),
+    SwiGlu(SwiGluConfig),
+    Sigmoid,
+    Tanh,
+    HardSigmoid(HardSigmoidConfig),
+    #[default]
+    None
+}
 
 impl ActivationConfig {
-    pub const GELU: Self = ActivationConfig(burn::nn::activation::ActivationConfig::Gelu);
-    pub fn init<B: Backend>(self, device: &B::Device) -> burn::nn::activation::Activation<B> {
-        self.0.init(device)
+    pub fn init<B: Backend>(self, device: &B::Device) -> Option<burn::nn::activation::Activation<B>> {
+        use burn::nn::activation::ActivationConfig as Config;
+        let config = match self {
+            ActivationConfig::Gelu => Config::Gelu,
+            ActivationConfig::PRelu(prelu_config) => Config::PRelu(prelu_config),
+            ActivationConfig::Relu => Config::Relu,
+            ActivationConfig::LeakyRelu(leaky_relu_config) => Config::LeakyRelu(leaky_relu_config),
+            ActivationConfig::SwiGlu(swi_glu_config) => Config::SwiGlu(swi_glu_config),
+            ActivationConfig::Sigmoid => Config::Sigmoid,
+            ActivationConfig::Tanh => Config::Tanh,
+            ActivationConfig::HardSigmoid(hard_sigmoid_config) => Config::HardSigmoid(hard_sigmoid_config),
+            ActivationConfig::None => return None,
+        };
+        Some(config.init(device))
     }
 }
 
