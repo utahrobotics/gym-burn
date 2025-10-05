@@ -16,7 +16,7 @@ use general_models::{
 use crate::batches::AutoEncoderImageBatch;
 
 pub const STANDARD: usize = 0;
-pub const NON_STANDARD_1: usize = 1;
+pub const SPECIALIZED: usize = 1;
 
 #[derive(Debug, Module)]
 pub struct RegressionTrainableModel<B: Backend, T, const X: usize> {
@@ -73,7 +73,7 @@ impl<B: AutodiffBackend, E, D> TrainStep<AutoEncoderImageBatch<B>, RegressionOut
     for RegressionTrainableModel<
         B,
         AutoEncoderModel<B, VariationalEncoder<B, E>, D>,
-        NON_STANDARD_1,
+        SPECIALIZED,
     >
 where
     E: SimpleTrain<B, 4, 2> + AutodiffModule<B>,

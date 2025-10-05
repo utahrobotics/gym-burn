@@ -1,7 +1,7 @@
 use burn::{
     module::Ignored,
     nn::{
-        interpolate::{Interpolate2d, Interpolate2dConfig},
+        interpolate::{Interpolate2d, Interpolate2dConfig, InterpolateMode},
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
     },
     prelude::*,
@@ -46,7 +46,7 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConvLinearModelConfig {
     pub conv: Conv2dModelConfig,
-    pub adaptive_avg_pooling: Option<AdaptiveAvgPool2dConfig>,
+    pub adaptive_avg_pooling: Option<[usize; 2]>,
     pub linear: LinearModelConfig,
 }
 
@@ -56,7 +56,7 @@ impl<B: Backend> Init<B> for ConvLinearModelConfig {
     fn init(self, device: &<B as Backend>::Device) -> Self::Output {
         ConvLinearModel {
             conv: self.conv.init(device),
-            adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| x.init()),
+            adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| AdaptiveAvgPool2dConfig::new(x).init()),
             linear: self.linear.init(device),
         }
     }
@@ -101,8 +101,9 @@ impl<B: Backend> Init<B> for ConvLinearClassifierModelConfig {
 pub struct LinearConvTransposedModel<B: Backend> {
     linear: LinearModel<B>,
     conv_input_size: Ignored<[i32; 2]>,
+    intermediate_interpolate: Option<Interpolate2d>,
     conv: ConvTranspose2dModel<B>,
-    interpolate: Option<Interpolate2d>,
+    output_interpolate: Option<Interpolate2d>,
 }
 
 impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
@@ -114,7 +115,7 @@ impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
             self.conv_input_size[0],
             self.conv_input_size[1],
         ]));
-        if let Some(interpolate) = &self.interpolate {
+        if let Some(interpolate) = &self.output_interpolate {
             interpolate.forward(tensor)
         } else {
             tensor
@@ -123,15 +124,20 @@ impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
 }
 
 impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
-    fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
+    fn forward(&self, mut tensor: Tensor<B, 2>) -> Tensor<B, 4> {
         let batch_size = tensor.dims()[0] as i32;
-        let tensor = self.conv.train(self.linear.train(tensor).reshape([
+        tensor = self.linear.train(tensor);
+        let mut tensor = tensor.reshape([
             batch_size,
             -1,
             self.conv_input_size[0],
             self.conv_input_size[1],
-        ]));
-        if let Some(interpolate) = &self.interpolate {
+        ]);
+        if let Some(interpolate) = &self.intermediate_interpolate {
+            tensor = interpolate.forward(tensor);
+        }
+        let tensor = self.conv.train(tensor);
+        if let Some(interpolate) = &self.output_interpolate {
             interpolate.forward(tensor)
         } else {
             tensor
@@ -142,9 +148,10 @@ impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinearConvModelConfig {
     pub linear: LinearModelConfig,
+    pub intermediate_interpolate: Option<InterpolateMode>,
     pub conv_input_size: [u32; 2],
     pub conv: ConvTranspose2dModelConfig,
-    pub interpolate: Option<Interpolate2dConfig>,
+    pub output_interpolate: Option<Interpolate2dConfig>,
 }
 
 impl<B: Backend> Init<B> for LinearConvModelConfig {
@@ -157,8 +164,14 @@ impl<B: Backend> Init<B> for LinearConvModelConfig {
                 self.conv_input_size[0] as i32,
                 self.conv_input_size[1] as i32,
             ]),
+            intermediate_interpolate: self.intermediate_interpolate.map(
+                |mode| Interpolate2dConfig::new().with_mode(mode).with_output_size(Some([
+                    self.conv_input_size[0] as usize,
+                    self.conv_input_size[1] as usize
+                ])).init()
+            ),
             conv: self.conv.init(device),
-            interpolate: self.interpolate.map(|x| x.init()),
+            output_interpolate: self.output_interpolate.map(|x| x.init()),
         }
     }
 }

@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     nn::{
         Dropout, DropoutConfig, Linear, LinearConfig,
-        activation::{Activation, ActivationConfig},
+        activation::Activation,
     },
     prelude::*,
     tensor::activation::softmax,
@@ -10,8 +10,7 @@ use burn::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain,
-    common::{Norm, NormConfig},
+    Init, SimpleInfer, SimpleTrain, common::{ActivationConfig, Either, Norm, NormConfig}, default_f
 };
 
 #[derive(Debug, Module)]
@@ -54,7 +53,8 @@ pub struct LinearModelConfig {
     pub input_size: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<(usize, Option<NormConfig>, Option<ActivationConfig>)>,
+    pub layers: Vec<Either<usize, NormConfig, ActivationConfig>>,
+    #[serde(default = "default_dropout")]
     pub dropout: f64,
 }
 
@@ -62,10 +62,10 @@ impl<B: Backend> Init<B> for LinearModelConfig {
     type Output = LinearModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
+        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
         let mut input_size = self.input_size;
         let mut layers = vec![];
-        for (output_size, norm, activation) in self.layers {
+        for (output_size, norm, activation) in self.layers.into_iter().map(Either::into_tuple) {
             layers.push((
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())
@@ -113,3 +113,5 @@ impl<B: Backend> Init<B> for LinearClassifierModelConfig {
         }
     }
 }
+
+default_f!(default_dropout, f64, 0.0);

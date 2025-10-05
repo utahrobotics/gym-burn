@@ -20,8 +20,8 @@ use crate::{
     app::ArtifactConfig,
     batches::{AutoEncoderImageBatcher, AutoEncoderImageItem},
     dataset::{SqliteDataset, SqliteDatasetConfig},
-    regression::RegressionTrainableModel,
-    training_loop::{SimpleTrainingConfig, simple_regression_training_loop},
+    regression::{RegressionTrainableModel, SPECIALIZED, STANDARD},
+    training_loop::{simple_regression_training_loop, SimpleTrainingConfig},
 };
 
 macro_rules! epilogue {
@@ -68,6 +68,7 @@ pub fn train_image_autoencoder<B: AutodiffBackend>(
         RegressionTrainableModel<
             _,
             AutoEncoderModel<_, ConvLinearModel<_>, LinearConvTransposedModel<_>>,
+            STANDARD
         >,
         _,
         _,
@@ -131,6 +132,7 @@ pub fn train_image_v_autoencoder<B: AutodiffBackend>(
                 VariationalEncoder<_, ConvLinearModel<_>>,
                 LinearConvTransposedModel<_>,
             >,
+            SPECIALIZED
         >,
         _,
         _,

@@ -50,6 +50,7 @@ impl<B: Backend, const D: usize> SimpleInfer<B, D, D> for Norm<B> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum NormConfig {
     BatchNorm {
         #[serde(default = "default_epsilon")]
@@ -176,8 +177,19 @@ impl<B: AutodiffBackend> AutodiffModule<B> for PhantomBackend<B> {
 impl<B: Backend> ModuleDisplay for PhantomBackend<B> {}
 
 impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
-    fn content(&self, _content: burn::module::Content) -> Option<burn::module::Content> {
-        None
+    fn content(&self, content: burn::module::Content) -> Option<burn::module::Content> {
+        Some(content)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, From)]
+#[serde(transparent, rename_all = "snake_case")]
+pub struct ActivationConfig(pub burn::nn::activation::ActivationConfig);
+
+impl ActivationConfig {
+    pub const GELU: Self = ActivationConfig(burn::nn::activation::ActivationConfig::Gelu);
+    pub fn init<B: Backend>(self, device: &B::Device) -> burn::nn::activation::Activation<B> {
+        self.0.init(device)
     }
 }
 
@@ -248,6 +260,24 @@ impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
 //         None
 //     }
 // }
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[serde(untagged)]
+pub enum Either<A, B, C> {
+    One(A),
+    Two(A, B),
+    Three(A, B, C),
+}
+
+impl<A, B, C> Either<A, B, C> {
+    pub fn into_tuple(self) -> (A, Option<B>, Option<C>) {
+        match self {
+            Either::One(a) => (a, None, None),
+            Either::Two(a, b) => (a, Some(b), None),
+            Either::Three(a, b, c) => (a, Some(b), Some(c)),
+        }
+    }
+}
 
 default_f!(default_epsilon, f64, 1e-5);
 default_f!(default_momentum, f64, 0.1);

@@ -1,9 +1,7 @@
 use burn::{
     module::Module,
     nn::{
-        Dropout, DropoutConfig,
-        activation::{Activation, ActivationConfig},
-        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+        Dropout, DropoutConfig, PaddingConfig2d, activation::Activation, conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}
     },
     prelude::*,
 };
@@ -11,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
-    common::{Norm, NormConfig},
+    common::{ActivationConfig, Either, Norm, NormConfig},
     default_f,
 };
 
@@ -60,6 +58,7 @@ pub struct Conv2dLayerConfig {
     pub dilation: [usize; 2],
     #[serde(default = "default_groups")]
     pub groups: usize,
+    pub padding: Option<[usize; 2]>,
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -67,11 +66,12 @@ pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<(
+    pub layers: Vec<Either<
         Conv2dLayerConfig,
-        Option<NormConfig>,
-        Option<ActivationConfig>,
-    )>,
+        NormConfig,
+        ActivationConfig,
+    >>,
+    #[serde(default = "default_dropout")]
     pub dropout: f64,
 }
 
@@ -79,7 +79,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
     type Output = Conv2dModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
+        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
         for (
@@ -89,10 +89,11 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
                 stride,
                 dilation,
                 groups,
+                padding
             },
             norm,
             activation,
-        ) in self.layers
+        ) in self.layers.into_iter().map(Either::into_tuple)
         {
             layers.push((
                 Conv2dConfig::new([input_channels, output_channels], kernel_size)
@@ -100,6 +101,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
                     .with_stride(stride)
                     .with_dilation(dilation)
                     .with_groups(groups)
+                    .with_padding(padding.map(|[x, y]| PaddingConfig2d::Explicit(x, y)).unwrap_or(PaddingConfig2d::Valid))
                     .init(device),
                 norm.map(|norm| norm.init(device, output_channels)),
                 activation
@@ -150,33 +152,64 @@ impl<B: Backend> SimpleTrain<B, 4, 4> for ConvTranspose2dModel<B> {
     }
 }
 
+#[derive(Serialize, Debug, Deserialize, Clone, Copy)]
+pub struct ConvTranspose2dLayerConfig {
+    pub output_channels: usize,
+    pub kernel_size: [usize; 2],
+    #[serde(default = "default_stride")]
+    pub stride: [usize; 2],
+    #[serde(default = "default_stride")]
+    pub dilation: [usize; 2],
+    #[serde(default = "default_groups")]
+    pub groups: usize,
+    #[serde(default = "default_padding")]
+    pub padding: [usize; 2],
+    #[serde(default = "default_padding")]
+    pub padding_out: [usize; 2],
+}
+
 #[derive(Serialize, Debug, Deserialize, Clone)]
-pub struct ConvTranspose2dModelConfig(Conv2dModelConfig);
+pub struct ConvTranspose2dModelConfig {
+    pub input_channels: usize,
+    pub default_activation: Option<ActivationConfig>,
+    pub default_norm: Option<NormConfig>,
+    pub layers: Vec<Either<
+        ConvTranspose2dLayerConfig,
+        NormConfig,
+        ActivationConfig,
+    >>,
+    #[serde(default = "default_dropout")]
+    pub dropout: f64,
+}
 
 impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
     type Output = ConvTranspose2dModel<B>;
 
     fn init(self, device: &B::Device) -> Self::Output {
-        let default_activation = self.0.default_activation.unwrap_or(ActivationConfig::Gelu);
-        let mut input_channels = self.0.input_channels;
+        let default_activation = self.default_activation.unwrap_or(ActivationConfig::GELU);
+        let mut input_channels = self.input_channels;
         let mut layers = vec![];
         for (
-            Conv2dLayerConfig {
+            ConvTranspose2dLayerConfig {
                 output_channels,
                 kernel_size,
                 stride,
                 dilation,
+                padding,
+                padding_out,
                 groups,
             },
             norm,
             activation,
-        ) in self.0.layers
+        ) in self.layers.into_iter().map(Either::into_tuple)
         {
             layers.push((
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
                     .with_stride(stride)
                     .with_dilation(dilation)
+                    .with_padding(padding)
+                    .with_padding_out(padding_out)
                     .with_groups(groups)
                     .init(device),
                 norm.map(|norm| norm.init(device, output_channels)),
@@ -188,10 +221,12 @@ impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
         }
         ConvTranspose2dModel {
             layers,
-            dropout: DropoutConfig::new(self.0.dropout).init(),
+            dropout: DropoutConfig::new(self.dropout).init(),
         }
     }
 }
 
 default_f!(default_stride, [usize; 2], [1, 1]);
 default_f!(default_groups, usize, 1);
+default_f!(default_dropout, f64, 0.0);
+default_f!(default_padding, [usize; 2], [0, 0]);
