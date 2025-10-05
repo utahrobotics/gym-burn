@@ -1,7 +1,14 @@
-use burn::{nn::pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}, prelude::*};
+use burn::{
+    nn::pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+    prelude::*,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{conv::{Conv2dModel, Conv2dModelConfig}, linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig}, Init, SimpleInfer, SimpleTrain};
+use crate::{
+    Init, SimpleInfer, SimpleTrain,
+    conv::{Conv2dModel, Conv2dModelConfig},
+    linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig},
+};
 
 #[derive(Debug, Module)]
 pub struct ConvLinearImageModel<B: Backend> {
@@ -54,7 +61,7 @@ impl<B: Backend> Init<B> for ConvLinearImageModelConfig {
 #[derive(Debug, Module)]
 pub struct ConvLinearImageClassifierModel<B: Backend> {
     conv_linear: ConvLinearImageModel<B>,
-    classifier: LinearClassifierModel<B>
+    classifier: LinearClassifierModel<B>,
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearImageClassifierModel<B> {
@@ -72,7 +79,7 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageClassifierModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConvLinearImageClassifierModelConfig {
     pub conv_linear: ConvLinearImageModelConfig,
-    pub classifier: LinearClassifierModelConfig
+    pub classifier: LinearClassifierModelConfig,
 }
 
 impl<B: Backend> Init<B> for ConvLinearImageClassifierModelConfig {

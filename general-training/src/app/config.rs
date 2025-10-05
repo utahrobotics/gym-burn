@@ -1,3 +1,1 @@
-pub enum ModelConfig {
-    
-}
+pub enum ModelConfig {}

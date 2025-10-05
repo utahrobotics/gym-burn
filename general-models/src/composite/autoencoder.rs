@@ -1,17 +1,19 @@
-use burn::{module::{Module, ModuleDisplay}, prelude::*};
+use burn::{
+    module::{Module, ModuleDisplay},
+    prelude::*,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{common::PhantomModule, Init, SimpleInfer, SimpleTrain};
+use crate::{Init, SimpleInfer, SimpleTrain, common::PhantomModule};
 
 pub mod decoder;
 pub mod vae;
-
 
 #[derive(Debug, Module)]
 pub struct AutoEncoderModel<B: Backend, E, D> {
     pub encoder: E,
     pub decoder: D,
-    _phantom: PhantomModule<B>
+    _phantom: PhantomModule<B>,
 }
 
 impl<B: Backend, E, D> AutoEncoderModel<B, E, D> {
@@ -19,7 +21,7 @@ impl<B: Backend, E, D> AutoEncoderModel<B, E, D> {
         Self {
             encoder,
             decoder,
-            _phantom: Default::default()
+            _phantom: Default::default(),
         }
     }
 }
@@ -30,24 +32,24 @@ macro_rules! impls {
         where
             B: Backend,
             E: SimpleInfer<B, $input, 2> + ModuleDisplay,
-            D: SimpleInfer<B, 2, $input> + ModuleDisplay
+            D: SimpleInfer<B, 2, $input> + ModuleDisplay,
         {
             fn forward(&self, tensor: Tensor<B, $input>) -> Tensor<B, $input> {
                 self.decoder.infer(self.encoder.forward(tensor))
             }
         }
-        
+
         impl<B, E, D> SimpleTrain<B, $input, $input> for AutoEncoderModel<B, E, D>
         where
             B: Backend,
             E: SimpleTrain<B, $input, 2> + ModuleDisplay,
-            D: SimpleTrain<B, 2, $input> + ModuleDisplay
+            D: SimpleTrain<B, 2, $input> + ModuleDisplay,
         {
             fn forward(&self, tensor: Tensor<B, $input>) -> Tensor<B, $input> {
                 self.decoder.train(self.encoder.train(tensor))
             }
         }
-    }
+    };
 }
 
 impls!(2);
@@ -64,7 +66,7 @@ impl<B, E, D> Init<B> for AutoEncoderModelConfig<E, D>
 where
     B: Backend,
     E: Init<B>,
-    D: Init<B>
+    D: Init<B>,
 {
     type Output = AutoEncoderModel<B, E::Output, D::Output>;
 
@@ -72,7 +74,7 @@ where
         AutoEncoderModel {
             encoder: self.encoder.init(device),
             decoder: self.decoder.init(device),
-            _phantom: Default::default()
+            _phantom: Default::default(),
         }
     }
 }

@@ -1,12 +1,23 @@
-use burn::{module::Module, nn::{activation::{Activation, ActivationConfig}, Dropout, DropoutConfig, Linear, LinearConfig}, prelude::*, tensor::activation::softmax};
+use burn::{
+    module::Module,
+    nn::{
+        Dropout, DropoutConfig, Linear, LinearConfig,
+        activation::{Activation, ActivationConfig},
+    },
+    prelude::*,
+    tensor::activation::softmax,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{common::{Norm, NormConfig}, Init, SimpleInfer, SimpleTrain};
+use crate::{
+    Init, SimpleInfer, SimpleTrain,
+    common::{Norm, NormConfig},
+};
 
 #[derive(Debug, Module)]
 pub struct LinearModel<B: Backend> {
     layers: Vec<(Linear<B>, Option<Norm<B>>, Activation<B>)>,
-    dropout: Dropout
+    dropout: Dropout,
 }
 
 impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
@@ -44,38 +55,38 @@ pub struct LinearModelConfig {
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
     pub layers: Vec<(usize, Option<NormConfig>, Option<ActivationConfig>)>,
-    pub dropout: f64
+    pub dropout: f64,
 }
 
 impl<B: Backend> Init<B> for LinearModelConfig {
     type Output = LinearModel<B>;
-    
+
     fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_size = self.input_size;
         let mut layers = vec![];
         for (output_size, norm, activation) in self.layers {
-            layers.push(
-                (
-                    LinearConfig::new(input_size, output_size)
-                        .with_bias(norm.is_none())
-                        .init(device),
-                    norm.map(|norm| norm.init(device, output_size)),
-                    activation.unwrap_or_else(|| default_activation.clone()).init(device)
-                )
-            );
+            layers.push((
+                LinearConfig::new(input_size, output_size)
+                    .with_bias(norm.is_none())
+                    .init(device),
+                norm.map(|norm| norm.init(device, output_size)),
+                activation
+                    .unwrap_or_else(|| default_activation.clone())
+                    .init(device),
+            ));
             input_size = output_size;
         }
         LinearModel {
             layers,
-            dropout: DropoutConfig::new(self.dropout).init()
+            dropout: DropoutConfig::new(self.dropout).init(),
         }
     }
 }
 
 #[derive(Module, Debug)]
 pub struct LinearClassifierModel<B: Backend> {
-    linear: LinearModel<B>
+    linear: LinearModel<B>,
 }
 
 impl<B: Backend> SimpleInfer<B, 2, 2> for LinearClassifierModel<B> {
@@ -93,13 +104,12 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearClassifierModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinearClassifierModelConfig(LinearModelConfig);
 
-
 impl<B: Backend> Init<B> for LinearClassifierModelConfig {
     type Output = LinearClassifierModel<B>;
-    
+
     fn init(self, device: &B::Device) -> Self::Output {
         LinearClassifierModel {
-            linear: self.0.init(device)
+            linear: self.0.init(device),
         }
     }
 }

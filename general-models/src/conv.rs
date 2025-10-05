@@ -1,12 +1,24 @@
-use burn::{module::Module, nn::{activation::{Activation, ActivationConfig}, conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}, Dropout, DropoutConfig}, prelude::*};
+use burn::{
+    module::Module,
+    nn::{
+        Dropout, DropoutConfig,
+        activation::{Activation, ActivationConfig},
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
+    },
+    prelude::*,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{common::{Norm, NormConfig}, default_f, Init, SimpleInfer, SimpleTrain};
+use crate::{
+    Init, SimpleInfer, SimpleTrain,
+    common::{Norm, NormConfig},
+    default_f,
+};
 
 #[derive(Debug, Module)]
 pub struct Conv2dModel<B: Backend> {
     layers: Vec<(Conv2d<B>, Option<Norm<B>>, Activation<B>)>,
-    dropout: Dropout
+    dropout: Dropout,
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 4> for Conv2dModel<B> {
@@ -55,35 +67,50 @@ pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<(Conv2dLayerConfig, Option<NormConfig>, Option<ActivationConfig>)>,
+    pub layers: Vec<(
+        Conv2dLayerConfig,
+        Option<NormConfig>,
+        Option<ActivationConfig>,
+    )>,
     pub dropout: f64,
 }
 
 impl<B: Backend> Init<B> for Conv2dModelConfig {
     type Output = Conv2dModel<B>;
-    
+
     fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
-        for (Conv2dLayerConfig { output_channels, kernel_size, stride, dilation, groups }, norm, activation) in self.layers {
-            layers.push(
-                (
-                    Conv2dConfig::new([input_channels, output_channels], kernel_size)
-                        .with_bias(norm.is_none())
-                        .with_stride(stride)
-                        .with_dilation(dilation)
-                        .with_groups(groups)
-                        .init(device),
-                    norm.map(|norm| norm.init(device, output_channels)),
-                    activation.unwrap_or_else(|| default_activation.clone()).init(device)
-                )
-            );
+        for (
+            Conv2dLayerConfig {
+                output_channels,
+                kernel_size,
+                stride,
+                dilation,
+                groups,
+            },
+            norm,
+            activation,
+        ) in self.layers
+        {
+            layers.push((
+                Conv2dConfig::new([input_channels, output_channels], kernel_size)
+                    .with_bias(norm.is_none())
+                    .with_stride(stride)
+                    .with_dilation(dilation)
+                    .with_groups(groups)
+                    .init(device),
+                norm.map(|norm| norm.init(device, output_channels)),
+                activation
+                    .unwrap_or_else(|| default_activation.clone())
+                    .init(device),
+            ));
             input_channels = output_channels;
         }
         Conv2dModel {
             layers,
-            dropout: DropoutConfig::new(self.dropout).init()
+            dropout: DropoutConfig::new(self.dropout).init(),
         }
     }
 }
@@ -91,7 +118,7 @@ impl<B: Backend> Init<B> for Conv2dModelConfig {
 #[derive(Debug, Module)]
 pub struct ConvTranspose2dModel<B: Backend> {
     layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Activation<B>)>,
-    dropout: Dropout
+    dropout: Dropout,
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 4> for ConvTranspose2dModel<B> {
@@ -128,29 +155,40 @@ pub struct ConvTranspose2dModelConfig(Conv2dModelConfig);
 
 impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
     type Output = ConvTranspose2dModel<B>;
-    
+
     fn init(self, device: &B::Device) -> Self::Output {
         let default_activation = self.0.default_activation.unwrap_or(ActivationConfig::Gelu);
         let mut input_channels = self.0.input_channels;
         let mut layers = vec![];
-        for (Conv2dLayerConfig { output_channels, kernel_size, stride, dilation, groups }, norm, activation) in self.0.layers {
-            layers.push(
-                (
-                    ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
-                        .with_bias(norm.is_none())
-                        .with_stride(stride)
-                        .with_dilation(dilation)
-                        .with_groups(groups)
-                        .init(device),
-                    norm.map(|norm| norm.init(device, output_channels)),
-                    activation.unwrap_or_else(|| default_activation.clone()).init(device)
-                )
-            );
+        for (
+            Conv2dLayerConfig {
+                output_channels,
+                kernel_size,
+                stride,
+                dilation,
+                groups,
+            },
+            norm,
+            activation,
+        ) in self.0.layers
+        {
+            layers.push((
+                ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
+                    .with_bias(norm.is_none())
+                    .with_stride(stride)
+                    .with_dilation(dilation)
+                    .with_groups(groups)
+                    .init(device),
+                norm.map(|norm| norm.init(device, output_channels)),
+                activation
+                    .unwrap_or_else(|| default_activation.clone())
+                    .init(device),
+            ));
             input_channels = output_channels;
         }
         ConvTranspose2dModel {
             layers,
-            dropout: DropoutConfig::new(self.0.dropout).init()
+            dropout: DropoutConfig::new(self.0.dropout).init(),
         }
     }
 }

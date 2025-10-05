@@ -1,6 +1,16 @@
 use std::marker::PhantomData;
 
-use burn::{config::Config, module::{AutodiffModule, ConstantRecord, Module, ModuleDisplay, ModuleDisplayDefault}, nn::{BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, InstanceNorm, InstanceNormConfig, LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig}, prelude::Backend, tensor::backend::AutodiffBackend, Tensor};
+use burn::{
+    Tensor,
+    config::Config,
+    module::{AutodiffModule, ConstantRecord, Module, ModuleDisplay, ModuleDisplayDefault},
+    nn::{
+        BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, InstanceNorm, InstanceNormConfig,
+        LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig,
+    },
+    prelude::Backend,
+    tensor::backend::AutodiffBackend,
+};
 use delegate::delegate;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
@@ -45,7 +55,7 @@ pub enum NormConfig {
         #[serde(default = "default_epsilon")]
         epsilon: f64,
         #[serde(default = "default_momentum")]
-        momentum: f64
+        momentum: f64,
     },
     RmsNorm {
         #[serde(default = "default_epsilon")]
@@ -60,24 +70,62 @@ pub enum NormConfig {
         #[serde(default = "default_epsilon")]
         epsilon: f64,
         #[serde(default = "default_affine")]
-        affine: bool
+        affine: bool,
     },
     InstanceNorm {
         #[serde(default = "default_epsilon")]
         epsilon: f64,
         #[serde(default = "default_affine")]
-        affine: bool
+        affine: bool,
     },
 }
 
 impl NormConfig {
     pub fn init<B: Backend>(self, device: &B::Device, input_size: usize) -> Norm<B> {
         match self {
-            NormConfig::BatchNorm { epsilon, momentum } => Norm::BatchNorm(BatchNormConfig { num_features: input_size, epsilon, momentum }.init(device)),
-            NormConfig::RmsNorm { epsilon } => Norm::RmsNorm(RmsNormConfig { d_model: input_size, epsilon }.init(device)),
-            NormConfig::LayerNorm { epsilon } => Norm::LayerNorm(LayerNormConfig { d_model: input_size, epsilon }.init(device)),
-            NormConfig::GroupNorm { num_groups, epsilon, affine } => Norm::GroupNorm(GroupNormConfig { num_channels: input_size, num_groups, epsilon, affine }.init(device)),
-            NormConfig::InstanceNorm { epsilon, affine } => Norm::InstanceNorm(InstanceNormConfig { num_channels: input_size, epsilon, affine }.init(device)),
+            NormConfig::BatchNorm { epsilon, momentum } => Norm::BatchNorm(
+                BatchNormConfig {
+                    num_features: input_size,
+                    epsilon,
+                    momentum,
+                }
+                .init(device),
+            ),
+            NormConfig::RmsNorm { epsilon } => Norm::RmsNorm(
+                RmsNormConfig {
+                    d_model: input_size,
+                    epsilon,
+                }
+                .init(device),
+            ),
+            NormConfig::LayerNorm { epsilon } => Norm::LayerNorm(
+                LayerNormConfig {
+                    d_model: input_size,
+                    epsilon,
+                }
+                .init(device),
+            ),
+            NormConfig::GroupNorm {
+                num_groups,
+                epsilon,
+                affine,
+            } => Norm::GroupNorm(
+                GroupNormConfig {
+                    num_channels: input_size,
+                    num_groups,
+                    epsilon,
+                    affine,
+                }
+                .init(device),
+            ),
+            NormConfig::InstanceNorm { epsilon, affine } => Norm::InstanceNorm(
+                InstanceNormConfig {
+                    num_channels: input_size,
+                    epsilon,
+                    affine,
+                }
+                .init(device),
+            ),
         }
     }
 }
@@ -102,8 +150,7 @@ impl<B: Backend> Module<B> for PhantomModule<B> {
         self
     }
 
-    fn visit<Visitor: burn::module::ModuleVisitor<B>>(&self, _: &mut Visitor) {
-    }
+    fn visit<Visitor: burn::module::ModuleVisitor<B>>(&self, _: &mut Visitor) {}
 
     fn map<Mapper: burn::module::ModuleMapper<B>>(self, _: &mut Mapper) -> Self {
         self
@@ -126,8 +173,7 @@ impl<B: AutodiffBackend> AutodiffModule<B> for PhantomModule<B> {
     }
 }
 
-impl<B: Backend> ModuleDisplay for PhantomModule<B> {
-}
+impl<B: Backend> ModuleDisplay for PhantomModule<B> {}
 
 impl<B: Backend> ModuleDisplayDefault for PhantomModule<B> {
     fn content(&self, _content: burn::module::Content) -> Option<burn::module::Content> {
