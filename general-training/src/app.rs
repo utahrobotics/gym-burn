@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app::training_plans::{train_image_autoencoder, train_image_v_autoencoder};
-use crate::{
-    dataset::SqliteDatasetConfig,
-    training_loop::SimpleTrainingConfig,
-};
+use crate::{dataset::SqliteDatasetConfig, training_loop::SimpleTrainingConfig};
 use burn::backend::Autodiff;
 use burn::config::Config;
 use clap::{Parser, Subcommand, ValueEnum};
@@ -84,8 +81,6 @@ pub fn main() {
             let _ = std::fs::remove_dir_all(&artifact_config.artifact_dir);
             std::fs::create_dir_all(&artifact_config.artifact_dir).unwrap();
 
-            
-
             match model_type {
                 ModelType::AutoEncoder => {
                     train_image_autoencoder::<AutodiffBackend>(
@@ -93,7 +88,7 @@ pub fn main() {
                         test_dataset_config,
                         training_config,
                         artifact_config,
-                        device
+                        device,
                     );
                 }
                 ModelType::VariationalAutoEncoder => {
@@ -102,7 +97,7 @@ pub fn main() {
                         test_dataset_config,
                         training_config,
                         artifact_config,
-                        device
+                        device,
                     );
                 }
             }
@@ -111,7 +106,7 @@ pub fn main() {
             model_type,
             weights_path,
             config_path,
-            count
+            count,
         } => {
             // let channels = channels.get();
             // assert!(channels < 5, "Too many channels");

@@ -195,13 +195,11 @@ impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
 //     }
 // }
 
-
 // impl<B: Backend, T> Clone for PhantomModule<B, T> {
 //     fn clone(&self) -> Self {
 //         Self(self.0.clone())
 //     }
 // }
-
 
 // impl<B: Backend, T> Copy for PhantomModule<B, T> {}
 

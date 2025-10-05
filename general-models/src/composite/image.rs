@@ -1,10 +1,17 @@
 use burn::{
-    module::Ignored, nn::{interpolate::{Interpolate2d, Interpolate2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}}, prelude::*
+    module::Ignored,
+    nn::{
+        interpolate::{Interpolate2d, Interpolate2dConfig},
+        pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
+    },
+    prelude::*,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    conv::{Conv2dModel, Conv2dModelConfig, ConvTranspose2dModel, ConvTranspose2dModelConfig}, linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig}, Init, SimpleInfer, SimpleTrain
+    Init, SimpleInfer, SimpleTrain,
+    conv::{Conv2dModel, Conv2dModelConfig, ConvTranspose2dModel, ConvTranspose2dModelConfig},
+    linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig},
 };
 
 #[derive(Debug, Module)]
@@ -89,7 +96,6 @@ impl<B: Backend> Init<B> for ConvLinearClassifierModelConfig {
         }
     }
 }
-
 
 #[derive(Debug, Module)]
 pub struct LinearConvTransposedModel<B: Backend> {
