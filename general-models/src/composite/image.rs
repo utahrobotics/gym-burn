@@ -1,23 +1,20 @@
 use burn::{
-    nn::pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
-    prelude::*,
+    module::Ignored, nn::{interpolate::{Interpolate2d, Interpolate2dConfig}, pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig}}, prelude::*
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain,
-    conv::{Conv2dModel, Conv2dModelConfig},
-    linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig},
+    conv::{Conv2dModel, Conv2dModelConfig, ConvTranspose2dModel, ConvTranspose2dModelConfig}, linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig}, Init, SimpleInfer, SimpleTrain
 };
 
 #[derive(Debug, Module)]
-pub struct ConvLinearImageModel<B: Backend> {
+pub struct ConvLinearModel<B: Backend> {
     conv: Conv2dModel<B>,
     adaptive_avg_pooling: Option<AdaptiveAvgPool2d>,
     linear: LinearModel<B>,
 }
 
-impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearImageModel<B> {
+impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         let batch_size = tensor.dims()[0] as i32;
         tensor = self.conv.infer(tensor);
@@ -28,7 +25,7 @@ impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearImageModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageModel<B> {
+impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         let batch_size = tensor.dims()[0] as i32;
         tensor = self.conv.train(tensor);
@@ -40,17 +37,17 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageModel<B> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConvLinearImageModelConfig {
+pub struct ConvLinearModelConfig {
     pub conv: Conv2dModelConfig,
     pub adaptive_avg_pooling: Option<AdaptiveAvgPool2dConfig>,
     pub linear: LinearModelConfig,
 }
 
-impl<B: Backend> Init<B> for ConvLinearImageModelConfig {
-    type Output = ConvLinearImageModel<B>;
+impl<B: Backend> Init<B> for ConvLinearModelConfig {
+    type Output = ConvLinearModel<B>;
 
     fn init(self, device: &<B as Backend>::Device) -> Self::Output {
-        ConvLinearImageModel {
+        ConvLinearModel {
             conv: self.conv.init(device),
             adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| x.init()),
             linear: self.linear.init(device),
@@ -59,36 +56,103 @@ impl<B: Backend> Init<B> for ConvLinearImageModelConfig {
 }
 
 #[derive(Debug, Module)]
-pub struct ConvLinearImageClassifierModel<B: Backend> {
-    conv_linear: ConvLinearImageModel<B>,
+pub struct ConvLinearClassifierModel<B: Backend> {
+    conv_linear: ConvLinearModel<B>,
     classifier: LinearClassifierModel<B>,
 }
 
-impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearImageClassifierModel<B> {
+impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearClassifierModel<B> {
     fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         self.classifier.infer(self.conv_linear.infer(tensor))
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearImageClassifierModel<B> {
+impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearClassifierModel<B> {
     fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         self.classifier.train(self.conv_linear.train(tensor))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConvLinearImageClassifierModelConfig {
-    pub conv_linear: ConvLinearImageModelConfig,
+pub struct ConvLinearClassifierModelConfig {
+    pub conv_linear: ConvLinearModelConfig,
     pub classifier: LinearClassifierModelConfig,
 }
 
-impl<B: Backend> Init<B> for ConvLinearImageClassifierModelConfig {
-    type Output = ConvLinearImageClassifierModel<B>;
+impl<B: Backend> Init<B> for ConvLinearClassifierModelConfig {
+    type Output = ConvLinearClassifierModel<B>;
 
     fn init(self, device: &<B as Backend>::Device) -> Self::Output {
-        ConvLinearImageClassifierModel {
+        ConvLinearClassifierModel {
             conv_linear: self.conv_linear.init(device),
             classifier: self.classifier.init(device),
+        }
+    }
+}
+
+
+#[derive(Debug, Module)]
+pub struct LinearConvTransposedModel<B: Backend> {
+    linear: LinearModel<B>,
+    conv_input_size: Ignored<[i32; 2]>,
+    conv: ConvTranspose2dModel<B>,
+    interpolate: Option<Interpolate2d>,
+}
+
+impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
+    fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
+        let batch_size = tensor.dims()[0] as i32;
+        let tensor = self.conv.infer(self.linear.infer(tensor).reshape([
+            batch_size,
+            -1,
+            self.conv_input_size[0],
+            self.conv_input_size[1],
+        ]));
+        if let Some(interpolate) = &self.interpolate {
+            interpolate.forward(tensor)
+        } else {
+            tensor
+        }
+    }
+}
+
+impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
+    fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
+        let batch_size = tensor.dims()[0] as i32;
+        let tensor = self.conv.train(self.linear.train(tensor).reshape([
+            batch_size,
+            -1,
+            self.conv_input_size[0],
+            self.conv_input_size[1],
+        ]));
+        if let Some(interpolate) = &self.interpolate {
+            interpolate.forward(tensor)
+        } else {
+            tensor
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LinearConvModelConfig {
+    pub linear: LinearModelConfig,
+    pub conv_input_size: [u32; 2],
+    pub conv: ConvTranspose2dModelConfig,
+    pub interpolate: Option<Interpolate2dConfig>,
+}
+
+impl<B: Backend> Init<B> for LinearConvModelConfig {
+    type Output = LinearConvTransposedModel<B>;
+
+    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+        LinearConvTransposedModel {
+            linear: self.linear.init(device),
+            conv_input_size: Ignored([
+                self.conv_input_size[0] as i32,
+                self.conv_input_size[1] as i32,
+            ]),
+            conv: self.conv.init(device),
+            interpolate: self.interpolate.map(|x| x.init()),
         }
     }
 }

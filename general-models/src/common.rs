@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{fmt::Debug, marker::PhantomData};
 
 use burn::{
     Tensor,
@@ -133,9 +133,9 @@ impl NormConfig {
 impl Config for NormConfig {}
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct PhantomModule<B: Backend>(PhantomData<B>);
+pub struct PhantomBackend<B: Backend>(PhantomData<fn() -> B>);
 
-impl<B: Backend> Module<B> for PhantomModule<B> {
+impl<B: Backend> Module<B> for PhantomBackend<B> {
     type Record = ConstantRecord;
 
     fn collect_devices(&self, devices: burn::module::Devices<B>) -> burn::module::Devices<B> {
@@ -165,21 +165,91 @@ impl<B: Backend> Module<B> for PhantomModule<B> {
     }
 }
 
-impl<B: AutodiffBackend> AutodiffModule<B> for PhantomModule<B> {
-    type InnerModule = PhantomModule<B::InnerBackend>;
+impl<B: AutodiffBackend> AutodiffModule<B> for PhantomBackend<B> {
+    type InnerModule = PhantomBackend<B::InnerBackend>;
 
     fn valid(&self) -> Self::InnerModule {
         Default::default()
     }
 }
 
-impl<B: Backend> ModuleDisplay for PhantomModule<B> {}
+impl<B: Backend> ModuleDisplay for PhantomBackend<B> {}
 
-impl<B: Backend> ModuleDisplayDefault for PhantomModule<B> {
+impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
     fn content(&self, _content: burn::module::Content) -> Option<burn::module::Content> {
         None
     }
 }
+
+// pub struct PhantomModule<B: Backend, T>(PhantomData<fn() -> (B, T)>);
+
+// impl<B: Backend, T> Debug for PhantomModule<B, T> {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         f.debug_tuple("PhantomModule").field(&self.0).finish()
+//     }
+// }
+
+// impl<B: Backend, T> Default for PhantomModule<B, T> {
+//     fn default() -> Self {
+//         Self(Default::default())
+//     }
+// }
+
+
+// impl<B: Backend, T> Clone for PhantomModule<B, T> {
+//     fn clone(&self) -> Self {
+//         Self(self.0.clone())
+//     }
+// }
+
+
+// impl<B: Backend, T> Copy for PhantomModule<B, T> {}
+
+// impl<B: Backend, T> Module<B> for PhantomModule<B, T> {
+//     type Record = ConstantRecord;
+
+//     fn collect_devices(&self, devices: burn::module::Devices<B>) -> burn::module::Devices<B> {
+//         devices
+//     }
+
+//     fn fork(self, _: &<B as Backend>::Device) -> Self {
+//         self
+//     }
+
+//     fn to_device(self, _: &<B as Backend>::Device) -> Self {
+//         self
+//     }
+
+//     fn visit<Visitor: burn::module::ModuleVisitor<B>>(&self, _: &mut Visitor) {}
+
+//     fn map<Mapper: burn::module::ModuleMapper<B>>(self, _: &mut Mapper) -> Self {
+//         self
+//     }
+
+//     fn load_record(self, _: Self::Record) -> Self {
+//         self
+//     }
+
+//     fn into_record(self) -> Self::Record {
+//         ConstantRecord
+//     }
+// }
+
+// impl<B: AutodiffBackend, T> AutodiffModule<B> for PhantomModule<B, T> {
+//     type InnerModule = PhantomBackend<B::InnerBackend>;
+
+//     fn valid(&self) -> Self::InnerModule {
+//         Default::default()
+//     }
+// }
+
+// impl<B: Backend, T> ModuleDisplay for PhantomModule<B, T> {}
+
+// impl<B: Backend, T> ModuleDisplayDefault for PhantomModule<B, T> {
+//     fn content(&self, _content: burn::module::Content) -> Option<burn::module::Content> {
+//         None
+//     }
+// }
 
 default_f!(default_epsilon, f64, 1e-5);
 default_f!(default_momentum, f64, 0.1);

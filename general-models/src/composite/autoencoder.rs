@@ -4,16 +4,15 @@ use burn::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{Init, SimpleInfer, SimpleTrain, common::PhantomModule};
+use crate::{Init, SimpleInfer, SimpleTrain, common::PhantomBackend};
 
-pub mod decoder;
 pub mod vae;
 
 #[derive(Debug, Module)]
 pub struct AutoEncoderModel<B: Backend, E, D> {
     pub encoder: E,
     pub decoder: D,
-    _phantom: PhantomModule<B>,
+    _phantom: PhantomBackend<B>,
 }
 
 impl<B: Backend, E, D> AutoEncoderModel<B, E, D> {

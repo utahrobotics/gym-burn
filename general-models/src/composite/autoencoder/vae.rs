@@ -29,9 +29,9 @@ where
 {
     pub fn train<const D: usize>(&self, tensor: Tensor<B, D>) -> (Tensor<B, 2>, Tensor<B, 2>)
     where
-        M: SimpleInfer<B, D, 2> + ModuleDisplay,
+        M: SimpleTrain<B, D, 2>,
     {
-        let latent = self.model.infer(tensor);
+        let latent = self.model.train(tensor);
         (self.mean.train(latent.clone()), self.logvar.train(latent))
     }
 
