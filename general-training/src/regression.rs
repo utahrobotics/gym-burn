@@ -41,11 +41,7 @@ where
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> TrainOutput<RegressionOutput<B>> {
         let actual = self.model.train(batch.input.clone());
         let loss = MseLoss::new().forward(actual.clone(), batch.expected.clone(), Reduction::Mean);
-        let item = RegressionOutput::new(
-            loss,
-            actual.flatten(1, 3),
-            batch.expected.flatten(1, 3),
-        );
+        let item = RegressionOutput::new(loss, actual.flatten(1, 3), batch.expected.flatten(1, 3));
 
         TrainOutput::new(&self.model, item.loss.backward(), item)
     }
@@ -59,20 +55,12 @@ where
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> RegressionOutput<B> {
         let actual = self.model.infer(batch.input.clone());
         let loss = MseLoss::new().forward(actual.clone(), batch.expected.clone(), Reduction::Mean);
-        RegressionOutput::new(
-            loss,
-            actual.flatten(1, 3),
-            batch.expected.flatten(1, 3),
-        )
+        RegressionOutput::new(loss, actual.flatten(1, 3), batch.expected.flatten(1, 3))
     }
 }
 
 impl<B: AutodiffBackend, E, D> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>>
-    for RegressionTrainableModel<
-        B,
-        AutoEncoderModel<B, VariationalEncoder<B, E>, D>,
-        SPECIALIZED,
-    >
+    for RegressionTrainableModel<B, AutoEncoderModel<B, VariationalEncoder<B, E>, D>, SPECIALIZED>
 where
     E: SimpleTrain<B, 4, 2> + AutodiffModule<B>,
     D: SimpleTrain<B, 2, 4> + AutodiffModule<B>,

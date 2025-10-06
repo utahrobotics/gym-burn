@@ -9,8 +9,8 @@ use general_models::{
             vae::{VariationalEncoder, VariationalEncoderConfig},
         },
         image::{
-            ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig,
-            LinearConvTransposedModel,
+            ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModel,
+            LinearConvTransposedModelConfig,
         },
     },
 };
@@ -21,7 +21,7 @@ use crate::{
     batches::{AutoEncoderImageBatcher, AutoEncoderImageItem},
     dataset::{SqliteDataset, SqliteDatasetConfig},
     regression::{RegressionTrainableModel, SPECIALIZED, STANDARD},
-    training_loop::{simple_regression_training_loop, SimpleTrainingConfig},
+    training_loop::{SimpleTrainingConfig, simple_regression_training_loop},
 };
 
 macro_rules! epilogue {
@@ -53,8 +53,10 @@ pub fn train_image_autoencoder<B: AutodiffBackend>(
     artifact_config: ArtifactConfig,
     device: &B::Device,
 ) {
-    let model_config: AutoEncoderModelConfig<ConvLinearModelConfig, LinearConvTransposedModelConfig> =
-        parse_json_file("model").unwrap();
+    let model_config: AutoEncoderModelConfig<
+        ConvLinearModelConfig,
+        LinearConvTransposedModelConfig,
+    > = parse_json_file("model").unwrap();
     let channels = model_config.encoder.conv.input_channels;
     let training_dataset = Arc::new(
         SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(train_dataset_config).unwrap(),
@@ -68,7 +70,7 @@ pub fn train_image_autoencoder<B: AutodiffBackend>(
         RegressionTrainableModel<
             _,
             AutoEncoderModel<_, ConvLinearModel<_>, LinearConvTransposedModel<_>>,
-            STANDARD
+            STANDARD,
         >,
         _,
         _,
@@ -132,7 +134,7 @@ pub fn train_image_v_autoencoder<B: AutodiffBackend>(
                 VariationalEncoder<_, ConvLinearModel<_>>,
                 LinearConvTransposedModel<_>,
             >,
-            SPECIALIZED
+            SPECIALIZED,
         >,
         _,
         _,

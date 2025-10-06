@@ -9,7 +9,15 @@ use burn::{
     tensor::TensorData,
 };
 use general_models::{
-    Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, vae::{VariationalEncoder, VariationalEncoderConfig}}, image::{ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig}}, error::LoadModelError
+    Init, SimpleInfer,
+    composite::{
+        autoencoder::{
+            AutoEncoderModelConfig,
+            vae::{VariationalEncoder, VariationalEncoderConfig},
+        },
+        image::{ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig},
+    },
+    error::LoadModelError,
 };
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
@@ -33,7 +41,8 @@ impl<B: Backend> ImageEncoder<B> {
         encoder_weights: impl AsRef<Path>,
         device: &B::Device,
     ) -> Result<Self, LoadModelError> {
-        let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTransposedModelConfig> = parse_json_file(autoencoder_config)?;
+        let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTransposedModelConfig> =
+            parse_json_file(autoencoder_config)?;
         let mut encoder = autoencoder_config.encoder.init(device);
         encoder = encoder
             .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);

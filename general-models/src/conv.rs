@@ -1,7 +1,9 @@
 use burn::{
     module::{Ignored, Module},
     nn::{
-        Dropout, DropoutConfig, PaddingConfig2d, activation::Activation, conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig}
+        Dropout, DropoutConfig, PaddingConfig2d,
+        activation::Activation,
+        conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
     },
     prelude::*,
 };
@@ -77,11 +79,7 @@ pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<
-        Conv2dLayerConfig,
-        ActivationConfig,
-        NormConfig,
-    >>,
+    pub layers: Vec<Either<Conv2dLayerConfig, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
 }
@@ -98,7 +96,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                 stride,
                 dilation,
                 groups,
-                padding
+                padding,
             },
             activation,
             norm,
@@ -110,9 +108,14 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                     .with_stride(stride)
                     .with_dilation(dilation)
                     .with_groups(groups)
-                    .with_padding(padding.map(|[x, y]| PaddingConfig2d::Explicit(x, y)).unwrap_or(PaddingConfig2d::Valid))
+                    .with_padding(
+                        padding
+                            .map(|[x, y]| PaddingConfig2d::Explicit(x, y))
+                            .unwrap_or(PaddingConfig2d::Valid),
+                    )
                     .init(device),
-                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_channels)),
+                norm.or_else(|| self.default_norm.clone())
+                    .map(|norm| norm.init(device, output_channels)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),
@@ -194,11 +197,7 @@ pub struct ConvTranspose2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<
-        ConvTranspose2dLayerConfig,
-        ActivationConfig,
-        NormConfig,
-    >>,
+    pub layers: Vec<Either<ConvTranspose2dLayerConfig, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
 }
@@ -231,7 +230,8 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                     .with_padding_out(padding_out)
                     .with_groups(groups)
                     .init(device),
-                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_channels)),
+                norm.or_else(|| self.default_norm.clone())
+                    .map(|norm| norm.init(device, output_channels)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),

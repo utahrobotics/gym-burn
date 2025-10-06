@@ -7,15 +7,15 @@ use crate::{dataset::SqliteDatasetConfig, training_loop::SimpleTrainingConfig};
 use burn::backend::Autodiff;
 use burn::config::Config;
 use clap::{Parser, Subcommand, ValueEnum};
-use general_models::composite::autoencoder::vae::VariationalEncoderConfig;
 use general_models::composite::autoencoder::AutoEncoderModelConfig;
+use general_models::composite::autoencoder::vae::VariationalEncoderConfig;
 use general_models::composite::image::{ConvLinearModelConfig, LinearConvTransposedModelConfig};
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
 use utils::parse_json_file;
 
-mod training_plans;
 mod infer_plans;
+mod training_plans;
 
 pub fn time_rng() -> SmallRng {
     rand::rngs::SmallRng::seed_from_u64(
@@ -124,35 +124,36 @@ pub fn main() {
             weights_path,
             config_path,
             count,
-        } => {
-            match model_type {
-                ModelType::AutoEncoder => {
-                    infer_image_autoencoder::<
-                        Backend,
-                        _,
-                        AutoEncoderModelConfig<ConvLinearModelConfig, LinearConvTransposedModelConfig>
-                    >(
-                        count,
-                        weights_path,
-                        config_path,
-                        |m| m.encoder.get_input_channels(),
-                        device
-                    );
-                }
-                ModelType::VariationalAutoEncoder => {
-                    infer_image_autoencoder::<
-                        Backend,
-                        _,
-                        AutoEncoderModelConfig<VariationalEncoderConfig<ConvLinearModelConfig>, LinearConvTransposedModelConfig>
-                    >(
-                        count,
-                        weights_path,
-                        config_path,
-                        |m| m.encoder.get_model().get_input_channels(),
-                        device
-                    );
-                }
+        } => match model_type {
+            ModelType::AutoEncoder => {
+                infer_image_autoencoder::<
+                    Backend,
+                    _,
+                    AutoEncoderModelConfig<ConvLinearModelConfig, LinearConvTransposedModelConfig>,
+                >(
+                    count,
+                    weights_path,
+                    config_path,
+                    |m| m.encoder.get_input_channels(),
+                    device,
+                );
             }
-        }
+            ModelType::VariationalAutoEncoder => {
+                infer_image_autoencoder::<
+                    Backend,
+                    _,
+                    AutoEncoderModelConfig<
+                        VariationalEncoderConfig<ConvLinearModelConfig>,
+                        LinearConvTransposedModelConfig,
+                    >,
+                >(
+                    count,
+                    weights_path,
+                    config_path,
+                    |m| m.encoder.get_model().get_input_channels(),
+                    device,
+                );
+            }
+        },
     }
 }

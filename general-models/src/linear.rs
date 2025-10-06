@@ -1,16 +1,15 @@
 use burn::{
     module::Module,
-    nn::{
-        Dropout, DropoutConfig, Linear, LinearConfig,
-        activation::Activation,
-    },
+    nn::{Dropout, DropoutConfig, Linear, LinearConfig, activation::Activation},
     prelude::*,
     tensor::activation::softmax,
 };
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain, common::{ActivationConfig, Either, Norm, NormConfig}, default_f
+    Init, SimpleInfer, SimpleTrain,
+    common::{ActivationConfig, Either, Norm, NormConfig},
+    default_f,
 };
 
 #[derive(Debug, Module)]
@@ -72,7 +71,8 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())
                     .init(device),
-                norm.or_else(|| self.default_norm.clone()).map(|norm| norm.init(device, output_size)),
+                norm.or_else(|| self.default_norm.clone())
+                    .map(|norm| norm.init(device, output_size)),
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),

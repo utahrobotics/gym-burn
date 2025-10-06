@@ -63,9 +63,7 @@ pub fn main() {
                 .expect("Configuration should be valid");
             let mut latents: Vec<f32> = vec![];
             let mut latent_size = None;
-            let batcher = AutoEncoderImageBatcher {
-                channels: 1
-            };
+            let batcher = AutoEncoderImageBatcher { channels: 1 };
 
             for dataset_config in dataset_configs {
                 println!("Reading from {:?}", dataset_config);

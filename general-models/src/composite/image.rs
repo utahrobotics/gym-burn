@@ -41,7 +41,7 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
     }
 }
 
-impl<B: Backend>  ConvLinearModel<B> {
+impl<B: Backend> ConvLinearModel<B> {
     pub fn get_input_channels(&self) -> usize {
         self.conv.get_input_channels()
     }
@@ -58,7 +58,9 @@ impl<B: Backend> Init<B, ConvLinearModel<B>> for ConvLinearModelConfig {
     fn init(self, device: &<B as Backend>::Device) -> ConvLinearModel<B> {
         ConvLinearModel {
             conv: self.conv.init(device),
-            adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| AdaptiveAvgPool2dConfig::new(x).init()),
+            adaptive_avg_pooling: self
+                .adaptive_avg_pooling
+                .map(|x| AdaptiveAvgPool2dConfig::new(x).init()),
             linear: self.linear.init(device),
         }
     }
@@ -82,7 +84,7 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearClassifierModel<B> {
     }
 }
 
-impl<B: Backend>  ConvLinearClassifierModel<B> {
+impl<B: Backend> ConvLinearClassifierModel<B> {
     pub fn get_input_channels(&self) -> usize {
         self.conv_linear.get_input_channels()
     }
@@ -165,12 +167,15 @@ impl<B: Backend> Init<B, LinearConvTransposedModel<B>> for LinearConvTransposedM
         LinearConvTransposedModel {
             linear: self.linear.init(device),
             conv_input_size: Ignored(self.conv_input_size),
-            intermediate_interpolate: self.intermediate_interpolate.map(
-                |mode| Interpolate2dConfig::new().with_mode(mode).with_output_size(Some([
-                    self.conv_input_size[0] as usize,
-                    self.conv_input_size[1] as usize
-                ])).init()
-            ),
+            intermediate_interpolate: self.intermediate_interpolate.map(|mode| {
+                Interpolate2dConfig::new()
+                    .with_mode(mode)
+                    .with_output_size(Some([
+                        self.conv_input_size[0] as usize,
+                        self.conv_input_size[1] as usize,
+                    ]))
+                    .init()
+            }),
             conv: self.conv.init(device),
             output_interpolate: self.output_interpolate.map(|x| x.init()),
         }

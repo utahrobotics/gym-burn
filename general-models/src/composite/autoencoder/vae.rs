@@ -2,7 +2,8 @@ use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain, default_f, linear::{LinearModel, LinearModelConfig}
+    Init, SimpleInfer, SimpleTrain, default_f,
+    linear::{LinearModel, LinearModelConfig},
 };
 
 #[derive(Module, Debug)]
@@ -34,7 +35,7 @@ where
         let latent = self.model.train(tensor);
         (self.mean.train(latent.clone()), self.logvar.train(latent))
     }
-    
+
     pub fn get_model(&self) -> &M {
         &self.model
     }
@@ -48,7 +49,7 @@ where
         // z = mu + std * epsilon
         mu + std.mul(epsilon)
     }
-    
+
     pub fn get_kld_weight(&self) -> f64 {
         self.kld_weight
     }

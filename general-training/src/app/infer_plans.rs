@@ -1,6 +1,10 @@
 use std::{path::PathBuf, sync::Arc};
 
-use burn::{data::{dataloader::batcher::Batcher, dataset::Dataset}, prelude::*, record::{CompactRecorder, Recorder}};
+use burn::{
+    data::{dataloader::batcher::Batcher, dataset::Dataset},
+    prelude::*,
+    record::{CompactRecorder, Recorder},
+};
 use general_models::{Init, SimpleInfer};
 use image::{DynamicImage, ImageBuffer, Luma, LumaA, Rgb, Rgba};
 use rand::Rng;
@@ -8,25 +12,27 @@ use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use utils::parse_json_file;
 
-use crate::{app::time_rng, batches::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem}, dataset::{SqliteDataset, SqliteDatasetConfig}};
+use crate::{
+    app::time_rng,
+    batches::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
+    dataset::{SqliteDataset, SqliteDatasetConfig},
+};
 
 pub fn infer_image_autoencoder<B, M, C>(
     count: usize,
     weights_path: PathBuf,
     config_path: PathBuf,
     get_input_channels: impl FnOnce(&M) -> usize,
-    device: &B::Device
-)
-where 
+    device: &B::Device,
+) where
     B: Backend,
     M: SimpleInfer<B, 4, 4>,
-    C: Init<B, M> + DeserializeOwned
+    C: Init<B, M> + DeserializeOwned,
 {
     let test_dataset_config: SqliteDatasetConfig = parse_json_file("test-data").unwrap();
     let mut rng = time_rng();
 
-    let model_config: C =
-        parse_json_file(config_path).unwrap();
+    let model_config: C = parse_json_file(config_path).unwrap();
     let mut model: M = model_config.init(device);
     model = model.load_record(
         CompactRecorder::new()
@@ -34,10 +40,7 @@ where
             .expect("Failed to load weights"),
     );
     let test_dataset = Arc::new(
-        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(
-            test_dataset_config,
-        )
-        .unwrap(),
+        SqliteDataset::<Arc<AutoEncoderImageItem>, _>::try_from(test_dataset_config).unwrap(),
     );
     let mut set = FxHashSet::default();
 
@@ -46,7 +49,7 @@ where
     }
 
     let batcher = AutoEncoderImageBatcher {
-        channels: get_input_channels(&model)
+        channels: get_input_channels(&model),
     };
     let items: Vec<_> = set.iter().map(|&i| test_dataset.get(i).unwrap()).collect();
 
@@ -79,28 +82,15 @@ where
     }
 
     let img: Option<DynamicImage> = match batcher.channels {
-        1 => ImageBuffer::<Luma<u8>, _>::from_raw(
-            mosaic_width,
-            mosaic_height,
-            pixels,
-        )
-        .map(Into::into),
-        2 => ImageBuffer::<LumaA<u8>, _>::from_raw(
-            mosaic_width,
-            mosaic_height,
-            pixels,
-        )
-        .map(Into::into),
+        1 => ImageBuffer::<Luma<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
+            .map(Into::into),
+        2 => ImageBuffer::<LumaA<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
+            .map(Into::into),
         3 => {
-            ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
-                .map(Into::into)
+            ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels).map(Into::into)
         }
-        4 => ImageBuffer::<Rgba<u8>, _>::from_raw(
-            mosaic_width,
-            mosaic_height,
-            pixels,
-        )
-        .map(Into::into),
+        4 => ImageBuffer::<Rgba<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
+            .map(Into::into),
         x => unreachable!("Unexpected number of input channels: {x}"),
     };
 

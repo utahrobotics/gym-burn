@@ -182,7 +182,7 @@ impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
     }
 }
 
-use burn::nn::{PReluConfig, LeakyReluConfig, SwiGluConfig, HardSigmoidConfig};
+use burn::nn::{HardSigmoidConfig, LeakyReluConfig, PReluConfig, SwiGluConfig};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "snake_case")]
@@ -196,11 +196,14 @@ pub enum ActivationConfig {
     Tanh,
     HardSigmoid(HardSigmoidConfig),
     #[default]
-    None
+    None,
 }
 
 impl ActivationConfig {
-    pub fn init<B: Backend>(self, device: &B::Device) -> Option<burn::nn::activation::Activation<B>> {
+    pub fn init<B: Backend>(
+        self,
+        device: &B::Device,
+    ) -> Option<burn::nn::activation::Activation<B>> {
         use burn::nn::activation::ActivationConfig as Config;
         let config = match self {
             ActivationConfig::Gelu => Config::Gelu,
@@ -210,7 +213,9 @@ impl ActivationConfig {
             ActivationConfig::SwiGlu(swi_glu_config) => Config::SwiGlu(swi_glu_config),
             ActivationConfig::Sigmoid => Config::Sigmoid,
             ActivationConfig::Tanh => Config::Tanh,
-            ActivationConfig::HardSigmoid(hard_sigmoid_config) => Config::HardSigmoid(hard_sigmoid_config),
+            ActivationConfig::HardSigmoid(hard_sigmoid_config) => {
+                Config::HardSigmoid(hard_sigmoid_config)
+            }
             ActivationConfig::None => return None,
         };
         Some(config.init(device))
