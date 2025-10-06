@@ -1,9 +1,10 @@
 [workspace]
 resolver = "3"
-members = [ "general-dataset", "general-models", "general-training", "isthatarock/handwritten", "utils"]
+members = [ "general-dataset", "general-dataset-tools", "general-models", "general-training", "isthatarock/handwritten", "utils"]
 
 [workspace.dependencies]
 general-models.path = "general-models"
+general-dataset.path = "general-dataset"
 utils.path = "utils"
 
 rustc-hash = "2.1.1"

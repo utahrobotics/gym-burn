@@ -4,14 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-image = { workspace = true, default-features = true, features = ["rayon"] }
 rusqlite.workspace = true
-serde.workspace = true
-rand = { workspace = true, features = ["thread_rng"] }
-rand_distr = "0.5.1"
+# lru = "0.16.1"
+# rustc-hash.workspace = true
+thiserror.workspace = true
+burn.workspace = true
+image.workspace = true
 rayon.workspace = true
-sha2 = "0.10.9"
-hex = "0.4.3"
-serde_json.workspace = true
-utils.workspace = true
-imageproc.workspace = true
+rand.workspace = true

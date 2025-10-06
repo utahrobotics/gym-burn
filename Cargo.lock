@@ -2480,6 +2480,18 @@ dependencies = [
 name = "general-dataset"
 version = "0.1.0"
 dependencies = [
+ "burn",
+ "image",
+ "rand 0.9.2",
+ "rayon",
+ "rusqlite",
+ "thiserror 2.0.17",
+]
+
+[[package]]
+name = "general-dataset-tools"
+version = "0.1.0"
+dependencies = [
  "hex",
  "image",
  "imageproc",
