@@ -12,19 +12,19 @@
                         "kernel_size": [5, 5]
                     },
                     {
-                        "output_channels": 1,
+                        "output_channels": 16,
                         "kernel_size": [3, 3]
                     }
                 ]
             },
             "adaptive_avg_pooling": [8, 8],
             "linear": {
-                "input_size": 64,
+                "input_size": 1024,
                 "default_activation": "gelu",
                 "default_norm": { "batch_norm": {} },
                 "layers": [
-                    54,
-                    44,
+                    324,
+                    102,
                     32
                 ]
             }
