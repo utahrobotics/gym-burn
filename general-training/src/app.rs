@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::SystemTime;
 
 use crate::app::infer_plans::infer_image_autoencoder;
 use crate::app::training_plans::{train_image_autoencoder, train_image_v_autoencoder};
@@ -9,10 +10,21 @@ use clap::{Parser, Subcommand, ValueEnum};
 use general_models::composite::autoencoder::vae::VariationalEncoderConfig;
 use general_models::composite::autoencoder::AutoEncoderModelConfig;
 use general_models::composite::image::{ConvLinearModelConfig, LinearConvTransposedModelConfig};
+use rand::SeedableRng;
+use rand::rngs::SmallRng;
 use utils::parse_json_file;
 
 mod training_plans;
 mod infer_plans;
+
+pub fn time_rng() -> SmallRng {
+    rand::rngs::SmallRng::seed_from_u64(
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs(),
+    )
+}
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]

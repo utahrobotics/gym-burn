@@ -63,14 +63,12 @@ pub struct VariationalEncoderConfig<M> {
     pub logvar: LinearModelConfig,
 }
 
-impl<B, M> Init<B> for VariationalEncoderConfig<M>
+impl<B, M, T> Init<B, VariationalEncoder<B, T>> for VariationalEncoderConfig<M>
 where
     B: Backend,
-    M: Init<B>,
+    M: Init<B, T>,
 {
-    type Output = VariationalEncoder<B, M::Output>;
-
-    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+    fn init(self, device: &<B as Backend>::Device) -> VariationalEncoder<B, T> {
         VariationalEncoder {
             model: self.model.init(device),
             mean: self.mean.init(device),

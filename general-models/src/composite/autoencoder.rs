@@ -61,15 +61,13 @@ pub struct AutoEncoderModelConfig<E, D> {
     pub decoder: D,
 }
 
-impl<B, E, D> Init<B> for AutoEncoderModelConfig<E, D>
+impl<B, E, D, T1, T2> Init<B, AutoEncoderModel<B, T1, T2>> for AutoEncoderModelConfig<E, D>
 where
     B: Backend,
-    E: Init<B>,
-    D: Init<B>,
+    E: Init<B, T1>,
+    D: Init<B, T2>,
 {
-    type Output = AutoEncoderModel<B, E::Output, D::Output>;
-
-    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+    fn init(self, device: &<B as Backend>::Device) -> AutoEncoderModel<B, T1, T2> {
         AutoEncoderModel {
             encoder: self.encoder.init(device),
             decoder: self.decoder.init(device),

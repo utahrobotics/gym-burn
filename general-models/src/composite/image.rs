@@ -54,10 +54,8 @@ pub struct ConvLinearModelConfig {
     pub linear: LinearModelConfig,
 }
 
-impl<B: Backend> Init<B> for ConvLinearModelConfig {
-    type Output = ConvLinearModel<B>;
-
-    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+impl<B: Backend> Init<B, ConvLinearModel<B>> for ConvLinearModelConfig {
+    fn init(self, device: &<B as Backend>::Device) -> ConvLinearModel<B> {
         ConvLinearModel {
             conv: self.conv.init(device),
             adaptive_avg_pooling: self.adaptive_avg_pooling.map(|x| AdaptiveAvgPool2dConfig::new(x).init()),
@@ -96,10 +94,8 @@ pub struct ConvLinearClassifierModelConfig {
     pub classifier: LinearClassifierModelConfig,
 }
 
-impl<B: Backend> Init<B> for ConvLinearClassifierModelConfig {
-    type Output = ConvLinearClassifierModel<B>;
-
-    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+impl<B: Backend> Init<B, ConvLinearClassifierModel<B>> for ConvLinearClassifierModelConfig {
+    fn init(self, device: &<B as Backend>::Device) -> ConvLinearClassifierModel<B> {
         ConvLinearClassifierModel {
             conv_linear: self.conv_linear.init(device),
             classifier: self.classifier.init(device),
@@ -164,10 +160,8 @@ pub struct LinearConvTransposedModelConfig {
     pub output_interpolate: Option<Interpolate2dConfig>,
 }
 
-impl<B: Backend> Init<B> for LinearConvTransposedModelConfig {
-    type Output = LinearConvTransposedModel<B>;
-
-    fn init(self, device: &<B as Backend>::Device) -> Self::Output {
+impl<B: Backend> Init<B, LinearConvTransposedModel<B>> for LinearConvTransposedModelConfig {
+    fn init(self, device: &<B as Backend>::Device) -> LinearConvTransposedModel<B> {
         LinearConvTransposedModel {
             linear: self.linear.init(device),
             conv_input_size: Ignored(self.conv_input_size),

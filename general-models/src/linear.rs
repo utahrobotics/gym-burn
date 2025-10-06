@@ -62,10 +62,8 @@ pub struct LinearModelConfig {
     pub dropout: f64,
 }
 
-impl<B: Backend> Init<B> for LinearModelConfig {
-    type Output = LinearModel<B>;
-
-    fn init(self, device: &B::Device) -> Self::Output {
+impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
+    fn init(self, device: &B::Device) -> LinearModel<B> {
         let default_activation = self.default_activation.unwrap_or_default();
         let mut input_size = self.input_size;
         let mut layers = vec![];
@@ -108,10 +106,8 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearClassifierModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LinearClassifierModelConfig(LinearModelConfig);
 
-impl<B: Backend> Init<B> for LinearClassifierModelConfig {
-    type Output = LinearClassifierModel<B>;
-
-    fn init(self, device: &B::Device) -> Self::Output {
+impl<B: Backend> Init<B, LinearClassifierModel<B>> for LinearClassifierModelConfig {
+    fn init(self, device: &B::Device) -> LinearClassifierModel<B> {
         LinearClassifierModel {
             linear: self.0.init(device),
         }

@@ -86,10 +86,8 @@ pub struct Conv2dModelConfig {
     pub dropout: f64,
 }
 
-impl<B: Backend> Init<B> for Conv2dModelConfig {
-    type Output = Conv2dModel<B>;
-
-    fn init(self, device: &B::Device) -> Self::Output {
+impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
+    fn init(self, device: &B::Device) -> Conv2dModel<B> {
         let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
@@ -205,10 +203,8 @@ pub struct ConvTranspose2dModelConfig {
     pub dropout: f64,
 }
 
-impl<B: Backend> Init<B> for ConvTranspose2dModelConfig {
-    type Output = ConvTranspose2dModel<B>;
-
-    fn init(self, device: &B::Device) -> Self::Output {
+impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig {
+    fn init(self, device: &B::Device) -> ConvTranspose2dModel<B> {
         let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];

@@ -1,14 +1,14 @@
-use std::{path::PathBuf, sync::Arc, time::SystemTime};
+use std::{path::PathBuf, sync::Arc};
 
 use burn::{data::{dataloader::batcher::Batcher, dataset::Dataset}, prelude::*, record::{CompactRecorder, Recorder}};
 use general_models::{Init, SimpleInfer};
 use image::{DynamicImage, ImageBuffer, Luma, LumaA, Rgb, Rgba};
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use utils::parse_json_file;
 
-use crate::{batches::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem}, dataset::{SqliteDataset, SqliteDatasetConfig}};
+use crate::{app::time_rng, batches::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem}, dataset::{SqliteDataset, SqliteDatasetConfig}};
 
 pub fn infer_image_autoencoder<B, M, C>(
     count: usize,
@@ -20,15 +20,10 @@ pub fn infer_image_autoencoder<B, M, C>(
 where 
     B: Backend,
     M: SimpleInfer<B, 4, 4>,
-    C: Init<B, Output = M> + DeserializeOwned
+    C: Init<B, M> + DeserializeOwned
 {
     let test_dataset_config: SqliteDatasetConfig = parse_json_file("test-data").unwrap();
-    let mut rng = rand::rngs::SmallRng::seed_from_u64(
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs(),
-    );
+    let mut rng = time_rng();
 
     let model_config: C =
         parse_json_file(config_path).unwrap();

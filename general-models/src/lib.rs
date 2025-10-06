@@ -6,10 +6,8 @@ pub mod conv;
 pub mod error;
 pub mod linear;
 
-pub trait Init<B: Backend> {
-    type Output;
-
-    fn init(self, device: &B::Device) -> Self::Output;
+pub trait Init<B: Backend, T> {
+    fn init(self, device: &B::Device) -> T;
 }
 
 pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize>: Module<B> {
