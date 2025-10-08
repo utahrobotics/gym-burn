@@ -7,18 +7,18 @@ use burn::{
     tensor::backend::AutodiffBackend,
     train::{RegressionOutput, TrainOutput, TrainStep, ValidStep},
 };
+use general_dataset::presets::autoencoder::AutoEncoderImageBatch;
 use general_models::{
     SimpleInfer, SimpleTrain,
     common::PhantomBackend,
     composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoder},
 };
 
-use crate::batches::AutoEncoderImageBatch;
 
 pub const STANDARD: usize = 0;
 pub const SPECIALIZED: usize = 1;
 
-#[derive(Debug, Module)]
+#[derive(Debug)]
 pub struct RegressionTrainableModel<B: Backend, T, const X: usize> {
     pub model: T,
     _phantom: PhantomBackend<B>,

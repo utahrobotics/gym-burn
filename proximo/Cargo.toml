@@ -1,30 +1,20 @@
 [package]
-name = "general-training"
+name = "proximo"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 general-models.workspace = true
 general-dataset.workspace = true
-burn = { workspace = true, features = ["train"] }
+burn = { workspace = true, features = [] }
 image = { workspace = true, features = ["webp"] }
-serde.workspace = true
-rustc-hash.workspace = true
-rusqlite.workspace = true
-unfmt = "0.2.2"
-crossbeam = "0.8.4"
-dashmap = "6.1.0"
-parking_lot = "0.12.4"
-lru = "0.16.1"
-serde_json.workspace = true
-thiserror.workspace = true
 utils = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 quanta = "0.12.6"
 
 [features]
-tui = ["burn/tui"]
+tui = []
 wgpu = ["general-models/wgpu"]
 rocm = ["general-models/rocm"]
 cuda = ["general-models/cuda"]

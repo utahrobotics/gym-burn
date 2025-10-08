@@ -3,7 +3,7 @@ use std::time::SystemTime;
 
 use crate::app::infer_plans::infer_image_autoencoder;
 use crate::app::training_plans::{train_image_autoencoder, train_image_v_autoencoder};
-use crate::{dataset::SqliteDatasetConfig, training_loop::SimpleTrainingConfig};
+use crate::{ training_loop::SimpleTrainingConfig};
 use burn::backend::Autodiff;
 use burn::config::Config;
 use clap::{Parser, Subcommand, ValueEnum};

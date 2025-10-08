@@ -6,10 +6,10 @@ use crate::{
     linear::{LinearModel, LinearModelConfig},
 };
 
+
 #[derive(Module, Debug)]
 pub struct VariationalEncoder<B: Backend, M> {
     model: M,
-    kld_weight: f64,
     mean: LinearModel<B>,
     logvar: LinearModel<B>,
 }
@@ -49,10 +49,6 @@ where
         // z = mu + std * epsilon
         mu + std.mul(epsilon)
     }
-
-    pub fn get_kld_weight(&self) -> f64 {
-        self.kld_weight
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -73,7 +69,6 @@ where
         VariationalEncoder {
             model: self.model.init(device),
             mean: self.mean.init(device),
-            kld_weight: self.kld_weight,
             logvar: self.logvar.init(device),
         }
     }
