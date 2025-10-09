@@ -123,7 +123,6 @@ impl TryFrom<SqliteDatasetConfig> for SqliteDataset {
         Self::new(value.db_file, get_sql, value.len_sql).map_err(Into::into)
     }
 }
-
 pub trait StatefulBatcher<I, O> {
     fn reset(&mut self);
     fn ingest(&mut self, item: I);
@@ -150,7 +149,7 @@ impl<I, O, T: StatefulBatcher<I, O>> StatefulBatcher<I, O> for &mut T {
 }
 
 impl SqliteDataset {
-    pub fn query<I: FromSqlRow, O>(&self, index: usize, limit: usize, rng: &mut impl Rng, mut batcher: impl StatefulBatcher<I, O>) -> O {
+    pub fn query<I: FromSqlRow, O>(&mut self, index: usize, limit: usize, rng: &mut impl Rng, mut batcher: impl StatefulBatcher<I, O>) -> O {
         batcher.reset();
         let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
         let mut rows = stmt.query(params![index, limit]).unwrap();

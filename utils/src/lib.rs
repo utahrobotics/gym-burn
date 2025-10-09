@@ -23,3 +23,13 @@ pub fn parse_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> serde_jso
         std::fs::File::open(path).map_err(serde_json::Error::custom)?,
     ))
 }
+
+
+#[macro_export]
+macro_rules! default_f {
+    ($ident: ident, $ty: ty, $expr: expr) => {
+        fn $ident() -> $ty {
+            $expr
+        }
+    };
+}

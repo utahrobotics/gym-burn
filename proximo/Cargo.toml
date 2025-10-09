@@ -12,12 +12,15 @@ utils = { workspace = true, optional = true }
 clap = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 quanta = "0.12.6"
+serde.workspace = true
+serde_json = { workspace = true, optional = true }
+rayon.workspace = true
+rusqlite.workspace = true
 
 [features]
-tui = []
 wgpu = ["general-models/wgpu"]
 rocm = ["general-models/rocm"]
 cuda = ["general-models/cuda"]
 app = ["utils", "clap", "rand"]
-default = ["app", "wgpu", "tui"]
+default = ["app", "wgpu"]
 macos = ["general-models/macos"]

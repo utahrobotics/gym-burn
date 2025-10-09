@@ -5,11 +5,11 @@ use burn::{
     tensor::activation::softmax,
 };
 use serde::{Deserialize, Serialize};
+use utils::default_f;
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
     common::{ActivationConfig, Either, Norm, NormConfig},
-    default_f,
 };
 
 #[derive(Debug, Module)]
@@ -50,6 +50,16 @@ impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
         tensor
     }
 }
+impl<B: Backend> LinearModel<B> {
+    pub fn iter_layers(&mut self, mut map: impl FnMut(Linear<B>, Option<Norm<B>>) -> (Linear<B>, Option<Norm<B>>)) {
+        self.layers = std::mem::take(&mut self.layers).into_iter()
+            .map(|(linear, norm, activation)| {
+                let (linear, norm) = map(linear, norm);
+                (linear, norm, activation)
+            })
+            .collect();
+    }
+}
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
 pub struct LinearModelConfig {
@@ -88,7 +98,7 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
 
 #[derive(Module, Debug)]
 pub struct LinearClassifierModel<B: Backend> {
-    linear: LinearModel<B>,
+    pub linear: LinearModel<B>,
 }
 
 impl<B: Backend> SimpleInfer<B, 2, 2> for LinearClassifierModel<B> {

@@ -1,17 +1,18 @@
 use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
 use serde::{Deserialize, Serialize};
+use utils::default_f;
 
 use crate::{
-    Init, SimpleInfer, SimpleTrain, default_f,
+    Init, SimpleInfer, SimpleTrain,
     linear::{LinearModel, LinearModelConfig},
 };
 
 
 #[derive(Module, Debug)]
 pub struct VariationalEncoder<B: Backend, M> {
-    model: M,
-    mean: LinearModel<B>,
-    logvar: LinearModel<B>,
+    pub model: M,
+    pub mean: LinearModel<B>,
+    pub logvar: LinearModel<B>,
 }
 
 impl<B, M, const D: usize> SimpleInfer<B, D, 2> for VariationalEncoder<B, M>

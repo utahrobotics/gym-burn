@@ -14,17 +14,9 @@ use burn::{
 use delegate::delegate;
 use derive_more::From;
 use serde::{Deserialize, Serialize};
+use utils::default_f;
 
 use crate::SimpleInfer;
-
-#[macro_export]
-macro_rules! default_f {
-    ($ident: ident, $ty: ty, $expr: expr) => {
-        fn $ident() -> $ty {
-            $expr
-        }
-    };
-}
 
 #[derive(Debug, From, Module)]
 pub enum Norm<B: Backend> {

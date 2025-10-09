@@ -16,9 +16,9 @@ use crate::{
 
 #[derive(Debug, Module)]
 pub struct ConvLinearModel<B: Backend> {
-    conv: Conv2dModel<B>,
+    pub conv: Conv2dModel<B>,
     adaptive_avg_pooling: Option<AdaptiveAvgPool2d>,
-    linear: LinearModel<B>,
+    pub linear: LinearModel<B>,
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearModel<B> {
@@ -50,7 +50,7 @@ impl<B: Backend> ConvLinearModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConvLinearModelConfig {
     pub conv: Conv2dModelConfig,
-    pub adaptive_avg_pooling: Option<[usize; 2]>,
+    adaptive_avg_pooling: Option<[usize; 2]>,
     pub linear: LinearModelConfig,
 }
 
@@ -68,8 +68,8 @@ impl<B: Backend> Init<B, ConvLinearModel<B>> for ConvLinearModelConfig {
 
 #[derive(Debug, Module)]
 pub struct ConvLinearClassifierModel<B: Backend> {
-    conv_linear: ConvLinearModel<B>,
-    classifier: LinearClassifierModel<B>,
+    pub conv_linear: ConvLinearModel<B>,
+    pub classifier: LinearClassifierModel<B>,
 }
 
 impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearClassifierModel<B> {
@@ -107,10 +107,10 @@ impl<B: Backend> Init<B, ConvLinearClassifierModel<B>> for ConvLinearClassifierM
 
 #[derive(Debug, Module)]
 pub struct LinearConvTransposedModel<B: Backend> {
-    linear: LinearModel<B>,
+    pub linear: LinearModel<B>,
     conv_input_size: Ignored<[usize; 2]>,
     intermediate_interpolate: Option<Interpolate2d>,
-    conv: ConvTranspose2dModel<B>,
+    pub conv: ConvTranspose2dModel<B>,
     output_interpolate: Option<Interpolate2d>,
 }
 

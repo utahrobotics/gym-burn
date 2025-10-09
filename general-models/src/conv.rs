@@ -8,11 +8,11 @@ use burn::{
     prelude::*,
 };
 use serde::{Deserialize, Serialize};
+use utils::default_f;
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
     common::{ActivationConfig, Either, Norm, NormConfig},
-    default_f,
 };
 
 #[derive(Debug, Module)]
