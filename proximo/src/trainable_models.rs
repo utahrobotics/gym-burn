@@ -1,23 +1,29 @@
 use burn::{
-    Tensor,
-    nn::loss::{MseLoss, Reduction},
-    tensor::backend::AutodiffBackend,
+    Tensor, nn::loss::{MseLoss, Reduction}, prelude::Backend, tensor::backend::AutodiffBackend
 };
 use general_dataset::presets::autoencoder::AutoEncoderImageBatch;
 use general_models::{
     SimpleTrain,
     composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
 };
-use serde::de::DeserializeOwned;
 
 pub mod apply_gradients;
 
 pub struct Blanket;
 pub struct Specialized;
 
+pub trait ValidatableModel<B: Backend, I, T = Blanket> {
+    type Loss;
+
+    fn batch_valid(
+        &self,
+        batch: I,
+        loss: &Self::Loss,
+    ) -> Tensor<B, 1>;
+}
+
 pub trait TrainableModel<B: AutodiffBackend, I, T = Blanket> {
     type Loss;
-    type LossConfig: DeserializeOwned;
     type TrainingConfig;
 
     fn batch_train(
@@ -34,7 +40,6 @@ where
     Self: SimpleTrain<B, 4, 4>,
 {
     type Loss = MseLoss;
-    type LossConfig = ();
     type TrainingConfig = ();
 
     fn batch_train(
@@ -58,7 +63,6 @@ where
     D: SimpleTrain<B, 2, 4>,
 {
     type Loss = MseLoss;
-    type LossConfig = ();
     type TrainingConfig = VariationalEncoderModelTrainingConfig;
 
     fn batch_train(

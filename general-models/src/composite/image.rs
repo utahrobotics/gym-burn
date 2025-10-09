@@ -106,7 +106,7 @@ impl<B: Backend> Init<B, ConvLinearClassifierModel<B>> for ConvLinearClassifierM
 }
 
 #[derive(Debug, Module)]
-pub struct LinearConvTransposedModel<B: Backend> {
+pub struct LinearConvTranspose2dModel<B: Backend> {
     pub linear: LinearModel<B>,
     conv_input_size: Ignored<[usize; 2]>,
     intermediate_interpolate: Option<Interpolate2d>,
@@ -114,7 +114,7 @@ pub struct LinearConvTransposedModel<B: Backend> {
     output_interpolate: Option<Interpolate2d>,
 }
 
-impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
+impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTranspose2dModel<B> {
     fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
         let batch_size = tensor.dims()[0];
         let tensor = self.conv.infer(self.linear.infer(tensor).reshape([
@@ -131,7 +131,7 @@ impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTransposedModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTransposedModel<B> {
+impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTranspose2dModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 2>) -> Tensor<B, 4> {
         let batch_size = tensor.dims()[0];
         tensor = self.linear.train(tensor);
@@ -162,9 +162,9 @@ pub struct LinearConvTransposedModelConfig {
     pub output_interpolate: Option<Interpolate2dConfig>,
 }
 
-impl<B: Backend> Init<B, LinearConvTransposedModel<B>> for LinearConvTransposedModelConfig {
-    fn init(self, device: &<B as Backend>::Device) -> LinearConvTransposedModel<B> {
-        LinearConvTransposedModel {
+impl<B: Backend> Init<B, LinearConvTranspose2dModel<B>> for LinearConvTransposedModelConfig {
+    fn init(self, device: &<B as Backend>::Device) -> LinearConvTranspose2dModel<B> {
+        LinearConvTranspose2dModel {
             linear: self.linear.init(device),
             conv_input_size: Ignored(self.conv_input_size),
             intermediate_interpolate: self.intermediate_interpolate.map(|mode| {

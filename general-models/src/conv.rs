@@ -26,6 +26,20 @@ impl<B: Backend> Conv2dModel<B> {
     pub fn get_input_channels(&self) -> usize {
         self.input_channels.0
     }
+
+    pub fn iter_layers(
+        &mut self,
+        mut map: impl FnMut(
+            Conv2d<B>,
+            Option<Norm<B>>,
+            Option<Activation<B>>,
+        ) -> (Conv2d<B>, Option<Norm<B>>, Option<Activation<B>>),
+    ) {
+        self.layers = std::mem::take(&mut self.layers)
+            .into_iter()
+            .map(|(conv, norm, activation)| map(conv, norm, activation))
+            .collect();
+    }
 }
 
 impl<B: Backend> SimpleTrain<B, 4, 4> for Conv2dModel<B> {
@@ -140,6 +154,20 @@ pub struct ConvTranspose2dModel<B: Backend> {
 impl<B: Backend> ConvTranspose2dModel<B> {
     pub fn get_input_channels(&self) -> usize {
         self.input_channels.0
+    }
+
+    pub fn iter_layers(
+        &mut self,
+        mut map: impl FnMut(
+            ConvTranspose2d<B>,
+            Option<Norm<B>>,
+            Option<Activation<B>>,
+        ) -> (ConvTranspose2d<B>, Option<Norm<B>>, Option<Activation<B>>),
+    ) {
+        self.layers = std::mem::take(&mut self.layers)
+            .into_iter()
+            .map(|(conv, norm, activation)| map(conv, norm, activation))
+            .collect();
     }
 }
 
