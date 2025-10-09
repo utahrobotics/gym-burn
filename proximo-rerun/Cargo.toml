@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 rerun = "0.25.1"
+serde_json.workspace = true
+serde.workspace = true

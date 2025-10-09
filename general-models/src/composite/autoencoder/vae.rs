@@ -9,13 +9,13 @@ use crate::{
 
 
 #[derive(Module, Debug)]
-pub struct VariationalEncoder<B: Backend, M> {
+pub struct VariationalEncoderModel<B: Backend, M> {
     pub model: M,
     pub mean: LinearModel<B>,
     pub logvar: LinearModel<B>,
 }
 
-impl<B, M, const D: usize> SimpleInfer<B, D, 2> for VariationalEncoder<B, M>
+impl<B, M, const D: usize> SimpleInfer<B, D, 2> for VariationalEncoderModel<B, M>
 where
     B: Backend,
     M: SimpleInfer<B, D, 2> + ModuleDisplay,
@@ -25,7 +25,7 @@ where
     }
 }
 
-impl<B: Backend, M> VariationalEncoder<B, M>
+impl<B: Backend, M> VariationalEncoderModel<B, M>
 where
     B: Backend,
 {
@@ -61,13 +61,13 @@ pub struct VariationalEncoderConfig<M> {
     pub logvar: LinearModelConfig,
 }
 
-impl<B, M, T> Init<B, VariationalEncoder<B, T>> for VariationalEncoderConfig<M>
+impl<B, M, T> Init<B, VariationalEncoderModel<B, T>> for VariationalEncoderConfig<M>
 where
     B: Backend,
     M: Init<B, T>,
 {
-    fn init(self, device: &<B as Backend>::Device) -> VariationalEncoder<B, T> {
-        VariationalEncoder {
+    fn init(self, device: &<B as Backend>::Device) -> VariationalEncoderModel<B, T> {
+        VariationalEncoderModel {
             model: self.model.init(device),
             mean: self.mean.init(device),
             logvar: self.logvar.init(device),

@@ -5,12 +5,13 @@ use rayon::join;
 
 use crate::trainable_models::{TrainableModel, apply_gradients::ApplyGradients};
 
-pub fn train_batch<B, M, Row, Item>(
+pub fn train_batch<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
     index: usize,
     batch_size: usize,
     batcher: &mut impl StatefulBatcher<Row, Item>,
+    training_config: &M::TrainingConfig,
     loss: &M::Loss,
     lr: f64,
     grads_plan: &mut M::Plan,
@@ -19,26 +20,27 @@ pub fn train_batch<B, M, Row, Item>(
 where
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item> + ApplyGradients<B>
+    M: TrainableModel<B, Item, S> + ApplyGradients<B>
 {
     let batch = dataset.query(index, batch_size, rng, batcher);
-    let loss = model.batch_train(batch, loss);
+    let loss = model.batch_train(batch, loss, training_config);
     let mut grads = loss.backward();
     model.apply_gradients(lr, &mut grads, grads_plan);
     loss
 }
 
-pub fn train_epoch<B, M, Row, Item>(
+pub fn train_epoch<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
     dataset_len: usize,
     batch_size: usize,
     batcher: &mut impl StatefulBatcher<Row, Item>,
+    training_config: &M::TrainingConfig,
     loss: &M::Loss,
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
     rng: &mut impl Rng,
-    mut post_block: impl FnMut(
+    mut post_batch: impl FnMut(
         &mut M,
         Tensor<B, 1>,
         f64
@@ -47,23 +49,24 @@ pub fn train_epoch<B, M, Row, Item>(
 where
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item> + ApplyGradients<B>
+    M: TrainableModel<B, Item, S> + ApplyGradients<B>
 {
     let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size))).map(|x| x * batch_size).collect();
     block_indices.shuffle(rng);
     for index in block_indices {
         let lr = lr_scheduler.step();
-        let loss = train_batch(model, dataset, index, batch_size, batcher, loss, lr, grads_plan, rng);
-        post_block(model, loss, lr);
+        let loss = train_batch(model, dataset, index, batch_size, batcher, training_config, loss, lr, grads_plan, rng);
+        post_batch(model, loss, lr);
     }
 }
 
-pub fn train_epoch_concurrent<B, M, Row, Item>(
+pub fn train_epoch_concurrent<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
     dataset_len: usize,
     batch_size: usize,
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
+    training_config: &M::TrainingConfig,
     loss: &M::Loss,
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
@@ -77,10 +80,11 @@ where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item> + ApplyGradients<B>,
+    M: TrainableModel<B, Item, S> + ApplyGradients<B>,
     Item: Send,
     M::Loss: Send + Sync,
-    M::Plan: Send
+    M::Plan: Send,
+    M::TrainingConfig: Sync
 {
     let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size))).map(|x| x * batch_size).collect();
     block_indices.shuffle(rng);
@@ -100,7 +104,7 @@ where
                 }
             ),
             || {
-                let loss = model.batch_train(batch, loss);
+                let loss = model.batch_train(batch, loss, training_config);
                 let mut grads = loss.backward();
                 let lr = lr_scheduler.step();
                 model.apply_gradients(lr, &mut grads, grads_plan);
@@ -116,7 +120,7 @@ where
             post_batch(loss, lr);
         },
         || {
-            let loss = model.batch_train(batch, loss);
+            let loss = model.batch_train(batch, loss, training_config);
             let mut grads = loss.backward();
             let lr = lr_scheduler.step();
             model.apply_gradients(lr, &mut grads, grads_plan);

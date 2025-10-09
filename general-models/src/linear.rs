@@ -51,11 +51,10 @@ impl<B: Backend> SimpleInfer<B, 2, 2> for LinearModel<B> {
     }
 }
 impl<B: Backend> LinearModel<B> {
-    pub fn iter_layers(&mut self, mut map: impl FnMut(Linear<B>, Option<Norm<B>>) -> (Linear<B>, Option<Norm<B>>)) {
+    pub fn iter_layers(&mut self, mut map: impl FnMut(Linear<B>, Option<Norm<B>>, Option<Activation<B>>) -> (Linear<B>, Option<Norm<B>>, Option<Activation<B>>)) {
         self.layers = std::mem::take(&mut self.layers).into_iter()
             .map(|(linear, norm, activation)| {
-                let (linear, norm) = map(linear, norm);
-                (linear, norm, activation)
+                map(linear, norm, activation)
             })
             .collect();
     }
