@@ -24,7 +24,6 @@ pub fn parse_json_file<T: DeserializeOwned>(path: impl AsRef<Path>) -> serde_jso
     ))
 }
 
-
 #[macro_export]
 macro_rules! default_f {
     ($ident: ident, $ty: ty, $expr: expr) => {

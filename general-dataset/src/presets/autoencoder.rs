@@ -33,9 +33,9 @@ pub struct AutoEncoderImageBatch<B: Backend> {
 #[derive(Debug)]
 pub struct AutoEncoderImageBatcher<B: Backend> {
     channels: usize,
-    input_tensors: Vec<Tensor<B,4>>,
+    input_tensors: Vec<Tensor<B, 4>>,
     expected_tensors: Vec<Tensor<B, 4>>,
-    device: B::Device
+    device: B::Device,
 }
 
 impl<B: Backend> AutoEncoderImageBatcher<B> {
@@ -56,32 +56,24 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
         self.input_tensors.clear();
         self.expected_tensors.clear();
     }
-    
+
     fn ingest(&mut self, item: AutoEncoderImageItem) {
         macro_rules! process {
             ($webp: ident) => {{
                 let img = load_from_memory_with_format(&item.$webp, ImageFormat::WebP).unwrap();
                 let data = match self.channels {
-                    1 => {
-                        img.to_luma32f()
-                            .into_vec()
-                    }
-                    2 => {
-                        img.to_luma_alpha32f()
-                            .into_vec()
-                    }
-                    3 => {
-                        img.into_rgb32f()
-                            .into_vec()
-                    }
-                    4 => {
-                        img.into_rgba32f()
-                            .into_vec()
-                    }
-                    _ => unreachable!()
+                    1 => img.to_luma32f().into_vec(),
+                    2 => img.to_luma_alpha32f().into_vec(),
+                    3 => img.into_rgb32f().into_vec(),
+                    4 => img.into_rgba32f().into_vec(),
+                    _ => unreachable!(),
                 };
-                Tensor::<B, 1>::from_data(data.as_slice(), &self.device)
-                    .reshape([1, self.channels, item.input_width, item.input_height])
+                Tensor::<B, 1>::from_data(data.as_slice(), &self.device).reshape([
+                    1,
+                    self.channels,
+                    item.input_width,
+                    item.input_height,
+                ])
             }};
         }
         join(
@@ -92,23 +84,25 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
             || {
                 let tensor = process!(webp_expected);
                 self.expected_tensors.push(tensor);
-            }
+            },
         );
-
     }
 
     fn shuffle(&mut self, rng: &mut impl rand::Rng) {
         self.input_tensors.shuffle(rng);
         self.expected_tensors.shuffle(rng);
     }
-    
+
     fn finish(&mut self) -> AutoEncoderImageBatch<B> {
         let input_replace = Vec::with_capacity(self.input_tensors.len());
         let expected_replace = Vec::with_capacity(self.expected_tensors.len());
 
         AutoEncoderImageBatch {
             input: Tensor::cat(std::mem::replace(&mut self.input_tensors, input_replace), 0),
-            expected: Tensor::cat(std::mem::replace(&mut self.expected_tensors, expected_replace), 0),
+            expected: Tensor::cat(
+                std::mem::replace(&mut self.expected_tensors, expected_replace),
+                0,
+            ),
         }
     }
     // fn batch(&self, items: Vec<I>, device: &<B as Backend>::Device) -> AutoEncoderImageBatch<B> {

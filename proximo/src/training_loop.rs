@@ -15,12 +15,12 @@ pub fn train_batch<B, M, Row, Item, S>(
     loss: &M::Loss,
     lr: f64,
     grads_plan: &mut M::Plan,
-    rng: &mut impl Rng
+    rng: &mut impl Rng,
 ) -> Tensor<B, 1>
 where
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item, S> + ApplyGradients<B>
+    M: TrainableModel<B, Item, S> + ApplyGradients<B>,
 {
     let batch = dataset.query(index, batch_size, rng, batcher);
     let loss = model.batch_train(batch, loss, training_config);
@@ -40,22 +40,30 @@ pub fn train_epoch<B, M, Row, Item, S>(
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
     rng: &mut impl Rng,
-    mut post_batch: impl FnMut(
-        &mut M,
-        Tensor<B, 1>,
-        f64
-    )
-)
-where
+    mut post_batch: impl FnMut(&mut M, Tensor<B, 1>, f64),
+) where
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item, S> + ApplyGradients<B>
+    M: TrainableModel<B, Item, S> + ApplyGradients<B>,
 {
-    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size))).map(|x| x * batch_size).collect();
+    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size)))
+        .map(|x| x * batch_size)
+        .collect();
     block_indices.shuffle(rng);
     for index in block_indices {
         let lr = lr_scheduler.step();
-        let loss = train_batch(model, dataset, index, batch_size, batcher, training_config, loss, lr, grads_plan, rng);
+        let loss = train_batch(
+            model,
+            dataset,
+            index,
+            batch_size,
+            batcher,
+            training_config,
+            loss,
+            lr,
+            grads_plan,
+            rng,
+        );
         post_batch(model, loss, lr);
     }
 }
@@ -71,12 +79,8 @@ pub fn train_epoch_concurrent<B, M, Row, Item, S>(
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
     rng: &mut (impl Rng + Send),
-    mut post_batch: impl FnMut(
-        Tensor<B, 1>,
-        f64
-    ) + Send
-)
-where
+    mut post_batch: impl FnMut(Tensor<B, 1>, f64) + Send,
+) where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
@@ -84,32 +88,38 @@ where
     Item: Send,
     M::Loss: Send + Sync,
     M::Plan: Send,
-    M::TrainingConfig: Sync
+    M::TrainingConfig: Sync,
 {
-    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size))).map(|x| x * batch_size).collect();
+    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size)))
+        .map(|x| x * batch_size)
+        .collect();
     block_indices.shuffle(rng);
     let mut block_indices = block_indices.into_iter();
-    let Some(first_index) = block_indices.next() else { return; };
+    let Some(first_index) = block_indices.next() else {
+        return;
+    };
     let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
     let mut last_results = None;
 
     for next_index in block_indices {
         let ((next_batch, ()), (loss, lr)) = join(
-            || join(
-                || {
-                    dataset.query(next_index, batch_size, rng, &mut *batcher)
-                },
-                || if let Some((loss, lr)) = last_results {
-                    post_batch(loss, lr);
-                }
-            ),
+            || {
+                join(
+                    || dataset.query(next_index, batch_size, rng, &mut *batcher),
+                    || {
+                        if let Some((loss, lr)) = last_results {
+                            post_batch(loss, lr);
+                        }
+                    },
+                )
+            },
             || {
                 let loss = model.batch_train(batch, loss, training_config);
                 let mut grads = loss.backward();
                 let lr = lr_scheduler.step();
                 model.apply_gradients(lr, &mut grads, grads_plan);
                 (loss, lr)
-            }
+            },
         );
         last_results = Some((loss, lr));
         batch = next_batch;
@@ -125,7 +135,7 @@ where
             let lr = lr_scheduler.step();
             model.apply_gradients(lr, &mut grads, grads_plan);
             (loss, lr)
-        }
+        },
     );
     post_batch(loss, lr);
 }

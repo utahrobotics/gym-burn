@@ -1,6 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use burn::config::Config;
 use rand::Rng;
@@ -73,7 +71,8 @@ impl SqliteDataset {
                 "get_sql does not output a `row_id` column"
             );
             assert_eq!(
-                stmt.parameter_count(), 2,
+                stmt.parameter_count(),
+                2,
                 "get_sql must have exactly 2 parameters: row_id and count"
             );
 
@@ -85,10 +84,7 @@ impl SqliteDataset {
                     .is_some(),
                 "len_sql does not output a `len` column"
             );
-            assert_eq!(
-                stmt.parameter_count(), 0,
-                "len_sql must have no parameters"
-            );
+            assert_eq!(stmt.parameter_count(), 0, "len_sql must have no parameters");
         }
 
         Ok(Self {
@@ -98,7 +94,6 @@ impl SqliteDataset {
         })
     }
 }
-
 
 #[derive(Error, Debug)]
 pub enum SqliteConfigError {
@@ -149,7 +144,13 @@ impl<I, O, T: StatefulBatcher<I, O>> StatefulBatcher<I, O> for &mut T {
 }
 
 impl SqliteDataset {
-    pub fn query<I: FromSqlRow, O>(&mut self, index: usize, limit: usize, rng: &mut impl Rng, mut batcher: impl StatefulBatcher<I, O>) -> O {
+    pub fn query<I: FromSqlRow, O>(
+        &mut self,
+        index: usize,
+        limit: usize,
+        rng: &mut impl Rng,
+        mut batcher: impl StatefulBatcher<I, O>,
+    ) -> O {
         batcher.reset();
         let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
         let mut rows = stmt.query(params![index, limit]).unwrap();

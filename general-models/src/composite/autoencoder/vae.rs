@@ -7,7 +7,6 @@ use crate::{
     linear::{LinearModel, LinearModelConfig},
 };
 
-
 #[derive(Module, Debug)]
 pub struct VariationalEncoderModel<B: Backend, M> {
     pub model: M,
