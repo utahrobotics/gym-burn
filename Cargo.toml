@@ -22,3 +22,7 @@ thiserror = "2.0.17"
 imageproc = "0.25.0"
 rayon = "1.11.0"
 base64 = "0.22.1"
+
+[profile.release]
+strip = false
+debug = true

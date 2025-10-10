@@ -165,6 +165,10 @@ impl SqliteDataset {
         batcher.finish()
     }
 
+    pub fn get_batch_count(&self, batch_size: usize) -> usize {
+        self.len.div_ceil(batch_size)
+    }
+
     pub fn pick_random<I: FromSqlRow>(
         &mut self,
         rng: &mut impl Rng

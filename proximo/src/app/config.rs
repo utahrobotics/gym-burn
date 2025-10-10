@@ -37,6 +37,7 @@ pub struct TrainingConfig {
 
 #[derive(Deserialize, Debug)]
 pub struct ImageAutoEncoderChallenge {
+    #[serde(default)]
     pub challenge_image_count: usize
 }
 

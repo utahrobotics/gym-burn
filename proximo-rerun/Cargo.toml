@@ -8,3 +8,4 @@ rerun = "0.25.1"
 serde_json.workspace = true
 serde.workspace = true
 base64.workspace = true
+image = { workspace = true, features = ["webp"] }

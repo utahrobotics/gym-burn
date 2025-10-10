@@ -13,7 +13,7 @@ use general_models::{
         },
     }
 };
-use image::{ImageBuffer, ImageFormat, Luma, Rgb, buffer::ConvertBuffer};
+use image::{ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer, codecs::webp::WebPDecoder};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rayon::iter::{IndexedParallelIterator, ParallelBridge, ParallelIterator};
 use serde_json::json;
@@ -44,6 +44,7 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Command {
     Train,
+    Clean
 }
 
 pub fn train() {
@@ -86,13 +87,11 @@ pub fn train() {
         .training_dataset
         .try_into()
         .expect("Expected valid training dataset config");
-    let training_dataset_len = training_dataset.len();
 
     let mut testing_dataset: SqliteDataset = training_config
         .testing_dataset
         .try_into()
         .expect("Expected valid training dataset config");
-    let testing_dataset_len = testing_dataset.len();
     let mut lr_scheduler = training_config.lr_scheduler.init();
 
     let mut rng = SmallRng::seed_from_u64(training_config.seed.unwrap_or(secs));
@@ -102,11 +101,12 @@ pub fn train() {
     let mut child = viz_command.next().map(|cmd| {
         std::process::Command::new(cmd)
             .args(viz_command)
+            .env("ARTIFACT_DIR", &artifact_dir)
+            .env("TRAINING_BATCH_COUNT", &artifact_dir)
             .stdin(Stdio::piped())
             .spawn()
             .expect("Expected valid viz command")
     });
-
 
     match training_config.model_type {
         ModelType::ImageAutoEncoder => {
@@ -138,7 +138,7 @@ pub fn train() {
 
             let mut input_images = vec![];
             
-            info!("Initialized in {:.1}s", init_start_time.elapsed().as_secs_f32());
+            info!("Initialized in {:.3}s", init_start_time.elapsed().as_secs_f32());
             let training_start_time = clock.now();
             for epoch in 0..training_config.num_epochs {
                 let epoch_start_time = clock.now();
@@ -148,7 +148,6 @@ pub fn train() {
                 train_epoch_image_autoencoder::<_, _, _, Blanket>(
                     &mut model,
                     &mut training_dataset,
-                    training_dataset_len,
                     training_config.batch_size,
                     training_config.training_max_batch_count,
                     &mut training_batcher,
@@ -205,9 +204,7 @@ pub fn train() {
                                 let img = ImageBuffer::<Luma<f32>, _>::from_raw(width as u32, height as u32, buf).unwrap();
                                 let img: ImageBuffer<Rgb<u8>, Vec<_>> = img.convert();
                                 
-                                let mut bytes = vec![];
-                                img.write_to(&mut Cursor::new(&mut bytes), ImageFormat::WebP).unwrap();
-                                bytes
+                                img
                             })
                             .collect()
                     }
@@ -218,30 +215,35 @@ pub fn train() {
                     let images: Vec<_> = input_images.par_drain(..)
                         .zip(reconstructed_images)
                         .map(|(input, output)| {
-                            (BASE64_STANDARD.encode(input), BASE64_STANDARD.encode(output))
+                            let mut output_bytes = vec![];
+                            output.write_to(&mut Cursor::new(&mut output_bytes), ImageFormat::WebP).unwrap();
+                            (BASE64_STANDARD.encode(input), BASE64_STANDARD.encode(output_bytes))
                         })
                         .collect();
                     serde_json::to_writer(
                         child.stdin.as_mut().unwrap(),
                         &json!({
                             "epoch": epoch,
-                            "images": images,
+                            "challenge_images": images,
                         })
                     ).expect("Expected child process to be alive");
                 } else {
                     let mosaic_width = output_width as u32 * 2;
                     let mosaic_height = output_height as u32 * challenge_config.challenge_image_count as u32;
                     let mut pixels = Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
+                    let mut input_buf = vec![];
+                    input_buf.resize(output_width * output_height * 3, 0);
 
                     input_images.iter()
                         .zip(reconstructed_images.iter())
-                        .flat_map(|(input, output)| {
-                            input.chunks(output_width)
-                                .zip(output.chunks(output_width))
-                        })
-                        .for_each(|(input_row, output_row)| {
-                            pixels.extend_from_slice(input_row);
-                            pixels.extend_from_slice(output_row);
+                        .for_each(|(input, output)| {
+                            WebPDecoder::new(Cursor::new(input)).unwrap().read_image(&mut input_buf).unwrap();
+                            let iter = input_buf.chunks(output_width * 3)
+                                .zip(output.chunks(output_width * 3));
+                            for (input_row, output_row) in iter {
+                                pixels.extend_from_slice(input_row);
+                                pixels.extend_from_slice(output_row);
+                            }
                         });
                     input_images.clear();
                     ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
@@ -259,7 +261,6 @@ pub fn train() {
                 validate_model(
                     &mut model,
                     &mut testing_dataset,
-                    testing_dataset_len,
                     training_config.batch_size,
                     training_config.testing_max_batch_count,
                     &mut testing_batcher,
@@ -302,5 +303,11 @@ pub fn main() {
 
     match args.command {
         Command::Train => train(),
+        Command::Clean => {
+            let training_config: TrainingConfig =
+                parse_json_file("training").expect("Expected valid training.json");
+            std::fs::remove_dir_all(&training_config.artifact_dir)
+                .expect("Expected artifact dir to be removable");
+        },
     }
 }

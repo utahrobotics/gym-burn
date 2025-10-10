@@ -75,7 +75,6 @@ pub mod presets;
 pub fn train_epoch<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
-    dataset_len: usize,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
@@ -95,7 +94,7 @@ pub fn train_epoch<B, M, Row, Item, S>(
     M::Plan: Send,
     M::TrainingConfig: Sync,
 {
-    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size)))
+    let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))
         .map(|x| x * batch_size)
         .collect();
     block_indices.shuffle(rng);
@@ -150,7 +149,6 @@ pub fn train_epoch<B, M, Row, Item, S>(
 pub fn validate_model<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
-    dataset_len: usize,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
@@ -167,7 +165,7 @@ pub fn validate_model<B, M, Row, Item, S>(
 {
     // Sync maker using Mutex
     let mut model = Mutex::new(model);
-    let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size)))
+    let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))
         .map(|x| x * batch_size)
         .collect();
     block_indices.shuffle(rng);

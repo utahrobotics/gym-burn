@@ -11,7 +11,6 @@ use crate::{
 pub fn train_epoch_image_autoencoder<B, E, D, S>(
     model: &mut AutoEncoderModel<B, E, D>,
     dataset: &mut SqliteDataset,
-    dataset_len: usize,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut AutoEncoderImageBatcher<B>,
@@ -30,7 +29,6 @@ pub fn train_epoch_image_autoencoder<B, E, D, S>(
     train_epoch(
         model,
         dataset,
-        dataset_len,
         batch_size,
         max_batch_count,
         batcher,
@@ -46,7 +44,6 @@ pub fn train_epoch_image_autoencoder<B, E, D, S>(
 pub fn train_epoch_image_variational_autoencoder<B, E, D, S>(
     model: &mut AutoEncoderModel<B, VariationalEncoderModel<B, E>, D>,
     dataset: &mut SqliteDataset,
-    dataset_len: usize,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut AutoEncoderImageBatcher<B>,
@@ -66,7 +63,6 @@ pub fn train_epoch_image_variational_autoencoder<B, E, D, S>(
     train_epoch(
         model,
         dataset,
-        dataset_len,
         batch_size,
         max_batch_count,
         batcher,
