@@ -19,6 +19,8 @@ pub enum ModelType {
 pub struct TrainingConfig {
     pub artifact_dir: PathBuf,
     pub model_type: ModelType,
+    #[serde(default)]
+    pub viz_command: Vec<String>,
     #[serde(default = "default_num_epochs")]
     pub num_epochs: usize,
     #[serde(default = "default_batch_size")]

@@ -9,6 +9,6 @@ rusqlite.workspace = true
 # rustc-hash.workspace = true
 thiserror.workspace = true
 burn.workspace = true
-image.workspace = true
+image = { workspace = true, features = ["webp"] }
 rayon.workspace = true
 rand.workspace = true

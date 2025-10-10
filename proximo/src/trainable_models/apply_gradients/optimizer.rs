@@ -23,6 +23,7 @@ impl<B: AutodiffBackend, M: AutodiffModule<B>> Optimizer<B, M> {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "snake_case")]
 pub enum OptimizerConfig {
     Adam {
         #[serde(default = "default_beta_1")]

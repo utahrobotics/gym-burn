@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{process::Stdio, time::SystemTime};
 
 use burn::{backend::Autodiff, module::AutodiffModule, nn::loss::MseLoss};
 use clap::{Parser, Subcommand};
@@ -14,10 +14,12 @@ use general_models::{
     },
 };
 use rand::{SeedableRng, rngs::SmallRng};
+use serde_json::json;
+use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::config::TrainingConfig,
+    app::config::{TrainingConfig, TrainingGradsPlan},
     trainable_models::{Blanket, apply_gradients::{
         ApplyGradients,
         autoencoder::AutoEncoderModelPlanConfig,
@@ -83,6 +85,15 @@ pub fn train() {
             .as_secs()
     }));
 
+    let mut viz_command = training_config.viz_command.into_iter();
+    let mut child = viz_command.next().map(|cmd| {
+        std::process::Command::new(cmd)
+            .args(viz_command)
+            .stdin(Stdio::piped())
+            .spawn()
+            .expect("Expected valid viz command")
+    });
+
     match training_config.model_type {
         config::ModelType::ImageAutoEncoder => {
             let model_config: AutoEncoderModelConfig<
@@ -95,11 +106,11 @@ pub fn train() {
                 LinearConvTranspose2dModel<AutodiffBackend>,
             >;
             let mut model: Model = model_config.init(device);
-            let grads_plan: AutoEncoderModelPlanConfig<
+            let grads_plan: TrainingGradsPlan<AutoEncoderModelPlanConfig<
                 Conv2dLinearModelPlanConfig,
                 LinearConvTranspose2dModelPlanConfig,
-            > = parse_json_file("training").expect("Expected valid training.json");
-            let mut grads_plan = Model::config_to_plan(grads_plan);
+            >> = parse_json_file("training").expect("Expected valid training.json");
+            let mut grads_plan = Model::config_to_plan(grads_plan.grads_plan);
 
             let mut training_batcher = AutoEncoderImageBatcher::new(
                 model.encoder.conv.get_input_channels(),
@@ -111,6 +122,8 @@ pub fn train() {
             );
 
             for epoch in 0..training_config.num_epochs {
+                let mut batch_i = 0usize;
+                info!("Training Epoch {epoch}");
                 train_epoch_image_autoencoder::<_, _, _, Blanket>(
                     &mut model,
                     &mut training_dataset,
@@ -121,8 +134,29 @@ pub fn train() {
                     &mut lr_scheduler,
                     &mut grads_plan,
                     &mut rng,
-                    |loss, lr| {},
+                    |loss, lr| {
+                        let (variance, mean) = loss.var_mean(0);
+                        let variance = variance.into_scalar();
+                        let mean = mean.into_scalar();
+                        if let Some(child) = &mut child {
+                            serde_json::to_writer(
+                                child.stdin.as_mut().unwrap(),
+                                &json!({
+                                    "batch_i": batch_i,
+                                    "epoch": epoch,
+                                    "loss": mean,
+                                    "loss_variance": variance,
+                                    "lr": lr
+                                })
+                            ).expect("Expected child process to be alive");
+                        } else {
+                            info!("Batch {batch_i}; Loss: {mean:.4}; Variance: {variance:.4}; LR: {lr:.4}");
+                        }
+                        batch_i += 1;
+                    },
                 );
+                info!("Testing Epoch {epoch}");
+                batch_i = 0;
                 validate_model(
                     &mut model.valid(),
                     &mut testing_dataset,
@@ -132,7 +166,25 @@ pub fn train() {
                     &mut testing_batcher,
                     &MseLoss::new(),
                     &mut rng,
-                    |loss| {},
+                    |loss| {
+                        let (variance, mean) = loss.var_mean(0);
+                        let variance = variance.into_scalar();
+                        let mean = mean.into_scalar();
+                        if let Some(child) = &mut child {
+                            serde_json::to_writer(
+                                child.stdin.as_mut().unwrap(),
+                                &json!({
+                                    "batch_i": batch_i,
+                                    "epoch": epoch,
+                                    "loss": mean,
+                                    "loss_variance": variance
+                                })
+                            ).expect("Expected child process to be alive");
+                        } else {
+                            info!("Batch {batch_i}; Loss: {mean:.4}; Variance: {variance:.4}");
+                        }
+                        batch_i += 1;
+                    },
                 );
             }
         }
@@ -143,7 +195,7 @@ pub fn train() {
 pub fn main() {
     let args = Args::parse();
     tracing_subscriber::fmt().init();
-    
+
     match args.command {
         Command::Train => train(),
     }

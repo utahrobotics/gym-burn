@@ -67,10 +67,9 @@ impl burn::lr_scheduler::LrScheduler for LrScheduler {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum LrSchedulerConfig {
-    Constant {
-        lr: f64,
-    },
+    Constant(f64),
     Step {
         initial_lr: f64,
         step_size: usize,
@@ -89,7 +88,7 @@ pub enum LrSchedulerConfig {
 impl LrSchedulerConfig {
     pub fn init(self) -> LrScheduler {
         match self {
-            LrSchedulerConfig::Constant { lr } => LrScheduler::Constant(ConstantLr::new(lr)),
+            LrSchedulerConfig::Constant(lr) => LrScheduler::Constant(ConstantLr::new(lr)),
             LrSchedulerConfig::Step {
                 initial_lr,
                 step_size,
