@@ -36,6 +36,11 @@ pub struct TrainingConfig {
 }
 
 #[derive(Deserialize, Debug)]
+pub struct ImageAutoEncoderChallenge {
+    pub challenge_image_count: usize
+}
+
+#[derive(Deserialize, Debug)]
 pub struct TrainingGradsPlan<T> {
     pub grads_plan: T
 }

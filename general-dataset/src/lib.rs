@@ -49,7 +49,7 @@ macro_rules! sql_object {
 pub struct SqliteDataset {
     conn: Connection,
     get_sql: String,
-    len_sql: String,
+    len: usize
 }
 
 impl SqliteDataset {
@@ -61,6 +61,7 @@ impl SqliteDataset {
         let db_file = db_file.as_ref().to_path_buf();
 
         let conn = Connection::open(&db_file)?;
+        let len;
         {
             let stmt = conn.prepare_cached(&get_sql)?;
             assert!(
@@ -76,7 +77,7 @@ impl SqliteDataset {
                 "get_sql must have exactly 2 parameters: row_id and count"
             );
 
-            let stmt = conn.prepare_cached(&len_sql)?;
+            let mut stmt = conn.prepare_cached(&len_sql)?;
             assert!(
                 stmt.column_names()
                     .iter()
@@ -85,12 +86,15 @@ impl SqliteDataset {
                 "len_sql does not output a `len` column"
             );
             assert_eq!(stmt.parameter_count(), 0, "len_sql must have no parameters");
+            len = stmt
+                .query_one((), |row| row.get("len"))
+                .unwrap()
         }
 
         Ok(Self {
             conn,
             get_sql,
-            len_sql,
+            len,
         })
     }
 }
@@ -161,14 +165,16 @@ impl SqliteDataset {
         batcher.finish()
     }
 
-    /// Queries the database to determine the number of rows. Since
-    /// this makes an SQL query, the result should be cached.
+    pub fn pick_random<I: FromSqlRow>(
+        &mut self,
+        rng: &mut impl Rng
+    ) -> I {
+        let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
+        stmt.query_one(params![rng.random_range(0..self.len), 1], |row| Ok(I::from(row))).unwrap()
+    }
+
     pub fn len(&self) -> usize {
-        self.conn
-            .prepare_cached(&self.len_sql)
-            .unwrap()
-            .query_one((), |row| row.get("len"))
-            .unwrap()
+        self.len
     }
 }
 

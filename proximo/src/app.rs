@@ -1,25 +1,27 @@
-use std::{process::Stdio, time::SystemTime};
+use std::{io::Cursor, process::Stdio, time::SystemTime};
 
-use burn::{backend::Autodiff, module::AutodiffModule, nn::loss::MseLoss};
+use base64::{Engine, prelude::BASE64_STANDARD};
+use burn::{backend::Autodiff, module::{AutodiffModule, Module}, nn::loss::MseLoss, prelude::Backend, record::CompactRecorder};
 use clap::{Parser, Subcommand};
-use general_dataset::{SqliteDataset, presets::autoencoder::AutoEncoderImageBatcher};
+use general_dataset::{SqliteDataset, StatefulBatcher, presets::autoencoder::{AutoEncoderImageBatcher, AutoEncoderImageItem}};
 use general_models::{
-    Init,
-    composite::{
+    Init, SimpleInfer, composite::{
         autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
         image::{
             Conv2dLinearModelConfig, ConvLinearModel, LinearConvTranspose2dModel,
             LinearConvTranspose2dModelConfig,
         },
-    },
+    }
 };
-use rand::{SeedableRng, rngs::SmallRng};
+use image::{ImageBuffer, ImageFormat, Luma, Rgb, buffer::ConvertBuffer};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
+use rayon::iter::{IndexedParallelIterator, ParallelBridge, ParallelIterator};
 use serde_json::json;
 use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::config::{TrainingConfig, TrainingGradsPlan},
+    app::config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
     trainable_models::{Blanket, apply_gradients::{
         ApplyGradients,
         autoencoder::AutoEncoderModelPlanConfig,
@@ -27,6 +29,8 @@ use crate::{
     }},
     training_loop::{presets::train_epoch_image_autoencoder, validate_model},
 };
+
+use rayon::iter::ParallelDrainRange;
 
 pub mod config;
 
@@ -43,6 +47,9 @@ enum Command {
 }
 
 pub fn train() {
+    let clock = quanta::Clock::new();
+    let init_start_time = clock.now();
+
     #[cfg(feature = "wgpu")]
     type Backend = general_models::wgpu::WgpuBackend;
 
@@ -65,6 +72,16 @@ pub fn train() {
 
     let training_config: TrainingConfig =
         parse_json_file("training").expect("Expected valid training.json");
+
+    let secs = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let artifact_dir = training_config.artifact_dir.join(secs.to_string());
+    std::fs::create_dir_all(&artifact_dir)
+        .expect("Expected artifact dir to be creatable");
+
     let mut training_dataset: SqliteDataset = training_config
         .training_dataset
         .try_into()
@@ -78,12 +95,8 @@ pub fn train() {
     let testing_dataset_len = testing_dataset.len();
     let mut lr_scheduler = training_config.lr_scheduler.init();
 
-    let mut rng = SmallRng::seed_from_u64(training_config.seed.unwrap_or_else(|| {
-        SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs()
-    }));
+    let mut rng = SmallRng::seed_from_u64(training_config.seed.unwrap_or(secs));
+    Backend::seed(device, rng.random());
 
     let mut viz_command = training_config.viz_command.into_iter();
     let mut child = viz_command.next().map(|cmd| {
@@ -94,8 +107,10 @@ pub fn train() {
             .expect("Expected valid viz command")
     });
 
+
     match training_config.model_type {
-        config::ModelType::ImageAutoEncoder => {
+        ModelType::ImageAutoEncoder => {
+            let challenge_config: ImageAutoEncoderChallenge = parse_json_file("training").expect("Expected valid training.json");
             let model_config: AutoEncoderModelConfig<
                 Conv2dLinearModelConfig,
                 LinearConvTranspose2dModelConfig,
@@ -113,17 +128,23 @@ pub fn train() {
             let mut grads_plan = Model::config_to_plan(grads_plan.grads_plan);
 
             let mut training_batcher = AutoEncoderImageBatcher::new(
-                model.encoder.conv.get_input_channels(),
+                model.encoder.get_input_channels(),
                 device.clone(),
             );
             let mut testing_batcher = AutoEncoderImageBatcher::new(
-                model.encoder.conv.get_input_channels(),
+                model.encoder.get_input_channels(),
                 device.clone(),
             );
 
+            let mut input_images = vec![];
+            
+            info!("Initialized in {:.1}s", init_start_time.elapsed().as_secs_f32());
+            let training_start_time = clock.now();
             for epoch in 0..training_config.num_epochs {
+                let epoch_start_time = clock.now();
                 let mut batch_i = 0usize;
                 info!("Training Epoch {epoch}");
+
                 train_epoch_image_autoencoder::<_, _, _, Blanket>(
                     &mut model,
                     &mut training_dataset,
@@ -135,30 +156,108 @@ pub fn train() {
                     &mut grads_plan,
                     &mut rng,
                     |loss, lr| {
-                        let (variance, mean) = loss.var_mean(0);
-                        let variance = variance.into_scalar();
-                        let mean = mean.into_scalar();
+                        let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
                             serde_json::to_writer(
                                 child.stdin.as_mut().unwrap(),
                                 &json!({
                                     "batch_i": batch_i,
                                     "epoch": epoch,
-                                    "loss": mean,
-                                    "loss_variance": variance,
+                                    "loss": loss,
                                     "lr": lr
                                 })
                             ).expect("Expected child process to be alive");
                         } else {
-                            info!("Batch {batch_i}; Loss: {mean:.4}; Variance: {variance:.4}; LR: {lr:.4}");
+                            info!("Batch {batch_i}; Loss: {loss:.4}; LR: {lr:.4}");
                         }
                         batch_i += 1;
                     },
                 );
+
+                model
+                    .clone()
+                    .save_file(
+                        artifact_dir.join(format!("model-{epoch}.mpk")),
+                        &CompactRecorder::new()
+                    ).expect("Expected model to be saveable to artifact dir");
+                
+                testing_batcher.reset();
+                let mut output_width = 0usize;
+                let mut output_height = 0usize;
+                for _ in 0..challenge_config.challenge_image_count {
+                    let item: AutoEncoderImageItem = testing_dataset.pick_random(&mut rng);
+                    output_width = item.expected_width;
+                    output_height = item.expected_height;
+                    input_images.push(item.webp_input.clone());
+                    testing_batcher.ingest(item);
+                }
+                let batch = testing_batcher.finish();
+                let mut model = model.valid();
+                let reconstructed = model.forward(batch.input.clone());
+
+                let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
+                    1 => {
+                        reconstructed.iter_dim(0)
+                            .par_bridge()
+                            .map(|tensor| {
+                                let [_, _, width, height] = tensor.dims();
+                                let buf = tensor.into_data().into_vec::<f32>().unwrap();
+                                let img = ImageBuffer::<Luma<f32>, _>::from_raw(width as u32, height as u32, buf).unwrap();
+                                let img: ImageBuffer<Rgb<u8>, Vec<_>> = img.convert();
+                                
+                                let mut bytes = vec![];
+                                img.write_to(&mut Cursor::new(&mut bytes), ImageFormat::WebP).unwrap();
+                                bytes
+                            })
+                            .collect()
+                    }
+                    _ => todo!()
+                };
+
+                if let Some(child) = &mut child {
+                    let images: Vec<_> = input_images.par_drain(..)
+                        .zip(reconstructed_images)
+                        .map(|(input, output)| {
+                            (BASE64_STANDARD.encode(input), BASE64_STANDARD.encode(output))
+                        })
+                        .collect();
+                    serde_json::to_writer(
+                        child.stdin.as_mut().unwrap(),
+                        &json!({
+                            "epoch": epoch,
+                            "images": images,
+                        })
+                    ).expect("Expected child process to be alive");
+                } else {
+                    let mosaic_width = output_width as u32 * 2;
+                    let mosaic_height = output_height as u32 * challenge_config.challenge_image_count as u32;
+                    let mut pixels = Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
+
+                    input_images.iter()
+                        .zip(reconstructed_images.iter())
+                        .flat_map(|(input, output)| {
+                            input.chunks(output_width)
+                                .zip(output.chunks(output_width))
+                        })
+                        .for_each(|(input_row, output_row)| {
+                            pixels.extend_from_slice(input_row);
+                            pixels.extend_from_slice(output_row);
+                        });
+                    input_images.clear();
+                    ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
+                        .unwrap()
+                        .save(
+                            artifact_dir.join(
+                                format!("infer-{epoch}.webp")
+                            )
+                        )
+                        .expect("Expected inference image to be saveable");
+                }
+
                 info!("Testing Epoch {epoch}");
                 batch_i = 0;
                 validate_model(
-                    &mut model.valid(),
+                    &mut model,
                     &mut testing_dataset,
                     testing_dataset_len,
                     training_config.batch_size,
@@ -167,28 +266,33 @@ pub fn train() {
                     &MseLoss::new(),
                     &mut rng,
                     |loss| {
-                        let (variance, mean) = loss.var_mean(0);
-                        let variance = variance.into_scalar();
-                        let mean = mean.into_scalar();
+                        let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
                             serde_json::to_writer(
                                 child.stdin.as_mut().unwrap(),
                                 &json!({
                                     "batch_i": batch_i,
                                     "epoch": epoch,
-                                    "loss": mean,
-                                    "loss_variance": variance
+                                    "loss": loss,
                                 })
                             ).expect("Expected child process to be alive");
                         } else {
-                            info!("Batch {batch_i}; Loss: {mean:.4}; Variance: {variance:.4}");
+                            info!("Batch {batch_i}; Loss: {loss:.4}");
                         }
                         batch_i += 1;
                     },
                 );
+                let epoch_duration = epoch_start_time.elapsed();
+                info!(
+                    "Epoch Duration: {:.1}s; Remaining: {:.1}s",
+                    epoch_duration.as_secs_f32(),
+                    training_start_time.elapsed().as_secs_f32() * (training_config.num_epochs as f32 / (epoch + 1) as f32 - 1.0)
+                );
             }
+
+            info!("Total Duration: {:.1}s", training_start_time.elapsed().as_secs_f32());
         }
-        config::ModelType::ImageVariationalAutoEncoder => todo!(),
+        ModelType::ImageVariationalAutoEncoder => todo!(),
     }
 }
 
