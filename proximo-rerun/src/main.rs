@@ -96,6 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if buf.last() != Some(&b'}') {
             break;
         }
+        // println!("{}", String::from_utf8_lossy(&buf));
         let event: Event = serde_json::from_slice(&buf).unwrap();
         record(&viz, &event);
         record(&save, &event);

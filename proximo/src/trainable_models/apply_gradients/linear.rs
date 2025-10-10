@@ -58,10 +58,10 @@ impl<B: AutodiffBackend> ApplyGradients<B> for LinearModel<B> {
         self.iter_layers(|mut linear, mut norm, mut activation| {
             if let Some(bias_optim) = &mut plan.bias_optim {
                 if let Some(bias) = &linear.bias {
-                    let grad_params = GradientsParams::from_module(grads, bias);
+                    let grad_params = GradientsParams::from_params(grads, &linear, &[bias.id]);
                     linear = bias_optim.step(lr * plan.bias_lr_multiplier, linear, grad_params);
                 }
-                let grad_params = GradientsParams::from_module(grads, &linear.weight);
+                let grad_params = GradientsParams::from_params(grads, &linear, &[linear.weight.id]);
                 linear =
                     plan.weights_optim
                         .step(lr * plan.weights_lr_multiplier, linear, grad_params);

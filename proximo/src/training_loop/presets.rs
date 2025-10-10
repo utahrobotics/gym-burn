@@ -1,5 +1,5 @@
 use burn::{
-    Tensor, lr_scheduler::LrScheduler, module::ModuleDisplay, nn::loss::MseLoss,
+    Tensor, lr_scheduler::LrScheduler, module::ModuleDisplay, nn::loss::{BinaryCrossEntropyLossConfig, MseLoss},
     tensor::backend::AutodiffBackend,
 };
 use general_dataset::{SqliteDataset, presets::autoencoder::AutoEncoderImageBatcher};
@@ -29,6 +29,7 @@ pub fn train_epoch_image_autoencoder<B, E, D, S>(
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut AutoEncoderModelPlan<E::Plan, D::Plan>,
     rng: &mut (impl Rng + Send),
+    device: &B::Device,
     post_batch: impl FnMut(Tensor<B, 1>, f64) + Send,
 ) where
     AutoEncoderModel<B, E, D>: Send,
@@ -45,6 +46,7 @@ pub fn train_epoch_image_autoencoder<B, E, D, S>(
         max_batch_count,
         batcher,
         &(),
+        // &BinaryCrossEntropyLossConfig::new().with_logits(true).init(device),
         &MseLoss::new(),
         lr_scheduler,
         grads_plan,

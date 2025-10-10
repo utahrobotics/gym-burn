@@ -4,7 +4,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
     backend::Autodiff,
     module::{AutodiffModule, Module},
-    nn::loss::MseLoss,
+    nn::loss::BinaryCrossEntropyLossConfig,
     prelude::Backend,
     record::CompactRecorder,
 };
@@ -171,6 +171,7 @@ pub fn train() {
                     &mut lr_scheduler,
                     &mut grads_plan,
                     &mut rng,
+                    device,
                     |loss, lr| {
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
@@ -297,7 +298,7 @@ pub fn train() {
                     training_config.batch_size,
                     training_config.testing_max_batch_count,
                     &mut testing_batcher,
-                    &MseLoss::new(),
+                    &BinaryCrossEntropyLossConfig::new().with_logits(true).init(device),
                     &mut rng,
                     |loss| {
                         let loss = loss.into_scalar();
