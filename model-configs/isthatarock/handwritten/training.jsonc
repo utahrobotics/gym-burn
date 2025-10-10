@@ -1,0 +1,39 @@
+{
+    "model_type": "img-ae",
+    "num_epochs": 10,
+    "batch_size": 128,
+    "lr_scheduler": { "constant": 1.0e-2 },
+    "artifact_dir": "artifacts/isthatarock/handwritten",
+    "training_dataset": {
+        "db_file": "isthatarock-handwritten.sqlite",
+        "get_sql": "@get-training-data.sql",
+        "len_sql": "SELECT COUNT(*) as len FROM train"
+    },
+    "testing_dataset": {
+        "db_file": "isthatarock-handwritten.sqlite",
+        "get_sql": "@get-test-data.sql",
+        "len_sql": "SELECT COUNT(*) as len FROM test"
+    },
+    "viz_command": ["cargo", "run", "-p", "proximo-rerun", "--release"],
+    "training_max_batch_count": 1024,
+    "testing_max_batch_count": 64,
+    "grads_plan": {
+        "encoder": {
+            "conv": {
+                "weights_optim": { "adam": {} }
+            },
+            "linear": {
+                "weights_optim": { "adam": {} }
+            }
+        },
+        "decoder": {
+            "conv": {
+                "weights_optim": { "adam": {} }
+            },
+            "linear": {
+                "weights_optim": { "adam": {} }
+            }
+        }
+    },
+    "challenge_image_count": 5
+}
