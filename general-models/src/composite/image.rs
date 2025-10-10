@@ -48,13 +48,13 @@ impl<B: Backend> ConvLinearModel<B> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConvLinearModelConfig {
+pub struct Conv2dLinearModelConfig {
     pub conv: Conv2dModelConfig,
     adaptive_avg_pooling: Option<[usize; 2]>,
     pub linear: LinearModelConfig,
 }
 
-impl<B: Backend> Init<B, ConvLinearModel<B>> for ConvLinearModelConfig {
+impl<B: Backend> Init<B, ConvLinearModel<B>> for Conv2dLinearModelConfig {
     fn init(self, device: &<B as Backend>::Device) -> ConvLinearModel<B> {
         ConvLinearModel {
             conv: self.conv.init(device),
@@ -92,7 +92,7 @@ impl<B: Backend> ConvLinearClassifierModel<B> {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ConvLinearClassifierModelConfig {
-    pub conv_linear: ConvLinearModelConfig,
+    pub conv_linear: Conv2dLinearModelConfig,
     pub classifier: LinearClassifierModelConfig,
 }
 
@@ -154,7 +154,7 @@ impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTranspose2dModel<B> {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LinearConvTransposedModelConfig {
+pub struct LinearConvTranspose2dModelConfig {
     pub linear: LinearModelConfig,
     pub intermediate_interpolate: Option<InterpolateMode>,
     pub conv_input_size: [usize; 2],
@@ -162,7 +162,7 @@ pub struct LinearConvTransposedModelConfig {
     pub output_interpolate: Option<Interpolate2dConfig>,
 }
 
-impl<B: Backend> Init<B, LinearConvTranspose2dModel<B>> for LinearConvTransposedModelConfig {
+impl<B: Backend> Init<B, LinearConvTranspose2dModel<B>> for LinearConvTranspose2dModelConfig {
     fn init(self, device: &<B as Backend>::Device) -> LinearConvTranspose2dModel<B> {
         LinearConvTranspose2dModel {
             linear: self.linear.init(device),

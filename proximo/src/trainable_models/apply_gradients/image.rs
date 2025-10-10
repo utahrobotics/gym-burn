@@ -5,23 +5,23 @@ use serde::{Deserialize, Serialize};
 use crate::trainable_models::apply_gradients::{ApplyGradients, conv::{Conv2dModelPlan, Conv2dModelPlanConfig, ConvTranspose2dModelPlan, ConvTranspose2dModelPlanConfig}, linear::{LinearModelPlan, LinearModelPlanConfig}};
 
 
-pub struct ConvLinearModelPlan<B: AutodiffBackend> {
+pub struct Conv2dLinearModelPlan<B: AutodiffBackend> {
     conv: Conv2dModelPlan<B>,
     linear: LinearModelPlan<B>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct ConvLinearModelPlanConfig {
+pub struct Conv2dLinearModelPlanConfig {
     pub conv: Conv2dModelPlanConfig,
     pub linear: LinearModelPlanConfig,
 }
 
 impl<B: AutodiffBackend> ApplyGradients<B> for ConvLinearModel<B> {
-    type Plan = ConvLinearModelPlan<B>;
-    type PlanConfig = ConvLinearModelPlanConfig;
+    type Plan = Conv2dLinearModelPlan<B>;
+    type PlanConfig = Conv2dLinearModelPlanConfig;
 
     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
-        ConvLinearModelPlan {
+        Conv2dLinearModelPlan {
             conv: Conv2dModel::config_to_plan(config.conv),
             linear: LinearModel::config_to_plan(config.linear),
         }

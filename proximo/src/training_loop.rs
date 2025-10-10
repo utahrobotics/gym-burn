@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use burn::{Tensor, lr_scheduler::LrScheduler, prelude::Backend, tensor::backend::AutodiffBackend};
 use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
@@ -146,7 +148,7 @@ pub fn train_epoch<B, M, Row, Item, S>(
 
 
 pub fn validate_model<B, M, Row, Item, S>(
-    model: &M,
+    model: &mut M,
     dataset: &mut SqliteDataset,
     dataset_len: usize,
     batch_size: usize,
@@ -156,13 +158,15 @@ pub fn validate_model<B, M, Row, Item, S>(
     rng: &mut (impl Rng + Send),
     mut post_batch: impl FnMut(Tensor<B, 1>) + Send,
 ) where
-    M: Sync,
+    M: Send,
     B: Backend,
     Row: FromSqlRow,
     M: ValidatableModel<B, Item, S>,
     Item: Send,
     M::Loss: Send + Sync,
 {
+    // Sync maker using Mutex
+    let mut model = Mutex::new(model);
     let mut block_indices: Vec<_> = (0..(dataset_len.div_ceil(batch_size)))
         .map(|x| x * batch_size)
         .collect();
@@ -188,7 +192,7 @@ pub fn validate_model<B, M, Row, Item, S>(
                 )
             },
             || {
-                model.batch_valid(batch, loss)
+                model.get_mut().unwrap().batch_valid(batch, loss)
             },
         );
         last_results = Some(loss);
@@ -200,7 +204,7 @@ pub fn validate_model<B, M, Row, Item, S>(
             post_batch(loss);
         },
         || {
-            model.batch_valid(batch, loss)
+            model.get_mut().unwrap().batch_valid(batch, loss)
         },
     );
     post_batch(loss);

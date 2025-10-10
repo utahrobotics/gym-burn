@@ -3,8 +3,7 @@ use burn::{
 };
 use general_dataset::presets::autoencoder::AutoEncoderImageBatch;
 use general_models::{
-    SimpleTrain,
-    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+    SimpleInfer, SimpleTrain, composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel}
 };
 
 pub mod apply_gradients;
@@ -34,7 +33,23 @@ pub trait TrainableModel<B: AutodiffBackend, I, T = Blanket> {
     ) -> Tensor<B, 1>;
 }
 
-impl<B: AutodiffBackend, E, D> TrainableModel<B, AutoEncoderImageBatch<B>, Blanket>
+impl<B: Backend, E, D> ValidatableModel<B, AutoEncoderImageBatch<B>, Blanket>
+    for AutoEncoderModel<B, E, D>
+where
+    Self: SimpleInfer<B, 4, 4>,
+{
+    type Loss = MseLoss;
+
+    fn batch_valid(
+        &self,
+        batch: AutoEncoderImageBatch<B>,
+        loss: &Self::Loss,
+    ) -> Tensor<B, 1> {
+        loss.forward(self.infer(batch.input), batch.expected, Reduction::Auto)
+    }
+}
+
+impl<B: AutodiffBackend, E, D> TrainableModel<B, AutoEncoderImageBatch<B>>
     for AutoEncoderModel<B, E, D>
 where
     Self: SimpleTrain<B, 4, 4>,
@@ -54,6 +69,22 @@ where
 
 pub struct VariationalEncoderModelTrainingConfig {
     pub kld_weight: f64,
+}
+
+impl<B: Backend, E, D> ValidatableModel<B, AutoEncoderImageBatch<B>, Specialized>
+    for AutoEncoderModel<B, VariationalEncoderModel<B, E>, D>
+where
+    Self: SimpleInfer<B, 4, 4>,
+{
+    type Loss = MseLoss;
+
+    fn batch_valid(
+        &self,
+        batch: AutoEncoderImageBatch<B>,
+        loss: &Self::Loss,
+    ) -> Tensor<B, 1> {
+        loss.forward(self.infer(batch.input), batch.expected, Reduction::Auto)
+    }
 }
 
 impl<B: AutodiffBackend, E, D> TrainableModel<B, AutoEncoderImageBatch<B>, Specialized>
