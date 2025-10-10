@@ -1,4 +1,7 @@
-use burn::{nn::{Linear, activation::Activation}, optim::GradientsParams};
+use burn::{
+    nn::{Linear, activation::Activation},
+    optim::GradientsParams,
+};
 
 use general_models::linear::LinearModel;
 use serde::{Deserialize, Serialize};

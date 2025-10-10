@@ -1,9 +1,19 @@
 use burn::tensor::backend::AutodiffBackend;
-use general_models::{composite::image::{ConvLinearModel, LinearConvTranspose2dModel}, conv::{Conv2dModel, ConvTranspose2dModel}, linear::LinearModel};
+use general_models::{
+    composite::image::{ConvLinearModel, LinearConvTranspose2dModel},
+    conv::{Conv2dModel, ConvTranspose2dModel},
+    linear::LinearModel,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::trainable_models::apply_gradients::{ApplyGradients, conv::{Conv2dModelPlan, Conv2dModelPlanConfig, ConvTranspose2dModelPlan, ConvTranspose2dModelPlanConfig}, linear::{LinearModelPlan, LinearModelPlanConfig}};
-
+use crate::trainable_models::apply_gradients::{
+    ApplyGradients,
+    conv::{
+        Conv2dModelPlan, Conv2dModelPlanConfig, ConvTranspose2dModelPlan,
+        ConvTranspose2dModelPlanConfig,
+    },
+    linear::{LinearModelPlan, LinearModelPlanConfig},
+};
 
 pub struct Conv2dLinearModelPlan<B: AutodiffBackend> {
     conv: Conv2dModelPlan<B>,

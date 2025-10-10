@@ -49,7 +49,7 @@ macro_rules! sql_object {
 pub struct SqliteDataset {
     conn: Connection,
     get_sql: String,
-    len: usize
+    len: usize,
 }
 
 impl SqliteDataset {
@@ -86,16 +86,10 @@ impl SqliteDataset {
                 "len_sql does not output a `len` column"
             );
             assert_eq!(stmt.parameter_count(), 0, "len_sql must have no parameters");
-            len = stmt
-                .query_one((), |row| row.get("len"))
-                .unwrap()
+            len = stmt.query_one((), |row| row.get("len")).unwrap()
         }
 
-        Ok(Self {
-            conn,
-            get_sql,
-            len,
-        })
+        Ok(Self { conn, get_sql, len })
     }
 }
 
@@ -169,12 +163,12 @@ impl SqliteDataset {
         self.len.div_ceil(batch_size)
     }
 
-    pub fn pick_random<I: FromSqlRow>(
-        &mut self,
-        rng: &mut impl Rng
-    ) -> I {
+    pub fn pick_random<I: FromSqlRow>(&mut self, rng: &mut impl Rng) -> I {
         let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
-        stmt.query_one(params![rng.random_range(0..self.len), 1], |row| Ok(I::from(row))).unwrap()
+        stmt.query_one(params![rng.random_range(0..self.len), 1], |row| {
+            Ok(I::from(row))
+        })
+        .unwrap()
     }
 
     pub fn len(&self) -> usize {

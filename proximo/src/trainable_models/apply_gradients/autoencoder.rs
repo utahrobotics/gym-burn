@@ -1,9 +1,14 @@
 use burn::tensor::backend::AutodiffBackend;
-use general_models::{composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel}, linear::LinearModel};
+use general_models::{
+    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+    linear::LinearModel,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::trainable_models::apply_gradients::{ApplyGradients, linear::{LinearModelPlan, LinearModelPlanConfig}};
-
+use crate::trainable_models::apply_gradients::{
+    ApplyGradients,
+    linear::{LinearModelPlan, LinearModelPlanConfig},
+};
 
 pub struct AutoEncoderModelPlan<E, D> {
     encoder: E,
@@ -16,7 +21,9 @@ pub struct AutoEncoderModelPlanConfig<E, D> {
     pub decoder: D,
 }
 
-impl<B: AutodiffBackend, E: ApplyGradients<B>, D: ApplyGradients<B>> ApplyGradients<B> for AutoEncoderModel<B, E, D> {
+impl<B: AutodiffBackend, E: ApplyGradients<B>, D: ApplyGradients<B>> ApplyGradients<B>
+    for AutoEncoderModel<B, E, D>
+{
     type Plan = AutoEncoderModelPlan<E::Plan, D::Plan>;
     type PlanConfig = AutoEncoderModelPlanConfig<E::PlanConfig, D::PlanConfig>;
 
@@ -37,7 +44,6 @@ impl<B: AutodiffBackend, E: ApplyGradients<B>, D: ApplyGradients<B>> ApplyGradie
         }
     }
 }
-
 
 pub struct VariationalEncoderModelPlan<B: AutodiffBackend, T> {
     model_plan: T,

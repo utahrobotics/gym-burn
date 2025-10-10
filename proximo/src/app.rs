@@ -1,19 +1,32 @@
 use std::{io::Cursor, process::Stdio, time::SystemTime};
 
 use base64::{Engine, prelude::BASE64_STANDARD};
-use burn::{backend::Autodiff, module::{AutodiffModule, Module}, nn::loss::MseLoss, prelude::Backend, record::CompactRecorder};
+use burn::{
+    backend::Autodiff,
+    module::{AutodiffModule, Module},
+    nn::loss::MseLoss,
+    prelude::Backend,
+    record::CompactRecorder,
+};
 use clap::{Parser, Subcommand};
-use general_dataset::{SqliteDataset, StatefulBatcher, presets::autoencoder::{AutoEncoderImageBatcher, AutoEncoderImageItem}};
+use general_dataset::{
+    SqliteDataset, StatefulBatcher,
+    presets::autoencoder::{AutoEncoderImageBatcher, AutoEncoderImageItem},
+};
 use general_models::{
-    Init, SimpleInfer, composite::{
+    Init, SimpleInfer,
+    composite::{
         autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
         image::{
             Conv2dLinearModelConfig, ConvLinearModel, LinearConvTranspose2dModel,
             LinearConvTranspose2dModelConfig,
         },
-    }
+    },
 };
-use image::{ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer, codecs::webp::WebPDecoder};
+use image::{
+    ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
+    codecs::webp::WebPDecoder,
+};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rayon::iter::{IndexedParallelIterator, ParallelBridge, ParallelIterator};
 use serde_json::json;
@@ -22,11 +35,14 @@ use utils::parse_json_file;
 
 use crate::{
     app::config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
-    trainable_models::{Blanket, apply_gradients::{
-        ApplyGradients,
-        autoencoder::AutoEncoderModelPlanConfig,
-        image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
-    }},
+    trainable_models::{
+        Blanket,
+        apply_gradients::{
+            ApplyGradients,
+            autoencoder::AutoEncoderModelPlanConfig,
+            image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
+        },
+    },
     training_loop::{presets::train_epoch_image_autoencoder, validate_model},
 };
 
@@ -44,7 +60,7 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Command {
     Train,
-    Clean
+    Clean,
 }
 
 pub fn train() {
@@ -80,8 +96,7 @@ pub fn train() {
         .as_secs();
 
     let artifact_dir = training_config.artifact_dir.join(secs.to_string());
-    std::fs::create_dir_all(&artifact_dir)
-        .expect("Expected artifact dir to be creatable");
+    std::fs::create_dir_all(&artifact_dir).expect("Expected artifact dir to be creatable");
 
     let mut training_dataset: SqliteDataset = training_config
         .training_dataset
@@ -110,7 +125,8 @@ pub fn train() {
 
     match training_config.model_type {
         ModelType::ImageAutoEncoder => {
-            let challenge_config: ImageAutoEncoderChallenge = parse_json_file("training").expect("Expected valid training.json");
+            let challenge_config: ImageAutoEncoderChallenge =
+                parse_json_file("training").expect("Expected valid training.json");
             let model_config: AutoEncoderModelConfig<
                 Conv2dLinearModelConfig,
                 LinearConvTranspose2dModelConfig,
@@ -121,24 +137,25 @@ pub fn train() {
                 LinearConvTranspose2dModel<AutodiffBackend>,
             >;
             let mut model: Model = model_config.init(device);
-            let grads_plan: TrainingGradsPlan<AutoEncoderModelPlanConfig<
-                Conv2dLinearModelPlanConfig,
-                LinearConvTranspose2dModelPlanConfig,
-            >> = parse_json_file("training").expect("Expected valid training.json");
+            let grads_plan: TrainingGradsPlan<
+                AutoEncoderModelPlanConfig<
+                    Conv2dLinearModelPlanConfig,
+                    LinearConvTranspose2dModelPlanConfig,
+                >,
+            > = parse_json_file("training").expect("Expected valid training.json");
             let mut grads_plan = Model::config_to_plan(grads_plan.grads_plan);
 
-            let mut training_batcher = AutoEncoderImageBatcher::new(
-                model.encoder.get_input_channels(),
-                device.clone(),
-            );
-            let mut testing_batcher = AutoEncoderImageBatcher::new(
-                model.encoder.get_input_channels(),
-                device.clone(),
-            );
+            let mut training_batcher =
+                AutoEncoderImageBatcher::new(model.encoder.get_input_channels(), device.clone());
+            let mut testing_batcher =
+                AutoEncoderImageBatcher::new(model.encoder.get_input_channels(), device.clone());
 
             let mut input_images = vec![];
-            
-            info!("Initialized in {:.3}s", init_start_time.elapsed().as_secs_f32());
+
+            info!(
+                "Initialized in {:.3}s",
+                init_start_time.elapsed().as_secs_f32()
+            );
             let training_start_time = clock.now();
             for epoch in 0..training_config.num_epochs {
                 let epoch_start_time = clock.now();
@@ -164,8 +181,9 @@ pub fn train() {
                                     "epoch": epoch,
                                     "loss": loss,
                                     "lr": lr
-                                })
-                            ).expect("Expected child process to be alive");
+                                }),
+                            )
+                            .expect("Expected child process to be alive");
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}; LR: {lr:.4}");
                         }
@@ -177,9 +195,10 @@ pub fn train() {
                     .clone()
                     .save_file(
                         artifact_dir.join(format!("model-{epoch}.mpk")),
-                        &CompactRecorder::new()
-                    ).expect("Expected model to be saveable to artifact dir");
-                
+                        &CompactRecorder::new(),
+                    )
+                    .expect("Expected model to be saveable to artifact dir");
+
                 testing_batcher.reset();
                 let mut output_width = 0usize;
                 let mut output_height = 0usize;
@@ -195,29 +214,39 @@ pub fn train() {
                 let reconstructed = model.forward(batch.input.clone());
 
                 let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
-                    1 => {
-                        reconstructed.iter_dim(0)
-                            .par_bridge()
-                            .map(|tensor| {
-                                let [_, _, width, height] = tensor.dims();
-                                let buf = tensor.into_data().into_vec::<f32>().unwrap();
-                                let img = ImageBuffer::<Luma<f32>, _>::from_raw(width as u32, height as u32, buf).unwrap();
-                                let img: ImageBuffer<Rgb<u8>, Vec<_>> = img.convert();
-                                
-                                img
-                            })
-                            .collect()
-                    }
-                    _ => todo!()
+                    1 => reconstructed
+                        .iter_dim(0)
+                        .par_bridge()
+                        .map(|tensor| {
+                            let [_, _, width, height] = tensor.dims();
+                            let buf = tensor.into_data().into_vec::<f32>().unwrap();
+                            let img = ImageBuffer::<Luma<f32>, _>::from_raw(
+                                width as u32,
+                                height as u32,
+                                buf,
+                            )
+                            .unwrap();
+                            let img: ImageBuffer<Rgb<u8>, Vec<_>> = img.convert();
+
+                            img
+                        })
+                        .collect(),
+                    _ => todo!(),
                 };
 
                 if let Some(child) = &mut child {
-                    let images: Vec<_> = input_images.par_drain(..)
+                    let images: Vec<_> = input_images
+                        .par_drain(..)
                         .zip(reconstructed_images)
                         .map(|(input, output)| {
                             let mut output_bytes = vec![];
-                            output.write_to(&mut Cursor::new(&mut output_bytes), ImageFormat::WebP).unwrap();
-                            (BASE64_STANDARD.encode(input), BASE64_STANDARD.encode(output_bytes))
+                            output
+                                .write_to(&mut Cursor::new(&mut output_bytes), ImageFormat::WebP)
+                                .unwrap();
+                            (
+                                BASE64_STANDARD.encode(input),
+                                BASE64_STANDARD.encode(output_bytes),
+                            )
                         })
                         .collect();
                     serde_json::to_writer(
@@ -225,20 +254,28 @@ pub fn train() {
                         &json!({
                             "epoch": epoch,
                             "challenge_images": images,
-                        })
-                    ).expect("Expected child process to be alive");
+                        }),
+                    )
+                    .expect("Expected child process to be alive");
                 } else {
                     let mosaic_width = output_width as u32 * 2;
-                    let mosaic_height = output_height as u32 * challenge_config.challenge_image_count as u32;
-                    let mut pixels = Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
+                    let mosaic_height =
+                        output_height as u32 * challenge_config.challenge_image_count as u32;
+                    let mut pixels =
+                        Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
                     let mut input_buf = vec![];
                     input_buf.resize(output_width * output_height * 3, 0);
 
-                    input_images.iter()
+                    input_images
+                        .iter()
                         .zip(reconstructed_images.iter())
                         .for_each(|(input, output)| {
-                            WebPDecoder::new(Cursor::new(input)).unwrap().read_image(&mut input_buf).unwrap();
-                            let iter = input_buf.chunks(output_width * 3)
+                            WebPDecoder::new(Cursor::new(input))
+                                .unwrap()
+                                .read_image(&mut input_buf)
+                                .unwrap();
+                            let iter = input_buf
+                                .chunks(output_width * 3)
                                 .zip(output.chunks(output_width * 3));
                             for (input_row, output_row) in iter {
                                 pixels.extend_from_slice(input_row);
@@ -248,11 +285,7 @@ pub fn train() {
                     input_images.clear();
                     ImageBuffer::<Rgb<u8>, _>::from_raw(mosaic_width, mosaic_height, pixels)
                         .unwrap()
-                        .save(
-                            artifact_dir.join(
-                                format!("infer-{epoch}.webp")
-                            )
-                        )
+                        .save(artifact_dir.join(format!("infer-{epoch}.webp")))
                         .expect("Expected inference image to be saveable");
                 }
 
@@ -275,8 +308,9 @@ pub fn train() {
                                     "batch_i": batch_i,
                                     "epoch": epoch,
                                     "loss": loss,
-                                })
-                            ).expect("Expected child process to be alive");
+                                }),
+                            )
+                            .expect("Expected child process to be alive");
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}");
                         }
@@ -287,11 +321,15 @@ pub fn train() {
                 info!(
                     "Epoch Duration: {:.1}s; Remaining: {:.1}s",
                     epoch_duration.as_secs_f32(),
-                    training_start_time.elapsed().as_secs_f32() * (training_config.num_epochs as f32 / (epoch + 1) as f32 - 1.0)
+                    training_start_time.elapsed().as_secs_f32()
+                        * (training_config.num_epochs as f32 / (epoch + 1) as f32 - 1.0)
                 );
             }
 
-            info!("Total Duration: {:.1}s", training_start_time.elapsed().as_secs_f32());
+            info!(
+                "Total Duration: {:.1}s",
+                training_start_time.elapsed().as_secs_f32()
+            );
         }
         ModelType::ImageVariationalAutoEncoder => todo!(),
     }
@@ -308,6 +346,6 @@ pub fn main() {
                 parse_json_file("training").expect("Expected valid training.json");
             std::fs::remove_dir_all(&training_config.artifact_dir)
                 .expect("Expected artifact dir to be removable");
-        },
+        }
     }
 }

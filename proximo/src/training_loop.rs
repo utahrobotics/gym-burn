@@ -145,7 +145,6 @@ pub fn train_epoch<B, M, Row, Item, S>(
     post_batch(loss, lr);
 }
 
-
 pub fn validate_model<B, M, Row, Item, S>(
     model: &mut M,
     dataset: &mut SqliteDataset,
@@ -189,9 +188,7 @@ pub fn validate_model<B, M, Row, Item, S>(
                     },
                 )
             },
-            || {
-                model.get_mut().unwrap().batch_valid(batch, loss)
-            },
+            || model.get_mut().unwrap().batch_valid(batch, loss),
         );
         last_results = Some(loss);
         batch = next_batch;
@@ -201,9 +198,7 @@ pub fn validate_model<B, M, Row, Item, S>(
             let loss = last_results.unwrap();
             post_batch(loss);
         },
-        || {
-            model.get_mut().unwrap().batch_valid(batch, loss)
-        },
+        || model.get_mut().unwrap().batch_valid(batch, loss),
     );
     post_batch(loss);
 }

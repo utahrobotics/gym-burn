@@ -1,4 +1,10 @@
-use burn::{nn::{activation::Activation, conv::{Conv2d, ConvTranspose2d}}, optim::GradientsParams};
+use burn::{
+    nn::{
+        activation::Activation,
+        conv::{Conv2d, ConvTranspose2d},
+    },
+    optim::GradientsParams,
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,7 +12,10 @@ use super::ApplyGradients;
 
 use crate::trainable_models::apply_gradients::optimizer::OptimizerConfig;
 
-use general_models::{common::Norm, conv::{Conv2dModel, ConvTranspose2dModel}};
+use general_models::{
+    common::Norm,
+    conv::{Conv2dModel, ConvTranspose2dModel},
+};
 
 use crate::trainable_models::apply_gradients::optimizer::Optimizer;
 
@@ -124,11 +133,9 @@ pub struct ConvTranspose2dModelPlan<B: AutodiffBackend> {
     activation_lr_multiplier: f64,
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(transparent)]
 pub struct ConvTranspose2dModelPlanConfig(pub Conv2dModelPlanConfig);
-
 
 impl<B: AutodiffBackend> ApplyGradients<B> for ConvTranspose2dModel<B> {
     type Plan = ConvTranspose2dModelPlan<B>;

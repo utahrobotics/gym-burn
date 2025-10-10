@@ -1,17 +1,14 @@
-use burn::{
-    tensor::backend::AutodiffBackend,
-};
+use burn::tensor::backend::AutodiffBackend;
 use serde::de::DeserializeOwned;
 use utils::default_f;
-
 
 pub mod lr_scheduler;
 pub mod optimizer;
 
+pub mod autoencoder;
 pub mod conv;
 pub mod image;
 pub mod linear;
-pub mod autoencoder;
 
 pub trait ApplyGradients<B: AutodiffBackend> {
     type Plan;

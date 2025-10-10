@@ -1,10 +1,22 @@
-use burn::{Tensor, lr_scheduler::LrScheduler, module::ModuleDisplay, nn::loss::MseLoss, tensor::backend::AutodiffBackend};
+use burn::{
+    Tensor, lr_scheduler::LrScheduler, module::ModuleDisplay, nn::loss::MseLoss,
+    tensor::backend::AutodiffBackend,
+};
 use general_dataset::{SqliteDataset, presets::autoencoder::AutoEncoderImageBatcher};
-use general_models::{SimpleTrain, composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel}};
+use general_models::{
+    SimpleTrain,
+    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+};
 use rand::Rng;
 
 use crate::{
-    trainable_models::{VariationalEncoderModelTrainingConfig, apply_gradients::{ApplyGradients, autoencoder::{AutoEncoderModelPlan, VariationalEncoderModelPlan}}},
+    trainable_models::{
+        VariationalEncoderModelTrainingConfig,
+        apply_gradients::{
+            ApplyGradients,
+            autoencoder::{AutoEncoderModelPlan, VariationalEncoderModelPlan},
+        },
+    },
     training_loop::train_epoch,
 };
 

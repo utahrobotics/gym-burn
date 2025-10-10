@@ -6,7 +6,6 @@ use utils::default_f;
 
 use crate::trainable_models::apply_gradients::lr_scheduler::LrSchedulerConfig;
 
-
 #[derive(Debug, Clone, Copy, Deserialize)]
 pub enum ModelType {
     #[serde(alias = "image-ae", alias = "img-ae")]
@@ -32,18 +31,18 @@ pub struct TrainingConfig {
     pub training_dataset: SqliteDatasetConfig,
     pub testing_dataset: SqliteDatasetConfig,
     pub lr_scheduler: LrSchedulerConfig,
-    pub seed: Option<u64>
+    pub seed: Option<u64>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct ImageAutoEncoderChallenge {
     #[serde(default)]
-    pub challenge_image_count: usize
+    pub challenge_image_count: usize,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct TrainingGradsPlan<T> {
-    pub grads_plan: T
+    pub grads_plan: T,
 }
 
 default_f!(default_num_epochs, usize, 10);
