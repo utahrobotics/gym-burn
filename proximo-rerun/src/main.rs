@@ -63,8 +63,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             Event::ChallengeImages { epoch, challenge_images } => {
                 rec.set_time_sequence("epoch", *epoch as i64);
-                for (i, (input, output)) in challenge_images.iter().enumerate() {
-                    rec.set_time_sequence("challenge_index", i as i64);
+                for (input, output) in challenge_images.iter() {
+                    rec.set_time_sequence("iterations", iterations);
                     let input = BASE64_STANDARD.decode(input).unwrap();
                     let output = BASE64_STANDARD.decode(output).unwrap();
                     rec.log(
@@ -75,8 +75,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "output",
                         &rerun::Image::from_image_bytes(ImageFormat::WebP, &output).unwrap(),
                     ).unwrap();
+                    iterations += 1;
                 }
-                rec.disable_timeline("challenge_index");
             }
         }
         iterations += 1;
