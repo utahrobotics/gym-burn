@@ -1,10 +1,10 @@
-use std::{io::Cursor, process::Stdio, time::SystemTime};
+use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime};
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
     backend::Autodiff,
-    module::{AutodiffModule, Module},
-    nn::loss::BinaryCrossEntropyLossConfig,
+    module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
+    nn::loss::{BinaryCrossEntropyLossConfig, MseLoss},
     prelude::Backend,
     record::CompactRecorder,
 };
@@ -48,6 +48,10 @@ use crate::{
 
 use rayon::iter::ParallelDrainRange;
 
+#[cfg(feature = "dhat-heap")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 pub mod config;
 
 #[derive(Parser, Debug)]
@@ -66,6 +70,13 @@ enum Command {
 pub fn train() {
     let clock = quanta::Clock::new();
     let init_start_time = clock.now();
+
+    let ctrlc_pressed: &_ = Box::leak(Box::new(AtomicBool::new(false)));
+
+    ctrlc::set_handler(move || {
+        ctrlc_pressed.store(true, std::sync::atomic::Ordering::Relaxed);
+        println!("Cancelling due to Ctrl-C ...");
+    }).expect("Error setting Ctrl-C handler");
 
     #[cfg(feature = "wgpu")]
     type Backend = general_models::wgpu::WgpuBackend;
@@ -137,6 +148,10 @@ pub fn train() {
                 LinearConvTranspose2dModel<AutodiffBackend>,
             >;
             let mut model: Model = model_config.init(device);
+            std::fs::write(
+                artifact_dir.join("model.txt"),
+                model.format(DisplaySettings::new()).as_bytes()
+            ).expect("Expected model.txt to be writable in artifact dir");
             let grads_plan: TrainingGradsPlan<
                 AutoEncoderModelPlanConfig<
                     Conv2dLinearModelPlanConfig,
@@ -162,7 +177,7 @@ pub fn train() {
                 let mut batch_i = 0usize;
                 info!("Training Epoch {epoch}");
 
-                train_epoch_image_autoencoder::<_, _, _, Blanket>(
+                train_epoch_image_autoencoder::<_, _, _, _, Blanket>(
                     &mut model,
                     &mut training_dataset,
                     training_config.batch_size,
@@ -171,7 +186,8 @@ pub fn train() {
                     &mut lr_scheduler,
                     &mut grads_plan,
                     &mut rng,
-                    device,
+                    // &BinaryCrossEntropyLossConfig::new().with_logits(true).init(device),
+                    &MseLoss::new(),
                     |loss, lr| {
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
@@ -189,6 +205,7 @@ pub fn train() {
                             info!("Batch {batch_i}; Loss: {loss:.4}; LR: {lr:.4}");
                         }
                         batch_i += 1;
+                        ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed)
                     },
                 );
 
@@ -290,6 +307,10 @@ pub fn train() {
                         .expect("Expected inference image to be saveable");
                 }
 
+                if ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed) {
+                    break;
+                }
+
                 info!("Testing Epoch {epoch}");
                 batch_i = 0;
                 validate_model(
@@ -316,6 +337,7 @@ pub fn train() {
                             info!("Batch {batch_i}; Loss: {loss:.4}");
                         }
                         batch_i += 1;
+                        ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed)
                     },
                 );
                 let epoch_duration = epoch_start_time.elapsed();
@@ -337,6 +359,11 @@ pub fn train() {
 }
 
 pub fn main() {
+     #[cfg(feature = "dhat-ad-hoc")]
+    let _profiler = dhat::Profiler::new_ad_hoc();
+    #[cfg(feature = "dhat-heap")]
+    let _profiler = dhat::Profiler::new_heap();
+
     let args = Args::parse();
     tracing_subscriber::fmt().init();
 

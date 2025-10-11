@@ -116,6 +116,8 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
             norm,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
+            let norm = norm.or_else(|| self.default_norm.clone())
+                    .map(|norm| norm.init(device, output_channels));
             layers.push((
                 Conv2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
@@ -128,8 +130,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                             .unwrap_or(PaddingConfig2d::Valid),
                     )
                     .init(device),
-                norm.or_else(|| self.default_norm.clone())
-                    .map(|norm| norm.init(device, output_channels)),
+                norm,
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),
@@ -249,6 +250,8 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             norm,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
+            let norm = norm.or_else(|| self.default_norm.clone())
+                    .map(|norm| norm.init(device, output_channels));
             layers.push((
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
@@ -258,8 +261,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                     .with_padding_out(padding_out)
                     .with_groups(groups)
                     .init(device),
-                norm.or_else(|| self.default_norm.clone())
-                    .map(|norm| norm.init(device, output_channels)),
+                norm,
                 activation
                     .unwrap_or_else(|| default_activation.clone())
                     .init(device),

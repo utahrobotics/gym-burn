@@ -20,6 +20,8 @@ rayon.workspace = true
 tracing-subscriber = { version = "0.3.20", optional = true }
 tracing = { version = "0.1.41", optional = true }
 base64.workspace = true
+dhat = { version = "0.3.3", optional = true }
+ctrlc = "3.5.0"
 # delegate = "0.13.4"
 # derive_more = "2.0.1"
 
@@ -30,3 +32,5 @@ cuda = ["general-models/cuda"]
 app = ["clap", "tracing-subscriber", "wgpu", "serde_json", "quanta", "image", "tracing"]
 default = ["app"]
 macos = ["general-models/macos"]
+dhat-heap = ["dhat"]    # if you are doing heap profiling
+dhat-ad-hoc = ["dhat"]  # if you are doing ad hoc profiling

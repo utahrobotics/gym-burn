@@ -29,3 +29,5 @@ inference.webp
 /*.csv
 
 **/slurmjob-*
+
+dhat-heap*.json

@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use burn::{Tensor, lr_scheduler::LrScheduler, prelude::Backend, tensor::backend::AutodiffBackend};
+use burn::{Tensor, lr_scheduler::LrScheduler, module::AutodiffModule, optim::{AdamConfig, GradientsParams, Optimizer, SgdConfig}, prelude::Backend, tensor::backend::AutodiffBackend};
 use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
 use rayon::join;
@@ -83,17 +83,22 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
     rng: &mut (impl Rng + Send),
-    mut post_batch: impl FnMut(Tensor<B, 1>, f64) + Send,
+    mut post_batch: impl FnMut(Tensor<B, 1>, f64) -> bool + Send,
 ) where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item, L, S> + ApplyGradients<B>,
+    M: TrainableModel<B, Item, L, S> + ApplyGradients<B> + AutodiffModule<B>,
     Item: Send,
     L: Send + Sync,
     M::Plan: Send,
     M::TrainingConfig: Sync,
 {
+    let model_ptr = model;
+    let mut model = unsafe {
+        std::ptr::read(model_ptr)
+    };
+    let mut optimizer = SgdConfig::new().init();
     // let mut grads_accumulator = GradientsAccumulator::new();
     let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))
         .map(|x| x * batch_size)
@@ -106,16 +111,18 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
     };
     let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
     let mut last_results = None;
-    let mut grads_count = 0usize;
+    // let mut grads_count = 0usize;
 
     for next_index in block_indices {
-        let ((next_batch, ()), (loss, lr)) = join(
+        let ((next_batch, end), (loss, lr, tmp)) = join(
             || {
                 join(
                     || dataset.query(next_index, batch_size, rng, &mut *batcher),
                     || {
                         if let Some((loss, lr)) = last_results {
-                            post_batch(loss, lr);
+                            post_batch(loss, lr)
+                        } else {
+                            false
                         }
                     },
                 )
@@ -123,15 +130,21 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
             || {
                 let loss = model.batch_train(batch, loss, training_config);
                 let mut grads = loss.backward();
-                grads_count += 1;
+                // grads_count += 1;
                 // grads_accumulator.accumulate(model, grads);
                 let lr = lr_scheduler.step();
-                model.apply_gradients(lr, &mut grads, grads_plan);
-                (loss, lr)
+                let grads = GradientsParams::from_grads(grads, &model);
+                let model = optimizer.step(lr, model, grads);
+                // model.apply_gradients(lr, &mut grads, grads_plan);
+                (loss, lr, model)
             },
         );
+        model = tmp;
         last_results = Some((loss, lr));
         batch = next_batch;
+        if end {
+            break;
+        }
     }
     let ((), (loss, lr)) = join(
         || {
@@ -147,6 +160,9 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
         },
     );
     post_batch(loss, lr);
+    unsafe {
+        std::ptr::write(model_ptr, model);
+    }
 }
 
 pub fn validate_model<B, M, Row, Item, L, S>(
@@ -157,7 +173,7 @@ pub fn validate_model<B, M, Row, Item, L, S>(
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
     loss: &L,
     rng: &mut (impl Rng + Send),
-    mut post_batch: impl FnMut(Tensor<B, 1>) + Send,
+    mut post_batch: impl FnMut(Tensor<B, 1>) -> bool + Send,
 ) where
     M: Send,
     B: Backend,
@@ -181,13 +197,15 @@ pub fn validate_model<B, M, Row, Item, L, S>(
     let mut last_results = None;
 
     for next_index in block_indices {
-        let ((next_batch, ()), loss) = join(
+        let ((next_batch, end), loss) = join(
             || {
                 join(
                     || dataset.query(next_index, batch_size, rng, &mut *batcher),
                     || {
                         if let Some(loss) = last_results {
-                            post_batch(loss);
+                            post_batch(loss)
+                        } else {
+                            false
                         }
                     },
                 )
@@ -196,6 +214,9 @@ pub fn validate_model<B, M, Row, Item, L, S>(
         );
         last_results = Some(loss);
         batch = next_batch;
+        if end {
+            break;
+        }
     }
     let ((), loss) = join(
         || {
