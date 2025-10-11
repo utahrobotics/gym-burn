@@ -82,7 +82,8 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
         let mut input_size = self.input_size;
         let mut layers = vec![];
         for (output_size, activation, norm) in self.layers.into_iter().map(Either::into_tuple) {
-            let norm = norm.or_else(|| self.default_norm.clone())
+            let norm = norm
+                .or_else(|| self.default_norm.clone())
                 .map(|norm| norm.init(device, output_size));
             layers.push((
                 LinearConfig::new(input_size, output_size)

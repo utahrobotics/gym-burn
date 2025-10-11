@@ -1,6 +1,6 @@
 use burn::{
     Tensor,
-    nn::loss::{MseLoss, Reduction, BinaryCrossEntropyLoss},
+    nn::loss::{BinaryCrossEntropyLoss, MseLoss, Reduction},
     prelude::Backend,
     tensor::backend::AutodiffBackend,
 };
@@ -16,19 +16,13 @@ pub struct Blanket;
 pub struct Specialized;
 
 pub trait ValidatableModel<B: Backend, I, L, T = Blanket> {
-
     fn batch_valid(&self, batch: I, loss: &L) -> Tensor<B, 1>;
 }
 
 pub trait TrainableModel<B: AutodiffBackend, I, L, T = Blanket> {
     type TrainingConfig;
 
-    fn batch_train(
-        &self,
-        batch: I,
-        loss: &L,
-        config: &Self::TrainingConfig,
-    ) -> Tensor<B, 1>;
+    fn batch_train(&self, batch: I, loss: &L, config: &Self::TrainingConfig) -> Tensor<B, 1>;
 }
 
 impl<B: Backend, E, D> ValidatableModel<B, AutoEncoderImageBatch<B>, MseLoss>
@@ -63,12 +57,20 @@ impl<B: Backend, E, D> ValidatableModel<B, AutoEncoderImageBatch<B>, BinaryCross
 where
     Self: SimpleInfer<B, 4, 4>,
 {
-    fn batch_valid(&self, batch: AutoEncoderImageBatch<B>, loss: &BinaryCrossEntropyLoss<B>) -> Tensor<B, 1> {
-        loss.forward::<1>(self.infer(batch.input).flatten(0, 3), batch.expected.round().int().flatten(0, 3))
+    fn batch_valid(
+        &self,
+        batch: AutoEncoderImageBatch<B>,
+        loss: &BinaryCrossEntropyLoss<B>,
+    ) -> Tensor<B, 1> {
+        loss.forward::<1>(
+            self.infer(batch.input).flatten(0, 3),
+            batch.expected.round().int().flatten(0, 3),
+        )
     }
 }
 
-impl<B: AutodiffBackend, E, D> TrainableModel<B, AutoEncoderImageBatch<B>, BinaryCrossEntropyLoss<B>>
+impl<B: AutodiffBackend, E, D>
+    TrainableModel<B, AutoEncoderImageBatch<B>, BinaryCrossEntropyLoss<B>>
     for AutoEncoderModel<B, E, D>
 where
     Self: SimpleTrain<B, 4, 4>,
@@ -81,7 +83,10 @@ where
         loss: &BinaryCrossEntropyLoss<B>,
         (): &Self::TrainingConfig,
     ) -> Tensor<B, 1> {
-        loss.forward::<1>(self.train(batch.input).flatten(0, 3), batch.expected.round().int().flatten(0, 3))
+        loss.forward::<1>(
+            self.train(batch.input).flatten(0, 3),
+            batch.expected.round().int().flatten(0, 3),
+        )
     }
 }
 

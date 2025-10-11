@@ -1,18 +1,23 @@
 use burn::{
-    Tensor, lr_scheduler::LrScheduler, module::{AutodiffModule, ModuleDisplay}, tensor::backend::AutodiffBackend
+    Tensor,
+    lr_scheduler::LrScheduler,
+    module::{AutodiffModule, ModuleDisplay},
+    tensor::backend::AutodiffBackend,
 };
-use general_dataset::{SqliteDataset, presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher}};
-use general_models::{
-    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+use general_dataset::{
+    SqliteDataset,
+    presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher},
 };
+use general_models::composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel};
 use rand::Rng;
 
 use crate::{
     trainable_models::{
-        TrainableModel, VariationalEncoderModelTrainingConfig, apply_gradients::{
+        TrainableModel, VariationalEncoderModelTrainingConfig,
+        apply_gradients::{
             ApplyGradients,
             autoencoder::{AutoEncoderModelPlan, VariationalEncoderModelPlan},
-        }
+        },
     },
     training_loop::train_epoch,
 };
@@ -36,7 +41,8 @@ pub fn train_epoch_image_autoencoder<B, E, D, L, S>(
     D::Plan: Send,
     B: AutodiffBackend,
     L: Send + Sync,
-    AutoEncoderModel<B, E, D>: TrainableModel<B, AutoEncoderImageBatch<B>, L, S, TrainingConfig = ()> + AutodiffModule<B>
+    AutoEncoderModel<B, E, D>:
+        TrainableModel<B, AutoEncoderImageBatch<B>, L, S, TrainingConfig = ()> + AutodiffModule<B>,
 {
     train_epoch(
         model,

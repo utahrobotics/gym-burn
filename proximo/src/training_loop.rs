@@ -1,6 +1,13 @@
 use std::sync::Mutex;
 
-use burn::{Tensor, lr_scheduler::LrScheduler, module::AutodiffModule, optim::{AdamConfig, GradientsParams, Optimizer, SgdConfig}, prelude::Backend, tensor::backend::AutodiffBackend};
+use burn::{
+    Tensor,
+    lr_scheduler::LrScheduler,
+    module::AutodiffModule,
+    optim::{AdamConfig, GradientsParams, Optimizer, SgdConfig},
+    prelude::Backend,
+    tensor::backend::AutodiffBackend,
+};
 use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
 use rayon::join;
@@ -95,9 +102,7 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
     M::TrainingConfig: Sync,
 {
     let model_ptr = model;
-    let mut model = unsafe {
-        std::ptr::read(model_ptr)
-    };
+    let mut model = unsafe { std::ptr::read(model_ptr) };
     let mut optimizer = SgdConfig::new().init();
     // let mut grads_accumulator = GradientsAccumulator::new();
     let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))

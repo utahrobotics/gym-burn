@@ -76,7 +76,8 @@ pub fn train() {
     ctrlc::set_handler(move || {
         ctrlc_pressed.store(true, std::sync::atomic::Ordering::Relaxed);
         println!("Cancelling due to Ctrl-C ...");
-    }).expect("Error setting Ctrl-C handler");
+    })
+    .expect("Error setting Ctrl-C handler");
 
     #[cfg(feature = "wgpu")]
     type Backend = general_models::wgpu::WgpuBackend;
@@ -150,8 +151,9 @@ pub fn train() {
             let mut model: Model = model_config.init(device);
             std::fs::write(
                 artifact_dir.join("model.txt"),
-                model.format(DisplaySettings::new()).as_bytes()
-            ).expect("Expected model.txt to be writable in artifact dir");
+                model.format(DisplaySettings::new()).as_bytes(),
+            )
+            .expect("Expected model.txt to be writable in artifact dir");
             let grads_plan: TrainingGradsPlan<
                 AutoEncoderModelPlanConfig<
                     Conv2dLinearModelPlanConfig,
@@ -319,7 +321,9 @@ pub fn train() {
                     training_config.batch_size,
                     training_config.testing_max_batch_count,
                     &mut testing_batcher,
-                    &BinaryCrossEntropyLossConfig::new().with_logits(true).init(device),
+                    &BinaryCrossEntropyLossConfig::new()
+                        .with_logits(true)
+                        .init(device),
                     &mut rng,
                     |loss| {
                         let loss = loss.into_scalar();
@@ -359,7 +363,7 @@ pub fn train() {
 }
 
 pub fn main() {
-     #[cfg(feature = "dhat-ad-hoc")]
+    #[cfg(feature = "dhat-ad-hoc")]
     let _profiler = dhat::Profiler::new_ad_hoc();
     #[cfg(feature = "dhat-heap")]
     let _profiler = dhat::Profiler::new_heap();
