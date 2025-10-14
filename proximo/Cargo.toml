@@ -31,6 +31,6 @@ rocm = ["general-models/rocm"]
 cuda = ["general-models/cuda"]
 app = ["clap", "tracing-subscriber", "serde_json", "quanta", "image", "tracing"]
 default = ["app", "wgpu"]
-macos = ["general-models/macos"]
+accelerate = ["general-models/accelerate"]
 dhat-heap = ["dhat"]    # if you are doing heap profiling
 dhat-ad-hoc = ["dhat"]  # if you are doing ad hoc profiling

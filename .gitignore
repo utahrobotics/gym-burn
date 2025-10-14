@@ -20,6 +20,8 @@ artifacts/
 /*.sql
 /pca_visualization.png
 
+proximo-rerun/target/
+
 inference.webp
 
 /*.bat

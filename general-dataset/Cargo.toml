@@ -18,4 +18,3 @@ crossbeam = "0.8.4"
 [features]
 cache = ["lru", "rustc-hash"]
 burn_dataset = ["cache", "burn/dataset"]
-default = ["cache", "burn_dataset"]

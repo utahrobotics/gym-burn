@@ -16,6 +16,7 @@ sql_object!(
     }
 );
 
+#[derive(Clone, Debug)]
 pub struct AutoEncoderImageBatch<B: Backend> {
     pub input: Tensor<B, 4>,
     pub expected: Tensor<B, 4>,
