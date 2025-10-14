@@ -92,6 +92,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         iterations += 1;
     };
 
+    ctrlc::set_handler(move || {
+        std::thread::spawn(|| {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            std::process::exit(0);
+        });
+    })
+    .expect("Error setting Ctrl-C handler");
+
     while let Ok(_) = stdin.read_until(b'}', &mut buf) {
         if buf.last() != Some(&b'}') {
             break;

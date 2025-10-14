@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rerun = "0.25.1"
+rerun = { version = "0.25.1", default-features = false, features = ["sdk", "image"] }
 serde_json.workspace = true
 serde.workspace = true
 base64.workspace = true
 image = { workspace = true, features = ["webp"] }
+ctrlc = "3.5.0"

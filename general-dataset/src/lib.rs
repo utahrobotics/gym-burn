@@ -1,11 +1,17 @@
 use std::path::{Path, PathBuf};
 
 use burn::config::Config;
+use crossbeam::queue::SegQueue;
+use parking_lot::Mutex;
 use rand::Rng;
 use rusqlite::{Connection, Row, params};
 use thiserror::Error;
 
 pub mod presets;
+#[cfg(feature = "cache")]
+pub mod cache;
+#[cfg(feature = "burn_dataset")]
+pub mod burn_dataset;
 
 #[derive(Debug, Config)]
 pub struct SqliteDatasetConfig {
@@ -47,7 +53,9 @@ macro_rules! sql_object {
 }
 
 pub struct SqliteDataset {
-    conn: Connection,
+    conn: Mutex<Connection>,
+    extra_conns: SegQueue<Connection>,
+    db_file: PathBuf,
     get_sql: String,
     len: usize,
 }
@@ -89,7 +97,7 @@ impl SqliteDataset {
             len = stmt.query_one((), |row| row.get("len")).unwrap()
         }
 
-        Ok(Self { conn, get_sql, len })
+        Ok(Self { conn: Mutex::new(conn), get_sql, len, db_file, extra_conns: SegQueue::new() })
     }
 }
 
@@ -143,18 +151,20 @@ impl<I, O, T: StatefulBatcher<I, O>> StatefulBatcher<I, O> for &mut T {
 
 impl SqliteDataset {
     pub fn query<I: FromSqlRow, O>(
-        &mut self,
+        &self,
         index: usize,
         limit: usize,
         rng: &mut impl Rng,
         mut batcher: impl StatefulBatcher<I, O>,
     ) -> O {
         batcher.reset();
-        let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
-        let mut rows = stmt.query(params![index, limit]).unwrap();
-        while let Some(row) = rows.next().unwrap() {
-            batcher.ingest(I::from(row));
-        }
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare_cached(&self.get_sql).unwrap();
+            let mut rows = stmt.query(params![index, limit]).unwrap();
+            while let Some(row) = rows.next().unwrap() {
+                batcher.ingest(I::from(row));
+            }
+        });
         batcher.shuffle(rng);
         batcher.finish()
     }
@@ -163,84 +173,35 @@ impl SqliteDataset {
         self.len.div_ceil(batch_size)
     }
 
-    pub fn pick_random<I: FromSqlRow>(&mut self, rng: &mut impl Rng) -> I {
-        let mut stmt = self.conn.prepare_cached(&self.get_sql).unwrap();
-        stmt.query_one(params![rng.random_range(0..self.len), 1], |row| {
-            Ok(I::from(row))
+    pub fn pick_random<I: FromSqlRow>(&self, rng: &mut impl Rng) -> I {
+        self.get(rng.random_range(0..self.len))
+    }
+
+    pub fn with_conn<T>(&self, f: impl FnOnce(&Connection) -> T) -> T {
+        match self.conn.try_lock() {
+            Some(x) => f(&x),
+            None => {
+                let conn = self.extra_conns.pop().unwrap_or_else(|| {
+                    Connection::open(&self.db_file).expect("Expected db file to be valid")
+                });
+                let result = f(&conn);
+                self.extra_conns.push(conn);
+                result
+            }
+        }
+    }
+
+    pub fn get<I: FromSqlRow>(&self, index: usize) -> I {
+        self.with_conn(|conn| {
+            let mut stmt = conn.prepare_cached(&self.get_sql).unwrap();
+            stmt.query_one(params![index, 1], |row| {
+                Ok(I::from(row))
+            })
+            .unwrap()
         })
-        .unwrap()
     }
 
     pub fn len(&self) -> usize {
         self.len
     }
 }
-
-// impl<I: DeserializeOwned, C: ItemCache<I>> Dataset<I> for SqliteDataset<I, C> {
-//     fn get(&self, mut index: usize) -> Option<I> {
-//         // sqlite starts at 1
-//         index += 1;
-//         self.reads.fetch_add(1, Ordering::Relaxed);
-//         if let Some(item) = self.cache.get(index) {
-//             self.cache_hits.fetch_add(1, Ordering::Relaxed);
-//             return Some(item);
-//         }
-//         let conn = &self.conn;
-//         let mut selected_item = None;
-//         {
-//             let mut stmt = conn.prepare_cached(&self.get_sql).unwrap();
-//             let mut rows = stmt.query(params![index]).unwrap();
-
-//             while let Some(row) = rows.next().unwrap() {
-//                 let retrieved_index: usize = row.get("row_id").unwrap();
-
-//                 let add_to_cache = !self.cache.noop() && !self.cache.has(retrieved_index);
-//                 if retrieved_index != index && !add_to_cache {
-//                     continue;
-//                 }
-
-//                 let stmt = row.as_ref();
-//                 let mut map = serde_json::Map::new();
-
-//                 for column in stmt.column_names() {
-//                     let value: rusqlite::types::Value = row.get(column).unwrap();
-//                     let value = match value {
-//                         rusqlite::types::Value::Null => serde_json::Value::Null,
-//                         rusqlite::types::Value::Integer(n) => serde_json::Value::Number(n.into()),
-//                         rusqlite::types::Value::Real(n) => {
-//                             serde_json::Value::Number(Number::from_f64(n).unwrap())
-//                         }
-//                         rusqlite::types::Value::Text(s) => serde_json::Value::String(s),
-//                         rusqlite::types::Value::Blob(items) => {
-//                             serde_json::Value::Array(items.into_iter().map(Into::into).collect())
-//                         }
-//                     };
-//                     map.insert(column.into(), value);
-//                 }
-
-//                 let mut item: I = serde_json::from_value(map.into())
-//                     .expect("Deserialization should be successful");
-//                 if add_to_cache {
-//                     item = self.cache.set(retrieved_index, item);
-//                 }
-//                 if retrieved_index == index {
-//                     selected_item = Some(item);
-//                 }
-//             }
-//         }
-
-//         self.conn_queue.push(conn);
-//         selected_item
-//     }
-
-//     fn len(&self) -> usize {
-//         let conn = self.get_conn();
-//         let len = conn
-//             .prepare_cached(&self.len_sql)
-//             .unwrap()
-//             .query_one((), |row| row.get("len"))
-//             .unwrap();
-//         self.conn_queue.push(conn);
-//         len
-//     }
-// }

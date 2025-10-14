@@ -5,10 +5,17 @@ edition = "2024"
 
 [dependencies]
 rusqlite.workspace = true
-# lru = "0.16.1"
-# rustc-hash.workspace = true
+rustc-hash = { workspace = true, optional = true }
 thiserror.workspace = true
 burn.workspace = true
 image = { workspace = true, features = ["webp"] }
 rayon.workspace = true
 rand.workspace = true
+lru = { version = "0.16.1", optional = true }
+parking_lot = "0.12.5"
+crossbeam = "0.8.4"
+
+[features]
+cache = ["lru", "rustc-hash"]
+burn_dataset = ["cache", "burn/dataset"]
+default = ["cache", "burn_dataset"]

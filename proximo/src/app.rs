@@ -175,7 +175,7 @@ pub fn train() {
                 model.encoder.get_input_channels(),
                 device.clone(),
             );
-            let mut testing_batcher = AutoEncoderImageBatcher::<AutodiffBackend>::new(
+            let mut testing_batcher = AutoEncoderImageBatcher::<Backend>::new(
                 model.encoder.get_input_channels(),
                 device.clone(),
             );
@@ -216,9 +216,10 @@ pub fn train() {
                     &mut rng,
                     device,
                     |loss, lr| {
+                        let ctrl_c_pressed = ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
-                            serde_json::to_writer(
+                            let result = serde_json::to_writer(
                                 child.stdin.as_mut().unwrap(),
                                 &json!({
                                     "batch_i": batch_i,
@@ -226,13 +227,15 @@ pub fn train() {
                                     "loss": loss,
                                     "lr": lr
                                 }),
-                            )
-                            .expect("Expected child process to be alive");
+                            );
+                            if !ctrl_c_pressed {
+                                result.expect("Expected child process to be alive");
+                            }
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}; LR: {lr:.4}");
                         }
                         batch_i += 1;
-                        ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed)
+                        ctrl_c_pressed
                     },
                 );
 
@@ -255,7 +258,7 @@ pub fn train() {
                     testing_batcher.ingest(item);
                 }
                 let batch = testing_batcher.finish();
-                // let mut model: Model = model.valid();
+                let mut model: Model = model.valid();
                 let reconstructed = model.infer(batch.input.clone());
 
                 let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
@@ -340,8 +343,8 @@ pub fn train() {
 
                 let mut validatable_model = AdHocLossModel {
                     model: &mut model,
-                    f: |model: &&mut AutodiffModel,
-                        item: AutoEncoderImageBatch<AutodiffBackend>| {
+                    f: |model: &&mut Model,
+                        item: AutoEncoderImageBatch<Backend>| {
                         bce_float_loss(
                             item.expected,
                             model.infer(item.input),
@@ -353,7 +356,7 @@ pub fn train() {
 
                 info!("Testing Epoch {epoch}");
                 batch_i = 0;
-                validate_model::<AutodiffBackend, _, _, _>(
+                validate_model::<Backend, _, _, _>(
                     &mut validatable_model,
                     &mut testing_dataset,
                     training_config.batch_size,
@@ -361,22 +364,25 @@ pub fn train() {
                     &mut testing_batcher,
                     &mut rng,
                     |loss| {
+                        let ctrl_c_pressed = ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
-                            serde_json::to_writer(
+                            let result = serde_json::to_writer(
                                 child.stdin.as_mut().unwrap(),
                                 &json!({
                                     "batch_i": batch_i,
                                     "epoch": epoch,
                                     "loss": loss,
                                 }),
-                            )
-                            .expect("Expected child process to be alive");
+                            );
+                            if !ctrl_c_pressed {
+                                result.expect("Expected child process to be alive");
+                            }
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}");
                         }
                         batch_i += 1;
-                        ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed)
+                        ctrl_c_pressed
                     },
                 );
                 let epoch_duration = epoch_start_time.elapsed();
