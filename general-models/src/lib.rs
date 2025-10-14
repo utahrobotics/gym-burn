@@ -24,13 +24,17 @@ pub trait SimpleTrain<B: Backend, const N_I: usize, const N_O: usize> {
     }
 }
 
-impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleInfer<B, N_I, N_O>> SimpleInfer<B, N_I, N_O> for &T {
+impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleInfer<B, N_I, N_O>>
+    SimpleInfer<B, N_I, N_O> for &T
+{
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
         <T as SimpleInfer<B, N_I, N_O>>::forward(self, tensor)
     }
 }
 
-impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleTrain<B, N_I, N_O>> SimpleTrain<B, N_I, N_O> for &T {
+impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleTrain<B, N_I, N_O>>
+    SimpleTrain<B, N_I, N_O> for &T
+{
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
         <T as SimpleTrain<B, N_I, N_O>>::forward(self, tensor)
     }

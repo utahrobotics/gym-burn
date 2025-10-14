@@ -13,13 +13,14 @@ use general_dataset::{
     presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
 };
 use general_models::{
-    Init, SimpleInfer, SimpleTrain, composite::{
+    Init, SimpleInfer, SimpleTrain,
+    composite::{
         autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
         image::{
-            Conv2dLinearModelConfig, Conv2dLinearModel, LinearConvTranspose2dModel,
+            Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModel,
             LinearConvTranspose2dModelConfig,
         },
-    }
+    },
 };
 use image::{
     ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
@@ -32,13 +33,17 @@ use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan}, loss::{bce_float_loss, bce_with_energy_loss}},
+    app::{
+        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
+        loss::{bce_float_loss, bce_with_energy_loss},
+    },
     trainable_models::{
-        AdHocLossModel, apply_gradients::{
+        AdHocLossModel,
+        apply_gradients::{
             ApplyGradients,
             autoencoder::AutoEncoderModelPlanConfig,
             image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
-        }
+        },
     },
     training_loop::{train_epoch, validate_model},
 };
@@ -166,10 +171,14 @@ pub fn train() {
             > = parse_json_file("training").expect("Expected valid training.json");
             let mut grads_plan = AutodiffModel::config_to_plan(grads_plan.grads_plan);
 
-            let mut training_batcher =
-                AutoEncoderImageBatcher::<AutodiffBackend>::new(model.encoder.get_input_channels(), device.clone());
-            let mut testing_batcher =
-                AutoEncoderImageBatcher::<AutodiffBackend>::new(model.encoder.get_input_channels(), device.clone());
+            let mut training_batcher = AutoEncoderImageBatcher::<AutodiffBackend>::new(
+                model.encoder.get_input_channels(),
+                device.clone(),
+            );
+            let mut testing_batcher = AutoEncoderImageBatcher::<AutodiffBackend>::new(
+                model.encoder.get_input_channels(),
+                device.clone(),
+            );
 
             let mut input_images = vec![];
 
@@ -185,14 +194,15 @@ pub fn train() {
 
                 let mut trainable_model = AdHocLossModel {
                     model: &mut model,
-                    f: |model: &&mut AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
+                    f: |model: &&mut AutodiffModel,
+                        item: AutoEncoderImageBatch<AutodiffBackend>| {
                         bce_float_loss(
                             item.expected,
                             model.train(item.input),
                             // 1.0,
                             // 0.1
                         )
-                    }
+                    },
                 };
 
                 train_epoch::<AutodiffBackend, _, _, _>(
@@ -327,17 +337,18 @@ pub fn train() {
                 if ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
-                
+
                 let mut validatable_model = AdHocLossModel {
                     model: &mut model,
-                    f: |model: &&mut AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
+                    f: |model: &&mut AutodiffModel,
+                        item: AutoEncoderImageBatch<AutodiffBackend>| {
                         bce_float_loss(
                             item.expected,
                             model.infer(item.input),
                             // 1.0,
                             // 0.1
                         )
-                    }
+                    },
                 };
 
                 info!("Testing Epoch {epoch}");

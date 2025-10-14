@@ -11,8 +11,7 @@ pub fn bce_float_loss<B: Backend, const D: usize>(
     mut actual: Tensor<B, D>,
 ) -> Tensor<B, 1> {
     actual = actual.clamp(EPSILON, 1.0 - EPSILON);
-    let loss =
-        expected.clone() * actual.clone().log() + (-expected + 1.0) * (-actual + 1.0).log();
+    let loss = expected.clone() * actual.clone().log() + (-expected + 1.0) * (-actual + 1.0).log();
     -loss.mean()
 }
 
@@ -33,10 +32,7 @@ pub fn bce_with_energy_loss<B: Backend, const D: usize>(
     energy_weight: f64,
 ) -> Tensor<B, 1> {
     bce_float_loss(expected.clone(), actual.clone()) * bce_weight
-        + energy_loss(
-            expected,
-            actual.clamp(0.0, 1.0)
-        ) * energy_weight
+        + energy_loss(expected, actual.clamp(0.0, 1.0)) * energy_weight
 }
 
 pub fn energy_loss<B: Backend, const D: usize>(

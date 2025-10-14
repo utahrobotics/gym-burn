@@ -1,11 +1,6 @@
 use std::sync::Mutex;
 
-use burn::{
-    Tensor,
-    lr_scheduler::LrScheduler,
-    prelude::Backend,
-    tensor::backend::AutodiffBackend,
-};
+use burn::{Tensor, lr_scheduler::LrScheduler, prelude::Backend, tensor::backend::AutodiffBackend};
 use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
 use rayon::join;
@@ -94,7 +89,7 @@ pub fn train_epoch<B, M, Row, Item>(
     Row: FromSqlRow,
     M: TrainableModel<B, Item> + ApplyGradients<B>,
     Item: Send,
-    M::Plan: Send
+    M::Plan: Send,
 {
     let model_ptr = model;
     let mut model = unsafe { std::ptr::read(model_ptr) };
