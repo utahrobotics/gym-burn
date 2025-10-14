@@ -216,7 +216,8 @@ pub fn train() {
                     &mut rng,
                     device,
                     |loss, lr| {
-                        let ctrl_c_pressed = ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
+                        let ctrl_c_pressed =
+                            ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
                             let result = serde_json::to_writer(
@@ -343,8 +344,7 @@ pub fn train() {
 
                 let mut validatable_model = AdHocLossModel {
                     model: &mut model,
-                    f: |model: &&mut Model,
-                        item: AutoEncoderImageBatch<Backend>| {
+                    f: |model: &&mut Model, item: AutoEncoderImageBatch<Backend>| {
                         bce_float_loss(
                             item.expected,
                             model.infer(item.input),
@@ -364,7 +364,8 @@ pub fn train() {
                     &mut testing_batcher,
                     &mut rng,
                     |loss| {
-                        let ctrl_c_pressed = ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
+                        let ctrl_c_pressed =
+                            ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
                             let result = serde_json::to_writer(

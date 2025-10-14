@@ -1,4 +1,8 @@
-use std::{cell::{OnceCell, RefCell}, num::NonZeroUsize, thread::LocalKey};
+use std::{
+    cell::{OnceCell, RefCell},
+    num::NonZeroUsize,
+    thread::LocalKey,
+};
 
 use lru::LruCache;
 use rusqlite::params;
@@ -7,7 +11,7 @@ use rustc_hash::FxBuildHasher;
 use crate::{FromSqlRow, SqliteDataset};
 
 pub struct Cache<I> {
-    cache: LruCache<usize, I, FxBuildHasher>
+    cache: LruCache<usize, I, FxBuildHasher>,
 }
 
 impl<I> Cache<I> {
@@ -23,9 +27,18 @@ impl<I> Cache<I> {
 pub type LocalCache<I> = LocalKey<OnceCell<RefCell<Cache<I>>>>;
 
 impl SqliteDataset {
-    pub fn get_cached<I: Clone + FromSqlRow>(&self, index: usize, cache: &'static LocalCache<I>, line_size: NonZeroUsize) -> Option<I> {
+    pub fn get_cached<I: Clone + FromSqlRow>(
+        &self,
+        index: usize,
+        cache: &'static LocalCache<I>,
+        line_size: NonZeroUsize,
+    ) -> Option<I> {
         cache.with(|cell| {
-            let cell = cell.get_or_init(|| RefCell::new(Cache{ cache: LruCache::with_hasher(DEFAULT_CACHE_SIZE, Default::default())}));
+            let cell = cell.get_or_init(|| {
+                RefCell::new(Cache {
+                    cache: LruCache::with_hasher(DEFAULT_CACHE_SIZE, Default::default()),
+                })
+            });
             let mut cache = cell.borrow_mut();
             if let Some(x) = cache.peek(index) {
                 Some(x.clone())
@@ -57,7 +70,9 @@ macro_rules! def_cache {
 pub fn initialize_cache<I>(cache: &'static LocalCache<I>, size: NonZeroUsize) {
     cache.with(|x| {
         x.get_or_init(|| {
-            RefCell::new(Cache { cache: LruCache::with_hasher(size, Default::default()) })
+            RefCell::new(Cache {
+                cache: LruCache::with_hasher(size, Default::default()),
+            })
         });
     });
 }

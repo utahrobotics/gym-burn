@@ -7,7 +7,7 @@ use crate::{FromSqlRow, SqliteDataset, cache::LocalCache};
 pub struct SqliteBurnDataset<I: 'static> {
     sqlite: SqliteDataset,
     cache: &'static LocalCache<I>,
-    line_size: NonZeroUsize
+    line_size: NonZeroUsize,
 }
 
 impl<I: Clone + FromSqlRow> Dataset<I> for SqliteBurnDataset<I> {

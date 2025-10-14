@@ -7,11 +7,11 @@ use rand::Rng;
 use rusqlite::{Connection, Row, params};
 use thiserror::Error;
 
-pub mod presets;
-#[cfg(feature = "cache")]
-pub mod cache;
 #[cfg(feature = "burn_dataset")]
 pub mod burn_dataset;
+#[cfg(feature = "cache")]
+pub mod cache;
+pub mod presets;
 
 #[derive(Debug, Config)]
 pub struct SqliteDatasetConfig {
@@ -97,7 +97,13 @@ impl SqliteDataset {
             len = stmt.query_one((), |row| row.get("len")).unwrap()
         }
 
-        Ok(Self { conn: Mutex::new(conn), get_sql, len, db_file, extra_conns: SegQueue::new() })
+        Ok(Self {
+            conn: Mutex::new(conn),
+            get_sql,
+            len,
+            db_file,
+            extra_conns: SegQueue::new(),
+        })
     }
 }
 
@@ -194,10 +200,8 @@ impl SqliteDataset {
     pub fn get<I: FromSqlRow>(&self, index: usize) -> I {
         self.with_conn(|conn| {
             let mut stmt = conn.prepare_cached(&self.get_sql).unwrap();
-            stmt.query_one(params![index, 1], |row| {
-                Ok(I::from(row))
-            })
-            .unwrap()
+            stmt.query_one(params![index, 1], |row| Ok(I::from(row)))
+                .unwrap()
         })
     }
 
