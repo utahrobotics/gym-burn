@@ -2,10 +2,7 @@ use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
-    backend::Autodiff,
-    module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
-    prelude::Backend,
-    record::CompactRecorder,
+    backend::Autodiff, module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay}, nn::loss::MseLoss, prelude::Backend, record::CompactRecorder
 };
 use clap::{Parser, Subcommand};
 use general_dataset::{
@@ -40,9 +37,7 @@ use crate::{
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            ApplyGradients,
-            autoencoder::AutoEncoderModelPlanConfig,
-            image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
+            AdHocTrainingPlanConfig, ApplyGradients, autoencoder::AutoEncoderModelPlanConfig, image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig}
         },
     },
     training_loop::{train_epoch, validate_model},
@@ -164,12 +159,12 @@ pub fn train() {
             .expect("Expected model.txt to be writable in artifact dir");
 
             let grads_plan: TrainingGradsPlan<
-                AutoEncoderModelPlanConfig<
+                AdHocTrainingPlanConfig<AutoEncoderModelPlanConfig<
                     Conv2dLinearModelPlanConfig,
                     LinearConvTranspose2dModelPlanConfig,
-                >,
+                >>,
             > = parse_json_file("training").expect("Expected valid training.json");
-            let mut grads_plan = AutodiffModel::config_to_plan(grads_plan.grads_plan);
+            let mut grads_plan = AdHocLossModel::<_, ()>::config_to_plan(grads_plan.grads_plan);
 
             let mut training_batcher = AutoEncoderImageBatcher::<AutodiffBackend>::new(
                 model.encoder.get_input_channels(),
@@ -192,21 +187,22 @@ pub fn train() {
                 let mut batch_i = 0usize;
                 info!("Training Epoch {epoch}");
 
-                let mut trainable_model = AdHocLossModel {
-                    model: &mut model,
-                    f: |model: &&mut AutodiffModel,
+                let mut trainable_model = AdHocLossModel::new(
+                    model,
+                    |model: &AutodiffModel,
                         item: AutoEncoderImageBatch<AutodiffBackend>| {
-                        bce_float_loss(
+                        MseLoss::new().forward(
                             item.expected,
                             model.train(item.input),
+                            burn::nn::loss::Reduction::Auto
                             // 1.0,
                             // 0.1
                         )
                     },
-                };
+                );
 
-                train_epoch::<AutodiffBackend, _, _, _>(
-                    &mut trainable_model,
+                trainable_model = train_epoch::<AutodiffBackend, _, _, _>(
+                    trainable_model,
                     &mut training_dataset,
                     training_config.batch_size,
                     training_config.training_max_batch_count,
@@ -216,7 +212,7 @@ pub fn train() {
                     &mut rng,
                     device,
                     |loss, lr| {
-                        let ctrl_c_pressed =
+                        let ctrlc_pressed =
                             ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
@@ -229,16 +225,18 @@ pub fn train() {
                                     "lr": lr
                                 }),
                             );
-                            if !ctrl_c_pressed {
+                            if !ctrlc_pressed {
                                 result.expect("Expected child process to be alive");
                             }
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}; LR: {lr:.4}");
                         }
                         batch_i += 1;
-                        ctrl_c_pressed
+                        ctrlc_pressed
                     },
                 );
+
+                model = trainable_model.unwrap();
 
                 model
                     .clone()
@@ -259,7 +257,7 @@ pub fn train() {
                     testing_batcher.ingest(item);
                 }
                 let batch = testing_batcher.finish();
-                let mut model: Model = model.valid();
+                let model: Model = model.valid();
                 let reconstructed = model.infer(batch.input.clone());
 
                 let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
@@ -342,9 +340,9 @@ pub fn train() {
                     break;
                 }
 
-                let mut validatable_model = AdHocLossModel {
-                    model: &mut model,
-                    f: |model: &&mut Model, item: AutoEncoderImageBatch<Backend>| {
+                let mut validatable_model = AdHocLossModel::new(
+                    model,
+                    |model: &Model, item: AutoEncoderImageBatch<Backend>| {
                         bce_float_loss(
                             item.expected,
                             model.infer(item.input),
@@ -352,7 +350,7 @@ pub fn train() {
                             // 0.1
                         )
                     },
-                };
+                );
 
                 info!("Testing Epoch {epoch}");
                 batch_i = 0;
@@ -364,7 +362,7 @@ pub fn train() {
                     &mut testing_batcher,
                     &mut rng,
                     |loss| {
-                        let ctrl_c_pressed =
+                        let ctrlc_pressed =
                             ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed);
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
@@ -376,14 +374,14 @@ pub fn train() {
                                     "loss": loss,
                                 }),
                             );
-                            if !ctrl_c_pressed {
+                            if !ctrlc_pressed {
                                 result.expect("Expected child process to be alive");
                             }
                         } else {
                             info!("Batch {batch_i}; Loss: {loss:.4}");
                         }
                         batch_i += 1;
-                        ctrl_c_pressed
+                        ctrlc_pressed
                     },
                 );
                 let epoch_duration = epoch_start_time.elapsed();

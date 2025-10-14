@@ -1,8 +1,8 @@
-use burn::tensor::backend::AutodiffBackend;
-use serde::de::DeserializeOwned;
+use burn::{module::AutodiffModule, optim::GradientsParams, tensor::backend::AutodiffBackend};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use utils::default_f;
 
-use crate::trainable_models::AdHocLossModel;
+use crate::trainable_models::{AdHocLossModel, apply_gradients::optimizer::{Optimizer, OptimizerConfig}};
 
 pub mod lr_scheduler;
 pub mod optimizer;
@@ -43,12 +43,26 @@ impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyGradients<B> for &mut M {
     }
 }
 
-impl<B: AutodiffBackend, F, M: ApplyGradients<B>> ApplyGradients<B> for AdHocLossModel<M, F> {
-    type Plan = M::Plan;
-    type PlanConfig = M::PlanConfig;
+pub struct AdHocTrainingPlan<B: AutodiffBackend, M: ApplyGradients<B> + AutodiffModule<B>> {
+    default_optimizer: Optimizer<B, M>,
+    plan: Option<M::Plan>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AdHocTrainingPlanConfig<P> {
+    pub default_optimizer: OptimizerConfig,
+    pub plan: Option<P>
+}
+
+impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradients<B> for AdHocLossModel<M, F> {
+    type Plan = AdHocTrainingPlan<B, M>;
+    type PlanConfig = AdHocTrainingPlanConfig<M::PlanConfig>;
 
     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
-        M::config_to_plan(config)
+        AdHocTrainingPlan {
+            default_optimizer: config.default_optimizer.init(),
+            plan: config.plan.map(|plan| M::config_to_plan(plan)),
+        }
     }
 
     fn apply_gradients(
@@ -57,7 +71,11 @@ impl<B: AutodiffBackend, F, M: ApplyGradients<B>> ApplyGradients<B> for AdHocLos
         grads: &mut <B as AutodiffBackend>::Gradients,
         plan: &mut Self::Plan,
     ) {
-        self.model.apply_gradients(lr, grads, plan);
+        if let Some(plan) = &mut plan.plan {
+            self.model.as_mut().unwrap().apply_gradients(lr, grads, plan);
+        }
+        let grads = GradientsParams::from_module(grads, self.model.as_ref().unwrap());
+        self.model = Some(plan.default_optimizer.step(lr, self.model.take().unwrap(), grads));
     }
 }
 

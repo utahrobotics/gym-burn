@@ -77,6 +77,8 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
                     item.input_width,
                     item.input_height,
                 ])
+                .clamp(0.0, 1.0)
+                .detach()
             }};
         }
         join(

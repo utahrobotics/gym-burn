@@ -1,17 +1,9 @@
 use std::{io::Cursor, num::NonZeroUsize, path::PathBuf, time::SystemTime};
 
 use burn::{
-    backend::Autodiff,
-    data::dataloader::DataLoaderBuilder,
-    module::Module,
-    nn::loss::{MseLoss, Reduction},
-    optim::AdamConfig,
-    prelude::Backend,
-    record::CompactRecorder,
-    tensor::backend::AutodiffBackend,
-    train::{
+    Tensor, backend::Autodiff, data::dataloader::DataLoaderBuilder, module::Module, nn::loss::{MseLoss, Reduction}, optim::AdamConfig, prelude::Backend, record::CompactRecorder, tensor::backend::AutodiffBackend, train::{
         LearnerBuilder, RegressionOutput, TrainOutput, TrainStep, ValidStep, metric::LossMetric,
-    },
+    }
 };
 use general_dataset::{
     SqliteDataset, SqliteDatasetConfig, StatefulBatcher,
@@ -55,13 +47,25 @@ pub struct Trainable<B: Backend> {
     model: Model<B>,
 }
 
+const EPSILON: f64 = 1e-7;
+
+pub fn bce_float_loss<B: Backend, const D: usize>(
+    expected: Tensor<B, D>,
+    mut actual: Tensor<B, D>,
+) -> Tensor<B, 1> {
+    actual = actual.clamp(EPSILON, 1.0 - EPSILON);
+    let loss = expected.clone() * actual.clone().log() + (-expected + 1.0) * (-actual + 1.0).log();
+    -loss.mean()
+}
+
 impl<B: AutodiffBackend> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>> for Trainable<B> {
     fn step(&self, batch: AutoEncoderImageBatch<B>) -> TrainOutput<RegressionOutput<B>> {
         let actual = self.model.train(batch.input);
         let actual = actual.flatten(1, 3);
         let expected = batch.expected.flatten(1, 3);
         let item = RegressionOutput::new(
-            MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Mean),
+            // bce_float_loss(actual.clone(), expected.clone()),
+            MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Auto),
             actual,
             expected,
         );
@@ -76,7 +80,8 @@ impl<B: Backend> ValidStep<AutoEncoderImageBatch<B>, RegressionOutput<B>> for Tr
         let actual = actual.flatten(1, 3);
         let expected = batch.expected.flatten(1, 3);
         let item = RegressionOutput::new(
-            MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Mean),
+            // bce_float_loss(actual.clone(), expected.clone()),
+            MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Auto),
             actual,
             expected,
         );

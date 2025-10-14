@@ -73,7 +73,7 @@ use crate::trainable_models::{TrainableModel, ValidatableModel, apply_gradients:
 // }
 
 pub fn train_epoch<B, M, Row, Item>(
-    model: &mut M,
+    mut model: M,
     dataset: &mut SqliteDataset,
     batch_size: usize,
     max_batch_count: usize,
@@ -83,17 +83,16 @@ pub fn train_epoch<B, M, Row, Item>(
     rng: &mut (impl Rng + Send),
     _device: &B::Device,
     mut post_batch: impl FnMut(Tensor<B, 1>, f64) -> bool + Send,
-) where
+) -> M where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
     M: TrainableModel<B, Item> + ApplyGradients<B>,
+    // M: TrainableModel<B, Item> + AutodiffModule<B>,
     Item: Send,
     M::Plan: Send,
 {
-    let model_ptr = model;
-    let mut model = unsafe { std::ptr::read(model_ptr) };
-    // let mut optimizer = SgdConfig::new().init();
+    // let mut optimizer = burn::optim::AdamConfig::new().init();
     let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))
         .map(|x| x * batch_size)
         .collect();
@@ -101,7 +100,7 @@ pub fn train_epoch<B, M, Row, Item>(
     block_indices.truncate(max_batch_count);
     let mut block_indices = block_indices.into_iter();
     let Some(first_index) = block_indices.next() else {
-        return;
+        return model;
     };
     let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
     let mut last_results = None;
@@ -124,10 +123,9 @@ pub fn train_epoch<B, M, Row, Item>(
                 let loss = model.batch_train(batch);
                 let mut grads = loss.backward();
                 let lr = lr_scheduler.step();
-                // let grads = GradientsParams::from_grads(grads, &model);
-                // let model = optimizer.step(lr, model, grads);
+                // let grads = burn::optim::GradientsParams::from_grads(grads, &model);
+                // let model = burn::optim::Optimizer::step(&mut optimizer, lr, model, grads);
                 model.apply_gradients(lr, &mut grads, grads_plan);
-                // B::memory_cleanup(device);
                 (loss, lr, model)
             },
         );
@@ -152,9 +150,7 @@ pub fn train_epoch<B, M, Row, Item>(
         },
     );
     post_batch(loss, lr);
-    unsafe {
-        std::ptr::write(model_ptr, model);
-    }
+    model
 }
 
 pub fn validate_model<B, M, Row, Item>(
