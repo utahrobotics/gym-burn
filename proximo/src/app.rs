@@ -4,24 +4,22 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
     backend::Autodiff,
     module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
-    nn::loss::{BinaryCrossEntropyLossConfig, MseLoss},
     prelude::Backend,
     record::CompactRecorder,
 };
 use clap::{Parser, Subcommand};
 use general_dataset::{
     SqliteDataset, StatefulBatcher,
-    presets::autoencoder::{AutoEncoderImageBatcher, AutoEncoderImageItem},
+    presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
 };
 use general_models::{
-    Init, SimpleInfer,
-    composite::{
+    Init, SimpleInfer, SimpleTrain, composite::{
         autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
         image::{
-            Conv2dLinearModelConfig, ConvLinearModel, LinearConvTranspose2dModel,
+            Conv2dLinearModelConfig, Conv2dLinearModel, LinearConvTranspose2dModel,
             LinearConvTranspose2dModelConfig,
         },
-    },
+    }
 };
 use image::{
     ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
@@ -34,16 +32,15 @@ use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
+    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan}, loss::{bce_float_loss, bce_with_energy_loss}},
     trainable_models::{
-        Blanket,
-        apply_gradients::{
+        AdHocLossModel, apply_gradients::{
             ApplyGradients,
             autoencoder::AutoEncoderModelPlanConfig,
             image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
-        },
+        }
     },
-    training_loop::{presets::train_epoch_image_autoencoder, validate_model},
+    training_loop::{train_epoch, validate_model},
 };
 
 use rayon::iter::ParallelDrainRange;
@@ -53,6 +50,7 @@ use rayon::iter::ParallelDrainRange;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 pub mod config;
+pub mod loss;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -143,29 +141,35 @@ pub fn train() {
                 Conv2dLinearModelConfig,
                 LinearConvTranspose2dModelConfig,
             > = parse_json_file("model").expect("Expected valid model.json");
-            type Model = AutoEncoderModel<
+            type AutodiffModel = AutoEncoderModel<
                 AutodiffBackend,
-                ConvLinearModel<AutodiffBackend>,
+                Conv2dLinearModel<AutodiffBackend>,
                 LinearConvTranspose2dModel<AutodiffBackend>,
             >;
-            let mut model: Model = model_config.init(device);
+            type Model = AutoEncoderModel<
+                Backend,
+                Conv2dLinearModel<Backend>,
+                LinearConvTranspose2dModel<Backend>,
+            >;
+            let mut model: AutodiffModel = model_config.init(device);
             std::fs::write(
                 artifact_dir.join("model.txt"),
                 model.format(DisplaySettings::new()).as_bytes(),
             )
             .expect("Expected model.txt to be writable in artifact dir");
+
             let grads_plan: TrainingGradsPlan<
                 AutoEncoderModelPlanConfig<
                     Conv2dLinearModelPlanConfig,
                     LinearConvTranspose2dModelPlanConfig,
                 >,
             > = parse_json_file("training").expect("Expected valid training.json");
-            let mut grads_plan = Model::config_to_plan(grads_plan.grads_plan);
+            let mut grads_plan = AutodiffModel::config_to_plan(grads_plan.grads_plan);
 
             let mut training_batcher =
-                AutoEncoderImageBatcher::new(model.encoder.get_input_channels(), device.clone());
+                AutoEncoderImageBatcher::<AutodiffBackend>::new(model.encoder.get_input_channels(), device.clone());
             let mut testing_batcher =
-                AutoEncoderImageBatcher::new(model.encoder.get_input_channels(), device.clone());
+                AutoEncoderImageBatcher::<AutodiffBackend>::new(model.encoder.get_input_channels(), device.clone());
 
             let mut input_images = vec![];
 
@@ -179,8 +183,20 @@ pub fn train() {
                 let mut batch_i = 0usize;
                 info!("Training Epoch {epoch}");
 
-                train_epoch_image_autoencoder::<_, _, _, _, Blanket>(
-                    &mut model,
+                let mut trainable_model = AdHocLossModel {
+                    model: &mut model,
+                    f: |model: &&mut AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
+                        bce_float_loss(
+                            item.expected,
+                            model.train(item.input),
+                            // 1.0,
+                            // 0.1
+                        )
+                    }
+                };
+
+                train_epoch::<AutodiffBackend, _, _, _>(
+                    &mut trainable_model,
                     &mut training_dataset,
                     training_config.batch_size,
                     training_config.training_max_batch_count,
@@ -188,8 +204,7 @@ pub fn train() {
                     &mut lr_scheduler,
                     &mut grads_plan,
                     &mut rng,
-                    // &BinaryCrossEntropyLossConfig::new().with_logits(true).init(device),
-                    &MseLoss::new(),
+                    device,
                     |loss, lr| {
                         let loss = loss.into_scalar();
                         if let Some(child) = &mut child {
@@ -230,8 +245,8 @@ pub fn train() {
                     testing_batcher.ingest(item);
                 }
                 let batch = testing_batcher.finish();
-                let mut model = model.valid();
-                let reconstructed = model.forward(batch.input.clone());
+                // let mut model: Model = model.valid();
+                let reconstructed = model.infer(batch.input.clone());
 
                 let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
                     1 => reconstructed
@@ -312,18 +327,27 @@ pub fn train() {
                 if ctrlc_pressed.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
+                
+                let mut validatable_model = AdHocLossModel {
+                    model: &mut model,
+                    f: |model: &&mut AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
+                        bce_float_loss(
+                            item.expected,
+                            model.infer(item.input),
+                            // 1.0,
+                            // 0.1
+                        )
+                    }
+                };
 
                 info!("Testing Epoch {epoch}");
                 batch_i = 0;
-                validate_model(
-                    &mut model,
+                validate_model::<AutodiffBackend, _, _, _>(
+                    &mut validatable_model,
                     &mut testing_dataset,
                     training_config.batch_size,
                     training_config.testing_max_batch_count,
                     &mut testing_batcher,
-                    &BinaryCrossEntropyLossConfig::new()
-                        .with_logits(true)
-                        .init(device),
                     &mut rng,
                     |loss| {
                         let loss = loss.into_scalar();

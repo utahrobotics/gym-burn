@@ -3,8 +3,6 @@ use std::sync::Mutex;
 use burn::{
     Tensor,
     lr_scheduler::LrScheduler,
-    module::AutodiffModule,
-    optim::{AdamConfig, GradientsParams, Optimizer, SgdConfig},
     prelude::Backend,
     tensor::backend::AutodiffBackend,
 };
@@ -14,7 +12,7 @@ use rayon::join;
 
 use crate::trainable_models::{TrainableModel, ValidatableModel, apply_gradients::ApplyGradients};
 
-pub mod presets;
+// pub mod presets;
 
 // pub fn train_batch<B, M, Row, Item, S>(
 //     model: &mut M,
@@ -79,32 +77,28 @@ pub mod presets;
 //     }
 // }
 
-pub fn train_epoch<B, M, Row, Item, L, S>(
+pub fn train_epoch<B, M, Row, Item>(
     model: &mut M,
     dataset: &mut SqliteDataset,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
-    training_config: &M::TrainingConfig,
-    loss: &L,
     lr_scheduler: &mut impl LrScheduler,
     grads_plan: &mut M::Plan,
     rng: &mut (impl Rng + Send),
+    _device: &B::Device,
     mut post_batch: impl FnMut(Tensor<B, 1>, f64) -> bool + Send,
 ) where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item, L, S> + ApplyGradients<B> + AutodiffModule<B>,
+    M: TrainableModel<B, Item> + ApplyGradients<B>,
     Item: Send,
-    L: Send + Sync,
-    M::Plan: Send,
-    M::TrainingConfig: Sync,
+    M::Plan: Send
 {
     let model_ptr = model;
     let mut model = unsafe { std::ptr::read(model_ptr) };
-    let mut optimizer = SgdConfig::new().init();
-    // let mut grads_accumulator = GradientsAccumulator::new();
+    // let mut optimizer = SgdConfig::new().init();
     let mut block_indices: Vec<_> = (0..dataset.get_batch_count(batch_size))
         .map(|x| x * batch_size)
         .collect();
@@ -116,7 +110,6 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
     };
     let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
     let mut last_results = None;
-    // let mut grads_count = 0usize;
 
     for next_index in block_indices {
         let ((next_batch, end), (loss, lr, tmp)) = join(
@@ -133,14 +126,13 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
                 )
             },
             || {
-                let loss = model.batch_train(batch, loss, training_config);
+                let loss = model.batch_train(batch);
                 let mut grads = loss.backward();
-                // grads_count += 1;
-                // grads_accumulator.accumulate(model, grads);
                 let lr = lr_scheduler.step();
-                let grads = GradientsParams::from_grads(grads, &model);
-                let model = optimizer.step(lr, model, grads);
-                // model.apply_gradients(lr, &mut grads, grads_plan);
+                // let grads = GradientsParams::from_grads(grads, &model);
+                // let model = optimizer.step(lr, model, grads);
+                model.apply_gradients(lr, &mut grads, grads_plan);
+                // B::memory_cleanup(device);
                 (loss, lr, model)
             },
         );
@@ -157,7 +149,7 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
             post_batch(loss, lr);
         },
         || {
-            let loss = model.batch_train(batch, loss, training_config);
+            let loss = model.batch_train(batch);
             let mut grads = loss.backward();
             let lr = lr_scheduler.step();
             model.apply_gradients(lr, &mut grads, grads_plan);
@@ -170,22 +162,20 @@ pub fn train_epoch<B, M, Row, Item, L, S>(
     }
 }
 
-pub fn validate_model<B, M, Row, Item, L, S>(
+pub fn validate_model<B, M, Row, Item>(
     model: &mut M,
     dataset: &mut SqliteDataset,
     batch_size: usize,
     max_batch_count: usize,
     batcher: &mut (impl StatefulBatcher<Row, Item> + Send),
-    loss: &L,
     rng: &mut (impl Rng + Send),
     mut post_batch: impl FnMut(Tensor<B, 1>) -> bool + Send,
 ) where
     M: Send,
     B: Backend,
     Row: FromSqlRow,
-    M: ValidatableModel<B, Item, L, S>,
+    M: ValidatableModel<B, Item>,
     Item: Send,
-    L: Send + Sync,
 {
     // Sync maker using Mutex
     let mut model = Mutex::new(model);
@@ -215,7 +205,7 @@ pub fn validate_model<B, M, Row, Item, L, S>(
                     },
                 )
             },
-            || model.get_mut().unwrap().batch_valid(batch, loss),
+            || model.get_mut().unwrap().batch_valid(batch),
         );
         last_results = Some(loss);
         batch = next_batch;
@@ -228,7 +218,7 @@ pub fn validate_model<B, M, Row, Item, L, S>(
             let loss = last_results.unwrap();
             post_batch(loss);
         },
-        || model.get_mut().unwrap().batch_valid(batch, loss),
+        || model.get_mut().unwrap().batch_valid(batch),
     );
     post_batch(loss);
 }

@@ -2,33 +2,42 @@
     "encoder": {
         "conv": {
             "input_channels": 1,
-            "layers": []
+            "default_activation": "gelu",
+            "layers": [
+                {
+                    "output_channels": 4,
+                    "kernel_size": [3, 3]
+                },
+                {
+                    "output_channels": 8,
+                    "kernel_size": [3, 3]
+                }
+            ]
         },
+        "adaptive_avg_pooling": [8, 8],
         "linear": {
-            "input_size": 784,
+            "input_size": 512,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
-                250,
-                80,
-                25,
-                [8, "none"]
+                128,
+                [30, "gelu"]
             ]
         }
     },
     "decoder": {
         "linear": {
-            "input_size": 8,
+            "input_size": 30,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
-                96,
-                1024
+                128,
+                [512, "gelu"]
             ]
         },
         "conv_input_size": [8, 8],
         "conv": {
-            "input_channels": 16,
+            "input_channels": 8,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [

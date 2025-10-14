@@ -1,4 +1,4 @@
-use burn::{Tensor, module::Module, prelude::Backend};
+use burn::{Tensor, prelude::Backend};
 
 pub mod common;
 pub mod composite;
@@ -10,17 +10,29 @@ pub trait Init<B: Backend, T> {
     fn init(self, device: &B::Device) -> T;
 }
 
-pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize>: Module<B> {
+pub trait SimpleInfer<B: Backend, const N_I: usize, const N_O: usize> {
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
     fn infer(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
         self.forward(tensor)
     }
 }
 
-pub trait SimpleTrain<B: Backend, const N_I: usize, const N_O: usize>: Module<B> {
+pub trait SimpleTrain<B: Backend, const N_I: usize, const N_O: usize> {
     fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O>;
     fn train(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
         self.forward(tensor)
+    }
+}
+
+impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleInfer<B, N_I, N_O>> SimpleInfer<B, N_I, N_O> for &T {
+    fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
+        <T as SimpleInfer<B, N_I, N_O>>::forward(self, tensor)
+    }
+}
+
+impl<B: Backend, const N_I: usize, const N_O: usize, T: SimpleTrain<B, N_I, N_O>> SimpleTrain<B, N_I, N_O> for &T {
+    fn forward(&self, tensor: Tensor<B, N_I>) -> Tensor<B, N_O> {
+        <T as SimpleTrain<B, N_I, N_O>>::forward(self, tensor)
     }
 }
 

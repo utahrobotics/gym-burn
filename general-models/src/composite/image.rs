@@ -15,13 +15,13 @@ use crate::{
 };
 
 #[derive(Debug, Module)]
-pub struct ConvLinearModel<B: Backend> {
+pub struct Conv2dLinearModel<B: Backend> {
     pub conv: Conv2dModel<B>,
     adaptive_avg_pooling: Option<AdaptiveAvgPool2d>,
     pub linear: LinearModel<B>,
 }
 
-impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearModel<B> {
+impl<B: Backend> SimpleInfer<B, 4, 2> for Conv2dLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         tensor = self.conv.infer(tensor);
         if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
@@ -31,7 +31,7 @@ impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearModel<B> {
     }
 }
 
-impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
+impl<B: Backend> SimpleTrain<B, 4, 2> for Conv2dLinearModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         tensor = self.conv.train(tensor);
         if let Some(adaptive_avg_pooling) = &self.adaptive_avg_pooling {
@@ -41,7 +41,7 @@ impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearModel<B> {
     }
 }
 
-impl<B: Backend> ConvLinearModel<B> {
+impl<B: Backend> Conv2dLinearModel<B> {
     pub fn get_input_channels(&self) -> usize {
         self.conv.get_input_channels()
     }
@@ -50,13 +50,13 @@ impl<B: Backend> ConvLinearModel<B> {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Conv2dLinearModelConfig {
     pub conv: Conv2dModelConfig,
-    adaptive_avg_pooling: Option<[usize; 2]>,
+    pub adaptive_avg_pooling: Option<[usize; 2]>,
     pub linear: LinearModelConfig,
 }
 
-impl<B: Backend> Init<B, ConvLinearModel<B>> for Conv2dLinearModelConfig {
-    fn init(self, device: &<B as Backend>::Device) -> ConvLinearModel<B> {
-        ConvLinearModel {
+impl<B: Backend> Init<B, Conv2dLinearModel<B>> for Conv2dLinearModelConfig {
+    fn init(self, device: &<B as Backend>::Device) -> Conv2dLinearModel<B> {
+        Conv2dLinearModel {
             conv: self.conv.init(device),
             adaptive_avg_pooling: self
                 .adaptive_avg_pooling
@@ -68,7 +68,7 @@ impl<B: Backend> Init<B, ConvLinearModel<B>> for Conv2dLinearModelConfig {
 
 #[derive(Debug, Module)]
 pub struct ConvLinearClassifierModel<B: Backend> {
-    pub conv_linear: ConvLinearModel<B>,
+    pub conv_linear: Conv2dLinearModel<B>,
     pub classifier: LinearClassifierModel<B>,
 }
 

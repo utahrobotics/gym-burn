@@ -34,7 +34,7 @@ macro_rules! impls {
             D: SimpleInfer<B, 2, $input> + ModuleDisplay,
         {
             fn forward(&self, tensor: Tensor<B, $input>) -> Tensor<B, $input> {
-                self.decoder.infer(self.encoder.forward(tensor))
+                self.decoder.infer(self.encoder.infer(tensor))
             }
         }
 

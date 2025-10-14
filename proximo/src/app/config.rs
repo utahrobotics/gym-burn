@@ -28,8 +28,8 @@ pub struct TrainingConfig {
     pub training_max_batch_count: usize,
     #[serde(default = "default_max_batch_count")]
     pub testing_max_batch_count: usize,
-    #[serde(default = "default_grad_accumulate_count")]
-    pub grad_accumulate_count: usize,
+    // #[serde(default = "default_grad_accumulate_count")]
+    // pub grad_accumulate_count: usize,
     pub training_dataset: SqliteDatasetConfig,
     pub testing_dataset: SqliteDatasetConfig,
     pub lr_scheduler: LrSchedulerConfig,
@@ -49,5 +49,5 @@ pub struct TrainingGradsPlan<T> {
 
 default_f!(default_num_epochs, usize, 10);
 default_f!(default_batch_size, usize, 64);
-default_f!(default_grad_accumulate_count, usize, 8);
+// default_f!(default_grad_accumulate_count, usize, 8);
 default_f!(default_max_batch_count, usize, usize::MAX);

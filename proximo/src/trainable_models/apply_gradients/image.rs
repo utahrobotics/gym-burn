@@ -1,6 +1,6 @@
 use burn::tensor::backend::AutodiffBackend;
 use general_models::{
-    composite::image::{ConvLinearModel, LinearConvTranspose2dModel},
+    composite::image::{Conv2dLinearModel, LinearConvTranspose2dModel},
     conv::{Conv2dModel, ConvTranspose2dModel},
     linear::LinearModel,
 };
@@ -26,7 +26,7 @@ pub struct Conv2dLinearModelPlanConfig {
     pub linear: LinearModelPlanConfig,
 }
 
-impl<B: AutodiffBackend> ApplyGradients<B> for ConvLinearModel<B> {
+impl<B: AutodiffBackend> ApplyGradients<B> for Conv2dLinearModel<B> {
     type Plan = Conv2dLinearModelPlan<B>;
     type PlanConfig = Conv2dLinearModelPlanConfig;
 
