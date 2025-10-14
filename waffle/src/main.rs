@@ -14,7 +14,11 @@ use burn::{
     },
 };
 use general_dataset::{
-    SqliteDataset, SqliteDatasetConfig, StatefulBatcher, burn_dataset::{BurnBatcher, SqliteBurnDataset}, cache::initialize_cache, def_cache, presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem}
+    SqliteDataset, SqliteDatasetConfig, StatefulBatcher,
+    burn_dataset::{BurnBatcher, SqliteBurnDataset},
+    cache::initialize_cache,
+    def_cache,
+    presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
 };
 use general_models::{
     Init, SimpleInfer, SimpleTrain,
@@ -26,7 +30,9 @@ use general_models::{
         },
     },
 };
-use image::{ImageBuffer, ImageDecoder, Luma, Rgb, buffer::ConvertBuffer, codecs::webp::WebPDecoder};
+use image::{
+    ImageBuffer, ImageDecoder, Luma, Rgb, buffer::ConvertBuffer, codecs::webp::WebPDecoder,
+};
 use serde::Deserialize;
 use utils::parse_json_file;
 
@@ -161,13 +167,10 @@ fn main() {
     let output_width = 28usize;
     let output_height = 28usize;
     let mut rng = rand::rng();
-            let mut input_images = vec![];
+    let mut input_images = vec![];
 
-    let testing_dataset: SqliteDataset = training_config
-        .testing_dataset
-        .clone()
-        .try_into()
-        .unwrap();
+    let testing_dataset: SqliteDataset =
+        training_config.testing_dataset.clone().try_into().unwrap();
 
     for _ in 0..CHALLENGE_COUNT {
         let item: AutoEncoderImageItem = testing_dataset.pick_random(&mut rng);
@@ -186,12 +189,8 @@ fn main() {
         .map(|tensor| {
             let [_, _, width, height] = tensor.dims();
             let buf = tensor.into_data().into_vec::<f32>().unwrap();
-            let img = ImageBuffer::<Luma<f32>, _>::from_raw(
-                width as u32,
-                height as u32,
-                buf,
-            )
-            .unwrap();
+            let img =
+                ImageBuffer::<Luma<f32>, _>::from_raw(width as u32, height as u32, buf).unwrap();
             let img: ImageBuffer<Rgb<u8>, Vec<_>> = img.convert();
 
             img
@@ -199,10 +198,8 @@ fn main() {
         .collect();
 
     let mosaic_width = output_width as u32 * 2;
-    let mosaic_height =
-        output_height as u32 * CHALLENGE_COUNT as u32;
-    let mut pixels =
-        Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
+    let mosaic_height = output_height as u32 * CHALLENGE_COUNT as u32;
+    let mut pixels = Vec::with_capacity(mosaic_width as usize * mosaic_height as usize);
     let mut input_buf = vec![];
     input_buf.resize(output_width * output_height * 3, 0);
 
