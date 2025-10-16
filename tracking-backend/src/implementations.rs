@@ -229,11 +229,15 @@ impl BoolTensorOps<TrackingBackend> for TrackingBackend {
     ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_unfold(tensor, dim, size, step)
     }
-    
-    fn bool_select(tensor: BoolTensor<TrackingBackend>, dim: usize, indices: IntTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn bool_select(
+        tensor: BoolTensor<TrackingBackend>,
+        dim: usize,
+        indices: IntTensor<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_select(tensor, dim, indices)
     }
-    
+
     fn bool_select_assign(
         tensor: BoolTensor<TrackingBackend>,
         dim: usize,
@@ -242,44 +246,65 @@ impl BoolTensorOps<TrackingBackend> for TrackingBackend {
     ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_select_assign(tensor, dim, indices, value)
     }
-    
-    fn bool_repeat_dim(tensor: BoolTensor<TrackingBackend>, dim: usize, times: usize) -> BoolTensor<TrackingBackend> {
+
+    fn bool_repeat_dim(
+        tensor: BoolTensor<TrackingBackend>,
+        dim: usize,
+        times: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_repeat_dim(tensor, dim, times)
     }
-    
-    fn bool_cat(tensors: Vec<BoolTensor<TrackingBackend>>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn bool_cat(
+        tensors: Vec<BoolTensor<TrackingBackend>>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_cat(tensors, dim)
     }
-    
-    fn bool_not_equal(lhs: BoolTensor<TrackingBackend>, rhs: BoolTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn bool_not_equal(
+        lhs: BoolTensor<TrackingBackend>,
+        rhs: BoolTensor<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_not_equal(lhs, rhs)
     }
-    
-    fn bool_xor(lhs: BoolTensor<TrackingBackend>, rhs: BoolTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn bool_xor(
+        lhs: BoolTensor<TrackingBackend>,
+        rhs: BoolTensor<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_xor(lhs, rhs)
     }
-    
+
     fn bool_transpose(tensor: BoolTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_transpose(tensor)
     }
-    
+
     fn bool_any(tensor: BoolTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_any(tensor)
     }
-    
-    fn bool_any_dim(tensor: BoolTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn bool_any_dim(
+        tensor: BoolTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_any_dim(tensor, dim)
     }
-    
+
     fn bool_all(tensor: BoolTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_all(tensor)
     }
-    
-    fn bool_all_dim(tensor: BoolTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn bool_all_dim(
+        tensor: BoolTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::bool_all_dim(tensor, dim)
     }
-    
-    fn bool_argwhere(tensor: BoolTensor<TrackingBackend>) -> impl Future<Output = IntTensor<TrackingBackend>> + 'static + Send {
+
+    fn bool_argwhere(
+        tensor: BoolTensor<TrackingBackend>,
+    ) -> impl Future<Output = IntTensor<TrackingBackend>> + 'static + Send {
         InnerBackend::bool_argwhere(tensor)
     }
 }
@@ -690,63 +715,100 @@ impl IntTensorOps<TrackingBackend> for TrackingBackend {
     ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_unfold(tensor, dim, size, step)
     }
-    
-    fn int_repeat_dim(tensor: IntTensor<TrackingBackend>, dim: usize, times: usize) -> IntTensor<TrackingBackend> {
+
+    fn int_repeat_dim(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+        times: usize,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_repeat_dim(tensor, dim, times)
     }
-    
+
     fn int_cat(tensors: Vec<IntTensor<TrackingBackend>>, dim: usize) -> IntTensor<TrackingBackend> {
         InnerBackend::int_cat(tensors, dim)
     }
-    
-    fn int_not_equal(lhs: IntTensor<TrackingBackend>, rhs: IntTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn int_not_equal(
+        lhs: IntTensor<TrackingBackend>,
+        rhs: IntTensor<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_not_equal(lhs, rhs)
     }
-    
-    fn int_not_equal_elem(lhs: IntTensor<TrackingBackend>, rhs: IntElem<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn int_not_equal_elem(
+        lhs: IntTensor<TrackingBackend>,
+        rhs: IntElem<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_not_equal_elem(lhs, rhs)
     }
-    
-    fn int_powi(lhs: IntTensor<TrackingBackend>, rhs: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_powi(
+        lhs: IntTensor<TrackingBackend>,
+        rhs: IntTensor<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_powi(lhs, rhs)
     }
-    
-    fn int_powf(lhs: IntTensor<TrackingBackend>, rhs: FloatTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_powf(
+        lhs: IntTensor<TrackingBackend>,
+        rhs: FloatTensor<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_powf(lhs, rhs)
     }
-    
-    fn int_powi_scalar(lhs: IntTensor<TrackingBackend>, rhs: IntElem<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_powi_scalar(
+        lhs: IntTensor<TrackingBackend>,
+        rhs: IntElem<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_powi_scalar(lhs, rhs)
     }
-    
+
     fn int_powf_scalar(lhs: IntTensor<TrackingBackend>, rhs: f32) -> IntTensor<TrackingBackend> {
         InnerBackend::int_powf_scalar(lhs, rhs)
     }
-    
-    fn int_clamp_min(tensor: IntTensor<TrackingBackend>, min: IntElem<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_clamp_min(
+        tensor: IntTensor<TrackingBackend>,
+        min: IntElem<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_clamp_min(tensor, min)
     }
-    
-    fn int_clamp_max(tensor: IntTensor<TrackingBackend>, max: IntElem<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_clamp_max(
+        tensor: IntTensor<TrackingBackend>,
+        max: IntElem<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_clamp_max(tensor, max)
     }
-    
-    fn int_clamp(tensor: IntTensor<TrackingBackend>, min: IntElem<TrackingBackend>, max: IntElem<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_clamp(
+        tensor: IntTensor<TrackingBackend>,
+        min: IntElem<TrackingBackend>,
+        max: IntElem<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_clamp(tensor, min, max)
     }
-    
+
     fn int_neg(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_neg(tensor)
     }
-    
-    fn int_zeros(shape: Shape, device: &Device<TrackingBackend>, dtype: IntDType) -> IntTensor<TrackingBackend> {
+
+    fn int_zeros(
+        shape: Shape,
+        device: &Device<TrackingBackend>,
+        dtype: IntDType,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_zeros(shape, device, dtype)
     }
-    
-    fn int_ones(shape: Shape, device: &Device<TrackingBackend>, dtype: IntDType) -> IntTensor<TrackingBackend> {
+
+    fn int_ones(
+        shape: Shape,
+        device: &Device<TrackingBackend>,
+        dtype: IntDType,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_ones(shape, device, dtype)
     }
-    
+
     fn int_full(
         shape: Shape,
         fill_value: IntElem<TrackingBackend>,
@@ -755,79 +817,99 @@ impl IntTensorOps<TrackingBackend> for TrackingBackend {
     ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_full(shape, fill_value, device, dtype)
     }
-    
+
     fn int_mean(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_mean(tensor)
     }
-    
+
     fn int_max(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_max(tensor)
     }
-    
+
     fn int_max_dim(tensor: IntTensor<TrackingBackend>, dim: usize) -> IntTensor<TrackingBackend> {
         InnerBackend::int_max_dim(tensor, dim)
     }
-    
-    fn int_max_dim_with_indices(tensor: IntTensor<TrackingBackend>, dim: usize) -> (IntTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
+
+    fn int_max_dim_with_indices(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+    ) -> (IntTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::int_max_dim_with_indices(tensor, dim)
     }
-    
+
     fn int_max_abs(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_max_abs(tensor)
     }
-    
-    fn int_max_abs_dim(tensor: IntTensor<TrackingBackend>, dim: usize) -> IntTensor<TrackingBackend> {
+
+    fn int_max_abs_dim(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_max_abs_dim(tensor, dim)
     }
-    
+
     fn int_min(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_min(tensor)
     }
-    
+
     fn int_min_dim(tensor: IntTensor<TrackingBackend>, dim: usize) -> IntTensor<TrackingBackend> {
         InnerBackend::int_min_dim(tensor, dim)
     }
-    
-    fn int_min_dim_with_indices(tensor: IntTensor<TrackingBackend>, dim: usize) -> (IntTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
+
+    fn int_min_dim_with_indices(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+    ) -> (IntTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::int_min_dim_with_indices(tensor, dim)
     }
-    
+
     fn int_transpose(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_transpose(tensor)
     }
-    
-    fn int_arange_step(range: std::ops::Range<i64>, step: usize, device: &Device<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_arange_step(
+        range: std::ops::Range<i64>,
+        step: usize,
+        device: &Device<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_arange_step(range, step, device)
     }
-    
-    fn int_arange(range: std::ops::Range<i64>, device: &Device<TrackingBackend>) -> IntTensor<TrackingBackend> {
+
+    fn int_arange(
+        range: std::ops::Range<i64>,
+        device: &Device<TrackingBackend>,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_arange(range, device)
     }
-    
+
     fn int_any(tensor: IntTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_any(tensor)
     }
-    
+
     fn int_any_dim(tensor: IntTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_any_dim(tensor, dim)
     }
-    
+
     fn int_all(tensor: IntTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_all(tensor)
     }
-    
+
     fn int_all_dim(tensor: IntTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
         InnerBackend::int_all_dim(tensor, dim)
     }
-    
+
     fn int_sign(tensor: IntTensor<TrackingBackend>) -> IntTensor<TrackingBackend> {
         InnerBackend::int_sign(tensor)
     }
-    
-    fn int_sort(tensor: IntTensor<TrackingBackend>, dim: usize, descending: bool) -> IntTensor<TrackingBackend> {
+
+    fn int_sort(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_sort(tensor, dim, descending)
     }
-    
+
     fn int_sort_with_indices(
         tensor: IntTensor<TrackingBackend>,
         dim: usize,
@@ -835,14 +917,21 @@ impl IntTensorOps<TrackingBackend> for TrackingBackend {
     ) -> (IntTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::int_sort_with_indices(tensor, dim, descending)
     }
-    
-    fn int_argsort(tensor: IntTensor<TrackingBackend>, dim: usize, descending: bool) -> IntTensor<TrackingBackend> {
+
+    fn int_argsort(
+        tensor: IntTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::int_argsort(tensor, dim, descending)
     }
 }
 
 impl ActivationOps<TrackingBackend> for TrackingBackend {
-    fn leaky_relu(tensor: FloatTensor<TrackingBackend>, negative_slope: burn::tensor::ops::FloatElem<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn leaky_relu(
+        tensor: FloatTensor<TrackingBackend>,
+        negative_slope: burn::tensor::ops::FloatElem<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::leaky_relu(tensor, negative_slope)
     }
 
@@ -850,7 +939,10 @@ impl ActivationOps<TrackingBackend> for TrackingBackend {
         InnerBackend::relu(tensor)
     }
 
-    fn relu_backward(output: FloatTensor<TrackingBackend>, grad: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn relu_backward(
+        output: FloatTensor<TrackingBackend>,
+        grad: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::relu_backward(output, grad)
     }
 
@@ -858,11 +950,17 @@ impl ActivationOps<TrackingBackend> for TrackingBackend {
         InnerBackend::gelu(tensor)
     }
 
-    fn prelu(tensor: FloatTensor<TrackingBackend>, alpha: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn prelu(
+        tensor: FloatTensor<TrackingBackend>,
+        alpha: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::prelu(tensor, alpha)
     }
 
-    fn gelu_backward(x: FloatTensor<TrackingBackend>, grad: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn gelu_backward(
+        x: FloatTensor<TrackingBackend>,
+        grad: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::gelu_backward(x, grad)
     }
 
@@ -870,7 +968,10 @@ impl ActivationOps<TrackingBackend> for TrackingBackend {
         InnerBackend::sigmoid(tensor)
     }
 
-    fn sigmoid_backward(output: FloatTensor<TrackingBackend>, grad: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn sigmoid_backward(
+        output: FloatTensor<TrackingBackend>,
+        grad: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::sigmoid_backward(output, grad)
     }
 
@@ -886,7 +987,10 @@ impl ActivationOps<TrackingBackend> for TrackingBackend {
         InnerBackend::log_sigmoid(tensor)
     }
 
-    fn log_sigmoid_backward(x: FloatTensor<TrackingBackend>, grad: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+    fn log_sigmoid_backward(
+        x: FloatTensor<TrackingBackend>,
+        grad: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::log_sigmoid_backward(x, grad)
     }
 }
@@ -921,7 +1025,15 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         output_grad: FloatTensor<TrackingBackend>,
         options: DeformConvOptions<2>,
     ) -> DeformConv2dBackward<TrackingBackend> {
-        let result = InnerBackend::deform_conv2d_backward(x, offset, weight, mask, bias, output_grad, options);
+        let result = InnerBackend::deform_conv2d_backward(
+            x,
+            offset,
+            weight,
+            mask,
+            bias,
+            output_grad,
+            options,
+        );
         DeformConv2dBackward {
             x_grad: result.x_grad,
             offset_grad: result.offset_grad,
@@ -1010,7 +1122,8 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: [usize; 2],
         dilation: [usize; 2],
     ) -> MaxPool2dWithIndices<TrackingBackend> {
-        let result = InnerBackend::max_pool2d_with_indices(x, kernel_size, stride, padding, dilation);
+        let result =
+            InnerBackend::max_pool2d_with_indices(x, kernel_size, stride, padding, dilation);
         MaxPool2dWithIndices {
             output: result.output,
             indices: result.indices,
@@ -1026,7 +1139,15 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         output_grad: FloatTensor<TrackingBackend>,
         indices: IntTensor<TrackingBackend>,
     ) -> MaxPool2dBackward<TrackingBackend> {
-        let result = InnerBackend::max_pool2d_with_indices_backward(x, kernel_size, stride, padding, dilation, output_grad, indices);
+        let result = InnerBackend::max_pool2d_with_indices_backward(
+            x,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output_grad,
+            indices,
+        );
         MaxPool2dBackward {
             x_grad: result.x_grad,
         }
@@ -1048,11 +1169,14 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::interpolate_backward(x, grad, output_size, options)
     }
-    
-    fn embedding(weights: FloatTensor<TrackingBackend>, indices: IntTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn embedding(
+        weights: FloatTensor<TrackingBackend>,
+        indices: IntTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::embedding(weights, indices)
     }
-    
+
     fn embedding_backward(
         weights: FloatTensor<TrackingBackend>,
         output_grad: FloatTensor<TrackingBackend>,
@@ -1060,7 +1184,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::embedding_backward(weights, output_grad, indices)
     }
-    
+
     fn conv1d(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1069,7 +1193,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv1d(x, weight, bias, options)
     }
-    
+
     fn conv1d_x_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1078,7 +1202,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv1d_x_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv1d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1087,7 +1211,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv1d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv1d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         bias: FloatTensor<TrackingBackend>,
@@ -1095,7 +1219,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv1d_bias_backward(x, bias, output_grad)
     }
-    
+
     fn conv2d_x_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1104,7 +1228,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv2d_x_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv2d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1113,7 +1237,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv2d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv2d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1122,7 +1246,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv2d_bias_backward(x, weight, bias, output_grad)
     }
-    
+
     fn conv3d_x_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1131,7 +1255,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv3d_x_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv3d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1140,7 +1264,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv3d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv3d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1149,7 +1273,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv3d_bias_backward(x, weight, bias, output_grad)
     }
-    
+
     fn conv_transpose1d(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1158,7 +1282,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose1d(x, weight, bias, options)
     }
-    
+
     fn conv_transpose1d_x_backward(
         weight: FloatTensor<TrackingBackend>,
         output_grad: FloatTensor<TrackingBackend>,
@@ -1166,7 +1290,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose1d_x_backward(weight, output_grad, options)
     }
-    
+
     fn conv_transpose1d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1175,7 +1299,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose1d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv_transpose1d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         bias: FloatTensor<TrackingBackend>,
@@ -1183,7 +1307,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose1d_bias_backward(x, bias, output_grad)
     }
-    
+
     fn conv_transpose2d_x_backward(
         weight: FloatTensor<TrackingBackend>,
         output_grad: FloatTensor<TrackingBackend>,
@@ -1191,7 +1315,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose2d_x_backward(weight, output_grad, options)
     }
-    
+
     fn conv_transpose2d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1200,7 +1324,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose2d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv_transpose2d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         bias: FloatTensor<TrackingBackend>,
@@ -1208,7 +1332,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose2d_bias_backward(x, bias, output_grad)
     }
-    
+
     fn conv_transpose3d_x_backward(
         weight: FloatTensor<TrackingBackend>,
         output_grad: FloatTensor<TrackingBackend>,
@@ -1216,7 +1340,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose3d_x_backward(weight, output_grad, options)
     }
-    
+
     fn conv_transpose3d_weight_backward(
         x: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1225,7 +1349,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose3d_weight_backward(x, weight, output_grad, options)
     }
-    
+
     fn conv_transpose3d_bias_backward(
         x: FloatTensor<TrackingBackend>,
         bias: FloatTensor<TrackingBackend>,
@@ -1233,7 +1357,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::conv_transpose3d_bias_backward(x, bias, output_grad)
     }
-    
+
     fn unfold4d(
         x: FloatTensor<TrackingBackend>,
         kernel_size: [usize; 2],
@@ -1241,7 +1365,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::unfold4d(x, kernel_size, options)
     }
-    
+
     fn avg_pool1d(
         x: FloatTensor<TrackingBackend>,
         kernel_size: usize,
@@ -1251,7 +1375,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::avg_pool1d(x, kernel_size, stride, padding, count_include_pad)
     }
-    
+
     fn avg_pool1d_backward(
         x: FloatTensor<TrackingBackend>,
         grad: FloatTensor<TrackingBackend>,
@@ -1262,15 +1386,21 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::avg_pool1d_backward(x, grad, kernel_size, stride, padding, count_include_pad)
     }
-    
-    fn adaptive_avg_pool1d(x: FloatTensor<TrackingBackend>, output_size: usize) -> FloatTensor<TrackingBackend> {
+
+    fn adaptive_avg_pool1d(
+        x: FloatTensor<TrackingBackend>,
+        output_size: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::adaptive_avg_pool1d(x, output_size)
     }
-    
-    fn adaptive_avg_pool1d_backward(x: FloatTensor<TrackingBackend>, grad: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn adaptive_avg_pool1d_backward(
+        x: FloatTensor<TrackingBackend>,
+        grad: FloatTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::adaptive_avg_pool1d_backward(x, grad)
     }
-    
+
     fn max_pool1d(
         x: FloatTensor<TrackingBackend>,
         kernel_size: usize,
@@ -1280,7 +1410,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::max_pool1d(x, kernel_size, stride, padding, dilation)
     }
-    
+
     fn max_pool1d_with_indices(
         x: FloatTensor<TrackingBackend>,
         kernel_size: usize,
@@ -1288,13 +1418,14 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: usize,
         dilation: usize,
     ) -> burn::tensor::ops::MaxPool1dWithIndices<TrackingBackend> {
-        let result = InnerBackend::max_pool1d_with_indices(x, kernel_size, stride, padding, dilation);
+        let result =
+            InnerBackend::max_pool1d_with_indices(x, kernel_size, stride, padding, dilation);
         burn::tensor::ops::MaxPool1dWithIndices {
             output: result.output,
             indices: result.indices,
         }
     }
-    
+
     fn max_pool1d_with_indices_backward(
         x: FloatTensor<TrackingBackend>,
         kernel_size: usize,
@@ -1304,12 +1435,20 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         output_grad: FloatTensor<TrackingBackend>,
         indices: IntTensor<TrackingBackend>,
     ) -> burn::tensor::ops::MaxPool1dBackward<TrackingBackend> {
-        let result = InnerBackend::max_pool1d_with_indices_backward(x, kernel_size, stride, padding, dilation, output_grad, indices);
+        let result = InnerBackend::max_pool1d_with_indices_backward(
+            x,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+            output_grad,
+            indices,
+        );
         burn::tensor::ops::MaxPool1dBackward {
             x_grad: result.x_grad,
         }
     }
-    
+
     fn linear(
         input: FloatTensor<TrackingBackend>,
         weight: FloatTensor<TrackingBackend>,
@@ -1736,15 +1875,23 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_unfold(tensor, dim, size, step)
     }
-    
-    fn float_zeros(shape: Shape, device: &Device<TrackingBackend>, dtype: FloatDType) -> FloatTensor<TrackingBackend> {
+
+    fn float_zeros(
+        shape: Shape,
+        device: &Device<TrackingBackend>,
+        dtype: FloatDType,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_zeros(shape, device, dtype)
     }
-    
-    fn float_ones(shape: Shape, device: &Device<TrackingBackend>, dtype: FloatDType) -> FloatTensor<TrackingBackend> {
+
+    fn float_ones(
+        shape: Shape,
+        device: &Device<TrackingBackend>,
+        dtype: FloatDType,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_ones(shape, device, dtype)
     }
-    
+
     fn float_full(
         shape: Shape,
         fill_value: FloatElem<TrackingBackend>,
@@ -1753,156 +1900,210 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_full(shape, fill_value, device, dtype)
     }
-    
-    fn float_repeat_dim(tensor: FloatTensor<TrackingBackend>, dim: usize, times: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_repeat_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+        times: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_repeat_dim(tensor, dim, times)
     }
-    
-    fn float_clamp_min(tensor: FloatTensor<TrackingBackend>, min: FloatElem<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn float_clamp_min(
+        tensor: FloatTensor<TrackingBackend>,
+        min: FloatElem<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_clamp_min(tensor, min)
     }
-    
-    fn float_clamp_max(tensor: FloatTensor<TrackingBackend>, max: FloatElem<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn float_clamp_max(
+        tensor: FloatTensor<TrackingBackend>,
+        max: FloatElem<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_clamp_max(tensor, max)
     }
-    
-    fn float_clamp(tensor: FloatTensor<TrackingBackend>, min: FloatElem<TrackingBackend>, max: FloatElem<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn float_clamp(
+        tensor: FloatTensor<TrackingBackend>,
+        min: FloatElem<TrackingBackend>,
+        max: FloatElem<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_clamp(tensor, min, max)
     }
-    
+
     fn float_neg(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_neg(tensor)
     }
-    
+
     fn float_transpose(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_transpose(tensor)
     }
-    
-    fn float_not_equal(lhs: FloatTensor<TrackingBackend>, rhs: FloatTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn float_not_equal(
+        lhs: FloatTensor<TrackingBackend>,
+        rhs: FloatTensor<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_not_equal(lhs, rhs)
     }
-    
-    fn float_not_equal_elem(lhs: FloatTensor<TrackingBackend>, rhs: FloatElem<TrackingBackend>) -> BoolTensor<TrackingBackend> {
+
+    fn float_not_equal_elem(
+        lhs: FloatTensor<TrackingBackend>,
+        rhs: FloatElem<TrackingBackend>,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_not_equal_elem(lhs, rhs)
     }
-    
+
     fn float_detach(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         // Should only be overridden by autodiff backends.
         tensor
     }
-    
-    fn float_set_require_grad(tensor: FloatTensor<TrackingBackend>, _require_grad: bool) -> FloatTensor<TrackingBackend> {
+
+    fn float_set_require_grad(
+        tensor: FloatTensor<TrackingBackend>,
+        _require_grad: bool,
+    ) -> FloatTensor<TrackingBackend> {
         // Should only be overridden by autodiff backends.
         tensor
     }
-    
+
     fn float_is_require_grad(_tensor: &FloatTensor<TrackingBackend>) -> bool {
         // Should only be overridden by autodiff backends.
         false
     }
-    
+
     fn float_prod(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_prod(tensor)
     }
-    
-    fn float_prod_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_prod_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_prod_dim(tensor, dim)
     }
-    
+
     fn float_mean(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_mean(tensor)
     }
-    
-    fn float_powi(lhs: FloatTensor<TrackingBackend>, rhs: IntTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn float_powi(
+        lhs: FloatTensor<TrackingBackend>,
+        rhs: IntTensor<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_powi(lhs, rhs)
     }
-    
-    fn float_powi_scalar(lhs: FloatTensor<TrackingBackend>, rhs: IntElem<TrackingBackend>) -> FloatTensor<TrackingBackend> {
+
+    fn float_powi_scalar(
+        lhs: FloatTensor<TrackingBackend>,
+        rhs: IntElem<TrackingBackend>,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_powi_scalar(lhs, rhs)
     }
-    
+
     fn float_tan(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_tan(tensor)
     }
-    
+
     fn float_cosh(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_cosh(tensor)
     }
-    
+
     fn float_sinh(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_sinh(tensor)
     }
-    
+
     fn float_tanh(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_tanh(tensor)
     }
-    
-    fn float_cat(tensors: Vec<FloatTensor<TrackingBackend>>, dim: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_cat(
+        tensors: Vec<FloatTensor<TrackingBackend>>,
+        dim: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_cat(tensors, dim)
     }
-    
+
     fn float_max(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_max(tensor)
     }
-    
-    fn float_max_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_max_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_max_dim(tensor, dim)
     }
-    
+
     fn float_max_dim_with_indices(
         tensor: FloatTensor<TrackingBackend>,
         dim: usize,
     ) -> (FloatTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::float_max_dim_with_indices(tensor, dim)
     }
-    
+
     fn float_min(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_min(tensor)
     }
-    
-    fn float_min_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_min_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_min_dim(tensor, dim)
     }
-    
+
     fn float_min_dim_with_indices(
         tensor: FloatTensor<TrackingBackend>,
         dim: usize,
     ) -> (FloatTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::float_min_dim_with_indices(tensor, dim)
     }
-    
+
     fn float_max_abs(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_max_abs(tensor)
     }
-    
-    fn float_max_abs_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> FloatTensor<TrackingBackend> {
+
+    fn float_max_abs_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_max_abs_dim(tensor, dim)
     }
-    
+
     fn float_any(tensor: FloatTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_any(tensor)
     }
-    
-    fn float_any_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn float_any_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_any_dim(tensor, dim)
     }
-    
+
     fn float_all(tensor: FloatTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_all(tensor)
     }
-    
-    fn float_all_dim(tensor: FloatTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn float_all_dim(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_all_dim(tensor, dim)
     }
-    
+
     fn float_sign(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_sign(tensor)
     }
-    
-    fn float_sort(tensor: FloatTensor<TrackingBackend>, dim: usize, descending: bool) -> FloatTensor<TrackingBackend> {
+
+    fn float_sort(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_sort(tensor, dim, descending)
     }
-    
+
     fn float_sort_with_indices(
         tensor: FloatTensor<TrackingBackend>,
         dim: usize,
@@ -1910,11 +2111,15 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
     ) -> (FloatTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::float_sort_with_indices(tensor, dim, descending)
     }
-    
-    fn float_argsort(tensor: FloatTensor<TrackingBackend>, dim: usize, descending: bool) -> IntTensor<TrackingBackend> {
+
+    fn float_argsort(
+        tensor: FloatTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::float_argsort(tensor, dim, descending)
     }
-    
+
     fn float_grid_sample_2d(
         tensor: FloatTensor<TrackingBackend>,
         grid: FloatTensor<TrackingBackend>,
@@ -1922,11 +2127,11 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
     ) -> FloatTensor<TrackingBackend> {
         InnerBackend::float_grid_sample_2d(tensor, grid, method)
     }
-    
+
     fn float_is_nan(tensor: FloatTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_is_nan(tensor)
     }
-    
+
     fn float_is_inf(tensor: FloatTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::float_is_inf(tensor)
     }
@@ -1945,7 +2150,6 @@ impl QTensorOps<TrackingBackend> for TrackingBackend {
         scheme: &QuantScheme,
         qparams: QuantizationParametersPrimitive<TrackingBackend>,
     ) -> QuantizedTensor<TrackingBackend> {
-        
         // Safe transmute for qparams since TrackingBackend is repr(transparent) over InnerBackend
         InnerBackend::quantize(tensor, scheme, unsafe { transmute(qparams) })
     }
@@ -2021,30 +2225,36 @@ impl QTensorOps<TrackingBackend> for TrackingBackend {
     ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_slice(tensor, slices)
     }
-    
-    fn quantize_dynamic(tensor: FloatTensor<TrackingBackend>, scheme: &QuantScheme) -> QuantizedTensor<TrackingBackend> {
+
+    fn quantize_dynamic(
+        tensor: FloatTensor<TrackingBackend>,
+        scheme: &QuantScheme,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::quantize_dynamic(tensor, scheme)
     }
-    
+
     fn q_detach(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         // Should only be overridden by autodiff backends.
         tensor
     }
-    
-    fn q_set_require_grad(tensor: QuantizedTensor<TrackingBackend>, _require_grad: bool) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_set_require_grad(
+        tensor: QuantizedTensor<TrackingBackend>,
+        _require_grad: bool,
+    ) -> QuantizedTensor<TrackingBackend> {
         // Should only be overridden by autodiff backends.
         tensor
     }
-    
+
     fn q_is_require_grad(_tensor: &QuantizedTensor<TrackingBackend>) -> bool {
         // Should only be overridden by autodiff backends.
         false
     }
-    
+
     fn q_transpose(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_transpose(tensor)
     }
-    
+
     fn q_gather(
         dim: usize,
         tensor: QuantizedTensor<TrackingBackend>,
@@ -2052,31 +2262,47 @@ impl QTensorOps<TrackingBackend> for TrackingBackend {
     ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_gather(dim, tensor, indices)
     }
-    
-    fn q_repeat_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize, times: usize) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_repeat_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+        times: usize,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_repeat_dim(tensor, dim, times)
     }
-    
-    fn q_add(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_add(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_add(lhs, rhs)) }
     }
-    
-    fn q_add_scalar(lhs: QuantizedTensor<TrackingBackend>, rhs: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_add_scalar(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_add_scalar(lhs, rhs)) }
     }
-    
-    fn q_clamp_min(tensor: QuantizedTensor<TrackingBackend>, min: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_clamp_min(
+        tensor: QuantizedTensor<TrackingBackend>,
+        min: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_clamp_min(tensor, min)) }
     }
-    
-    fn q_clamp_max(tensor: QuantizedTensor<TrackingBackend>, max: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_clamp_max(
+        tensor: QuantizedTensor<TrackingBackend>,
+        max: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_clamp_max(tensor, max)) }
     }
-    
+
     fn q_clamp(
         tensor: QuantizedTensor<TrackingBackend>,
         min: FloatElem<TrackingBackend>,
@@ -2085,236 +2311,341 @@ impl QTensorOps<TrackingBackend> for TrackingBackend {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_clamp(tensor, min, max)) }
     }
-    
-    fn q_sub(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sub(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sub(lhs, rhs)) }
     }
-    
-    fn q_sub_scalar(lhs: QuantizedTensor<TrackingBackend>, rhs: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sub_scalar(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sub_scalar(lhs, rhs)) }
     }
-    
-    fn q_mul(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_mul(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_mul(lhs, rhs)) }
     }
-    
-    fn q_mul_scalar(lhs: QuantizedTensor<TrackingBackend>, rhs: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_mul_scalar(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_mul_scalar(lhs, rhs)) }
     }
-    
-    fn q_div(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_div(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_div(lhs, rhs)) }
     }
-    
-    fn q_div_scalar(lhs: QuantizedTensor<TrackingBackend>, rhs: FloatElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_div_scalar(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: FloatElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_div_scalar(lhs, rhs)) }
     }
-    
-    fn q_matmul(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_matmul(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_matmul(lhs, rhs)) }
     }
-    
-    fn q_neg(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_neg(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_neg(tensor)) }
     }
-    
-    fn q_recip(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_recip(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_recip(tensor)) }
     }
-    
-    fn q_sum(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sum(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sum(tensor)) }
     }
-    
-    fn q_sum_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sum_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sum_dim(tensor, dim)) }
     }
-    
-    fn q_prod(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_prod(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_prod(tensor)) }
     }
-    
-    fn q_prod_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_prod_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_prod_dim(tensor, dim)) }
     }
-    
-    fn q_mean(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_mean(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_mean(tensor)) }
     }
-    
-    fn q_mean_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_mean_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_mean_dim(tensor, dim)) }
     }
-    
-    fn q_cumsum(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_cumsum(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_cumsum(tensor, dim)) }
     }
-    
-    fn q_exp(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_exp(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_exp(tensor)) }
     }
-    
-    fn q_log(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_log(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_log(tensor)) }
     }
-    
-    fn q_log1p(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_log1p(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_log1p(tensor)) }
     }
-    
-    fn q_powf(lhs: QuantizedTensor<TrackingBackend>, rhs: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_powf(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_powf(lhs, rhs)) }
     }
-    
-    fn q_powi(lhs: QuantizedTensor<TrackingBackend>, rhs: IntTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_powi(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: IntTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_powi(lhs, rhs)) }
     }
-    
-    fn q_powi_scalar(lhs: QuantizedTensor<TrackingBackend>, rhs: IntElem<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_powi_scalar(
+        lhs: QuantizedTensor<TrackingBackend>,
+        rhs: IntElem<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_powi_scalar(lhs, rhs)) }
     }
-    
-    fn q_powf_scalar(tensor: QuantizedTensor<TrackingBackend>, value: f32) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_powf_scalar(
+        tensor: QuantizedTensor<TrackingBackend>,
+        value: f32,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_powf_scalar(tensor, value)) }
     }
-    
-    fn q_sqrt(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sqrt(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sqrt(tensor)) }
     }
-    
+
     fn q_abs(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_abs(tensor)
     }
-    
-    fn q_cos(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_cos(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_cos(tensor)) }
     }
-    
-    fn q_sin(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sin(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sin(tensor)) }
     }
-    
-    fn q_tan(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_tan(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_tan(tensor)) }
     }
-    
-    fn q_cosh(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_cosh(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_cosh(tensor)) }
     }
-    
-    fn q_sinh(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_sinh(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_sinh(tensor)) }
     }
-    
-    fn q_tanh(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_tanh(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_tanh(tensor)) }
     }
-    
-    fn q_erf(tensor: QuantizedTensor<TrackingBackend>) -> burn::tensor::TensorPrimitive<TrackingBackend> {
+
+    fn q_erf(
+        tensor: QuantizedTensor<TrackingBackend>,
+    ) -> burn::tensor::TensorPrimitive<TrackingBackend> {
         // Safe transmute since TrackingBackend is repr(transparent) over InnerBackend
         unsafe { transmute(InnerBackend::q_erf(tensor)) }
     }
-    
-    fn q_cat(tensors: Vec<QuantizedTensor<TrackingBackend>>, dim: usize) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_cat(
+        tensors: Vec<QuantizedTensor<TrackingBackend>>,
+        dim: usize,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_cat(tensors, dim)
     }
-    
-    fn q_argmax(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> IntTensor<TrackingBackend> {
+
+    fn q_argmax(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::q_argmax(tensor, dim)
     }
-    
-    fn q_argmin(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> IntTensor<TrackingBackend> {
+
+    fn q_argmin(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::q_argmin(tensor, dim)
     }
-    
+
     fn q_max(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_max(tensor)
     }
-    
-    fn q_max_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_max_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_max_dim(tensor, dim)
     }
-    
+
     fn q_max_dim_with_indices(
         tensor: QuantizedTensor<TrackingBackend>,
         dim: usize,
     ) -> (QuantizedTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::q_max_dim_with_indices(tensor, dim)
     }
-    
+
     fn q_min(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_min(tensor)
     }
-    
-    fn q_min_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_min_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_min_dim(tensor, dim)
     }
-    
+
     fn q_min_dim_with_indices(
         tensor: QuantizedTensor<TrackingBackend>,
         dim: usize,
     ) -> (QuantizedTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::q_min_dim_with_indices(tensor, dim)
     }
-    
+
     fn q_max_abs(tensor: QuantizedTensor<TrackingBackend>) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_max_abs(tensor)
     }
-    
-    fn q_max_abs_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_max_abs_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_max_abs_dim(tensor, dim)
     }
-    
+
     fn q_any(tensor: QuantizedTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::q_any(tensor)
     }
-    
-    fn q_any_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn q_any_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::q_any_dim(tensor, dim)
     }
-    
+
     fn q_all(tensor: QuantizedTensor<TrackingBackend>) -> BoolTensor<TrackingBackend> {
         InnerBackend::q_all(tensor)
     }
-    
-    fn q_all_dim(tensor: QuantizedTensor<TrackingBackend>, dim: usize) -> BoolTensor<TrackingBackend> {
+
+    fn q_all_dim(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+    ) -> BoolTensor<TrackingBackend> {
         InnerBackend::q_all_dim(tensor, dim)
     }
-    
-    fn q_sort(tensor: QuantizedTensor<TrackingBackend>, dim: usize, descending: bool) -> QuantizedTensor<TrackingBackend> {
+
+    fn q_sort(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> QuantizedTensor<TrackingBackend> {
         InnerBackend::q_sort(tensor, dim, descending)
     }
-    
+
     fn q_sort_with_indices(
         tensor: QuantizedTensor<TrackingBackend>,
         dim: usize,
@@ -2322,8 +2653,12 @@ impl QTensorOps<TrackingBackend> for TrackingBackend {
     ) -> (QuantizedTensor<TrackingBackend>, IntTensor<TrackingBackend>) {
         InnerBackend::q_sort_with_indices(tensor, dim, descending)
     }
-    
-    fn q_argsort(tensor: QuantizedTensor<TrackingBackend>, dim: usize, descending: bool) -> IntTensor<TrackingBackend> {
+
+    fn q_argsort(
+        tensor: QuantizedTensor<TrackingBackend>,
+        dim: usize,
+        descending: bool,
+    ) -> IntTensor<TrackingBackend> {
         InnerBackend::q_argsort(tensor, dim, descending)
     }
 }
