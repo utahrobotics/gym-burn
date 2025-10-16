@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = [ "general-dataset", "general-dataset-tools", "general-models", "proximo", "utils", "waffle"]
+members = [ "general-dataset", "general-dataset-tools", "general-models", "proximo", "tracking-backend", "utils", "waffle"]
 exclude = ["proximo-rerun"]
 
 [workspace.dependencies]

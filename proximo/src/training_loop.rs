@@ -83,7 +83,8 @@ pub fn train_epoch<B, M, Row, Item>(
     rng: &mut (impl Rng + Send),
     _device: &B::Device,
     mut post_batch: impl FnMut(Tensor<B, 1>, f64) -> bool + Send,
-) -> M where
+) -> M
+where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,

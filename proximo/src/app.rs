@@ -2,7 +2,11 @@ use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
-    backend::Autodiff, module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay}, nn::loss::MseLoss, prelude::Backend, record::CompactRecorder
+    backend::Autodiff,
+    module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
+    nn::loss::MseLoss,
+    prelude::Backend,
+    record::CompactRecorder,
 };
 use clap::{Parser, Subcommand};
 use general_dataset::{
@@ -37,7 +41,9 @@ use crate::{
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlanConfig, ApplyGradients, autoencoder::AutoEncoderModelPlanConfig, image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig}
+            AdHocTrainingPlanConfig, ApplyGradients,
+            autoencoder::AutoEncoderModelPlanConfig,
+            image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
         },
     },
     training_loop::{train_epoch, validate_model},
@@ -159,10 +165,12 @@ pub fn train() {
             .expect("Expected model.txt to be writable in artifact dir");
 
             let grads_plan: TrainingGradsPlan<
-                AdHocTrainingPlanConfig<AutoEncoderModelPlanConfig<
-                    Conv2dLinearModelPlanConfig,
-                    LinearConvTranspose2dModelPlanConfig,
-                >>,
+                AdHocTrainingPlanConfig<
+                    AutoEncoderModelPlanConfig<
+                        Conv2dLinearModelPlanConfig,
+                        LinearConvTranspose2dModelPlanConfig,
+                    >,
+                >,
             > = parse_json_file("training").expect("Expected valid training.json");
             let mut grads_plan = AdHocLossModel::<_, ()>::config_to_plan(grads_plan.grads_plan);
 
@@ -189,12 +197,11 @@ pub fn train() {
 
                 let mut trainable_model = AdHocLossModel::new(
                     model,
-                    |model: &AutodiffModel,
-                        item: AutoEncoderImageBatch<AutodiffBackend>| {
+                    |model: &AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
                         MseLoss::new().forward(
                             model.train(item.input),
                             item.expected,
-                            burn::nn::loss::Reduction::Auto
+                            burn::nn::loss::Reduction::Auto,
                         )
                         // bce_float_loss(
                         //     model.train(item.input),

@@ -10,14 +10,17 @@ pub trait TrainableModel<B: AutodiffBackend, I> {
     fn batch_train(&mut self, batch: I) -> Tensor<B, 1>;
 }
 
-pub struct AdHocLossModel<M, F=()> {
+pub struct AdHocLossModel<M, F = ()> {
     model: Option<M>,
     f: F,
 }
 
 impl<M, F> AdHocLossModel<M, F> {
     pub fn new(model: M, f: F) -> Self {
-        Self { model: Some(model), f }
+        Self {
+            model: Some(model),
+            f,
+        }
     }
 
     pub fn unwrap(self) -> M {

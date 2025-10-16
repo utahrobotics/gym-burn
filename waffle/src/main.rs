@@ -1,9 +1,18 @@
 use std::{io::Cursor, num::NonZeroUsize, path::PathBuf, time::SystemTime};
 
 use burn::{
-    Tensor, backend::Autodiff, data::dataloader::DataLoaderBuilder, module::Module, nn::loss::{MseLoss, Reduction}, optim::AdamConfig, prelude::Backend, record::CompactRecorder, tensor::backend::AutodiffBackend, train::{
+    Tensor,
+    backend::Autodiff,
+    data::dataloader::DataLoaderBuilder,
+    module::Module,
+    nn::loss::{MseLoss, Reduction},
+    optim::AdamConfig,
+    prelude::Backend,
+    record::CompactRecorder,
+    tensor::backend::AutodiffBackend,
+    train::{
         LearnerBuilder, RegressionOutput, TrainOutput, TrainStep, ValidStep, metric::LossMetric,
-    }
+    },
 };
 use general_dataset::{
     SqliteDataset, SqliteDatasetConfig, StatefulBatcher,
@@ -55,7 +64,8 @@ pub fn bce_float_loss<B: Backend, const D: usize>(
 ) -> Tensor<B, 1> {
     actual = actual.clamp(EPSILON, 1.0 - EPSILON);
     // let loss = expected.clone() * actual.clone().log() + (Tensor::ones(expected.shape(), &expected.device()) - expected) * (Tensor::ones(actual.shape(), &actual.device()) - actual).log();
-    let loss = (expected.clone() - 1) * actual.clone().neg().log1p().clamp_min(-100.0) - expected * actual.log().clamp_min(-100.0);
+    let loss = (expected.clone() - 1) * actual.clone().neg().log1p().clamp_min(-100.0)
+        - expected * actual.log().clamp_min(-100.0);
     loss.mean()
 }
 

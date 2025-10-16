@@ -2,7 +2,10 @@ use burn::{module::AutodiffModule, optim::GradientsParams, tensor::backend::Auto
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use utils::default_f;
 
-use crate::trainable_models::{AdHocLossModel, apply_gradients::optimizer::{Optimizer, OptimizerConfig}};
+use crate::trainable_models::{
+    AdHocLossModel,
+    apply_gradients::optimizer::{Optimizer, OptimizerConfig},
+};
 
 pub mod lr_scheduler;
 pub mod optimizer;
@@ -45,16 +48,18 @@ impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyGradients<B> for &mut M {
 
 pub struct AdHocTrainingPlan<B: AutodiffBackend, M: ApplyGradients<B> + AutodiffModule<B>> {
     default_optimizer: Optimizer<B, M>,
-    plan: Option<M::Plan>
+    plan: Option<M::Plan>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdHocTrainingPlanConfig<P> {
     pub default_optimizer: OptimizerConfig,
-    pub plan: Option<P>
+    pub plan: Option<P>,
 }
 
-impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradients<B> for AdHocLossModel<M, F> {
+impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradients<B>
+    for AdHocLossModel<M, F>
+{
     type Plan = AdHocTrainingPlan<B, M>;
     type PlanConfig = AdHocTrainingPlanConfig<M::PlanConfig>;
 
@@ -72,10 +77,16 @@ impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradi
         plan: &mut Self::Plan,
     ) {
         if let Some(plan) = &mut plan.plan {
-            self.model.as_mut().unwrap().apply_gradients(lr, grads, plan);
+            self.model
+                .as_mut()
+                .unwrap()
+                .apply_gradients(lr, grads, plan);
         }
         let grads = GradientsParams::from_module(grads, self.model.as_ref().unwrap());
-        self.model = Some(plan.default_optimizer.step(lr, self.model.take().unwrap(), grads));
+        self.model = Some(
+            plan.default_optimizer
+                .step(lr, self.model.take().unwrap(), grads),
+        );
     }
 }
 

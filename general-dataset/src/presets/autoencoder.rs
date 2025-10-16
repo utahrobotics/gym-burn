@@ -71,14 +71,10 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
                 };
                 // assert!(data.iter().all(|x| *x <= 1.0), "{:?}", data);
                 // assert!(data.iter().all(|x| *x >= 0.0), "{:?}", data);
-                Tensor::<B, 1>::from_data(data.as_slice(), &self.device).reshape([
-                    1,
-                    self.channels,
-                    item.input_width,
-                    item.input_height,
-                ])
-                .clamp(0.0, 1.0)
-                .detach()
+                Tensor::<B, 1>::from_data(data.as_slice(), &self.device)
+                    .reshape([1, self.channels, item.input_width, item.input_height])
+                    .clamp(0.0, 1.0)
+                    .detach()
             }};
         }
         join(
