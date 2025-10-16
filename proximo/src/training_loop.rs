@@ -106,7 +106,7 @@ pub fn train_epoch<B, M, Row, Item>(
     let mut last_results = None;
 
     for next_index in block_indices {
-        let ((next_batch, end), (loss, lr, tmp)) = join(
+        let ((next_batch, end), (loss, lr, tmp_model)) = join(
             || {
                 join(
                     || dataset.query(next_index, batch_size, rng, &mut *batcher),
@@ -129,7 +129,7 @@ pub fn train_epoch<B, M, Row, Item>(
                 (loss, lr, model)
             },
         );
-        model = tmp;
+        model = tmp_model;
         last_results = Some((loss, lr));
         batch = next_batch;
         if end {

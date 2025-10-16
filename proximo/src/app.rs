@@ -192,12 +192,14 @@ pub fn train() {
                     |model: &AutodiffModel,
                         item: AutoEncoderImageBatch<AutodiffBackend>| {
                         MseLoss::new().forward(
-                            item.expected,
                             model.train(item.input),
+                            item.expected,
                             burn::nn::loss::Reduction::Auto
-                            // 1.0,
-                            // 0.1
                         )
+                        // bce_float_loss(
+                        //     model.train(item.input),
+                        //     item.expected,
+                        // )
                     },
                 );
 

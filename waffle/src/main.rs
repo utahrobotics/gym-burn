@@ -54,8 +54,9 @@ pub fn bce_float_loss<B: Backend, const D: usize>(
     mut actual: Tensor<B, D>,
 ) -> Tensor<B, 1> {
     actual = actual.clamp(EPSILON, 1.0 - EPSILON);
-    let loss = expected.clone() * actual.clone().log() + (-expected + 1.0) * (-actual + 1.0).log();
-    -loss.mean()
+    // let loss = expected.clone() * actual.clone().log() + (Tensor::ones(expected.shape(), &expected.device()) - expected) * (Tensor::ones(actual.shape(), &actual.device()) - actual).log();
+    let loss = (expected.clone() - 1) * actual.clone().neg().log1p().clamp_min(-100.0) - expected * actual.log().clamp_min(-100.0);
+    loss.mean()
 }
 
 impl<B: AutodiffBackend> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>> for Trainable<B> {
@@ -65,6 +66,7 @@ impl<B: AutodiffBackend> TrainStep<AutoEncoderImageBatch<B>, RegressionOutput<B>
         let expected = batch.expected.flatten(1, 3);
         let item = RegressionOutput::new(
             // bce_float_loss(actual.clone(), expected.clone()),
+            // bce_float_loss(expected.clone(), actual.clone()),
             MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Auto),
             actual,
             expected,
@@ -81,6 +83,7 @@ impl<B: Backend> ValidStep<AutoEncoderImageBatch<B>, RegressionOutput<B>> for Tr
         let expected = batch.expected.flatten(1, 3);
         let item = RegressionOutput::new(
             // bce_float_loss(actual.clone(), expected.clone()),
+            // bce_float_loss(expected.clone(), actual.clone()),
             MseLoss::new().forward(actual.clone(), expected.clone(), Reduction::Auto),
             actual,
             expected,
@@ -137,7 +140,7 @@ fn main() {
     }))
     .batch_size(training_config.batch_size)
     .shuffle(seed)
-    .num_workers(4)
+    .num_workers(2)
     .build(SqliteBurnDataset::new(
         training_dataset,
         &TRAINING_CACHE,
@@ -149,7 +152,7 @@ fn main() {
     }))
     .batch_size(training_config.batch_size)
     .shuffle(seed)
-    .num_workers(4)
+    .num_workers(2)
     .build(SqliteBurnDataset::new(
         testing_dataset,
         &TESTING_CACHE,
