@@ -36,7 +36,7 @@ use utils::parse_json_file;
 use crate::{
     app::{
         config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
-        loss::{bce_float_loss, bce_with_energy_loss},
+        loss::bce_float_loss,
     },
     trainable_models::{
         AdHocLossModel,
@@ -116,6 +116,9 @@ pub fn train() {
 
     let artifact_dir = training_config.artifact_dir.join(secs.to_string());
     std::fs::create_dir_all(&artifact_dir).expect("Expected artifact dir to be creatable");
+
+    #[cfg(feature = "tracking-backend")]
+    tracking_backend::set_artifact_dir(artifact_dir.clone());
 
     let mut training_dataset: SqliteDataset = training_config
         .training_dataset
@@ -412,6 +415,9 @@ pub fn train() {
         }
         ModelType::ImageVariationalAutoEncoder => todo!(),
     }
+
+    #[cfg(feature = "tracking-backend")]
+    tracking_backend::wait_until_paused();
 }
 
 pub fn main() {

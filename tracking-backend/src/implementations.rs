@@ -47,6 +47,12 @@ use burn::tensor::ops::BoolTensor;
 use burn::prelude::Shape;
 
 use burn::tensor::ops::BoolTensorOps;
+use serde_json::Value;
+use serde_json::json;
+
+use crate::tracking::hash_tensor;
+use crate::tracking::start_tracking_tensor;
+use crate::tracking::start_tracking_tensor_raw;
 
 use super::InnerBackend;
 
@@ -947,7 +953,8 @@ impl ActivationOps<TrackingBackend> for TrackingBackend {
     }
 
     fn gelu(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
-        InnerBackend::gelu(tensor)
+        let builder = start_tracking_tensor(&tensor, "gelu", Value::Null);
+        builder.finish(InnerBackend::gelu(tensor))
     }
 
     fn prelu(
@@ -1002,7 +1009,14 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         bias: Option<FloatTensor<TrackingBackend>>,
         options: ConvOptions<2>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerBackend::conv2d(x, weight, bias, options)
+        let builder = start_tracking_tensor(&x, "conv2d", json!({
+            "weight_shape": weight.shape,
+            "stride": options.stride,
+            "padding": options.padding,
+            "dilation": options.dilation,
+            "groups": options.groups
+        }));
+        builder.finish(InnerBackend::conv2d(x, weight, bias, options))
     }
 
     fn deform_conv2d(
@@ -1058,7 +1072,15 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         bias: Option<FloatTensor<TrackingBackend>>,
         options: ConvTransposeOptions<2>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerBackend::conv_transpose2d(x, weight, bias, options)
+        let builder = start_tracking_tensor(&x, "conv_transpose2d", json!({
+            "weight_shape": weight.shape,
+            "stride": options.stride,
+            "padding": options.padding,
+            "padding_out": options.padding_out,
+            "dilation": options.dilation,
+            "groups": options.groups
+        }));
+        builder.finish(InnerBackend::conv_transpose2d(x, weight, bias, options))
     }
 
     fn conv_transpose3d(
@@ -1095,7 +1117,10 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         x: FloatTensor<TrackingBackend>,
         output_size: [usize; 2],
     ) -> FloatTensor<TrackingBackend> {
-        InnerBackend::adaptive_avg_pool2d(x, output_size)
+        let builder = start_tracking_tensor(&x, "adaptive_avg_pool2d", json!({
+            "output_size": output_size,
+        }));
+        builder.finish(InnerBackend::adaptive_avg_pool2d(x, output_size))
     }
 
     fn adaptive_avg_pool2d_backward(
@@ -1454,7 +1479,11 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         weight: FloatTensor<TrackingBackend>,
         bias: Option<FloatTensor<TrackingBackend>>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerBackend::linear(input, weight, bias)
+        let builder = start_tracking_tensor(&input, "linear", json!({
+            "weight_shape": weight.shape.as_slice(),
+        }));
+        let tmp = builder.finish(InnerBackend::linear(input, weight, bias));
+        tmp
     }
 }
 
@@ -2020,7 +2049,13 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         tensors: Vec<FloatTensor<TrackingBackend>>,
         dim: usize,
     ) -> FloatTensor<TrackingBackend> {
-        InnerBackend::float_cat(tensors, dim)
+        let hashes: Vec<_> = tensors.iter().map(|tensor| hash_tensor(tensor)).collect();
+        let out = InnerBackend::float_cat(tensors, dim);
+        let out_hash = hash_tensor(&out);
+        for hash in hashes {
+            start_tracking_tensor_raw(hash, "float_cat", Value::Null).finish_raw(out_hash);
+        }
+        out
     }
 
     fn float_max(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {

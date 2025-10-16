@@ -2531,7 +2531,6 @@ dependencies = [
  "rayon",
  "rusqlite",
  "serde",
- "serde_json",
  "sha2",
  "utils",
 ]
@@ -5814,6 +5813,10 @@ name = "tracking-backend"
 version = "0.1.0"
 dependencies = [
  "burn",
+ "crossbeam",
+ "rusqlite",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
