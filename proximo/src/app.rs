@@ -83,8 +83,11 @@ pub fn train() {
     })
     .expect("Error setting Ctrl-C handler");
 
-    #[cfg(feature = "wgpu")]
+    #[cfg(all(feature = "wgpu", not(feature = "tracking-backend")))]
     type Backend = general_models::wgpu::WgpuBackend;
+
+    #[cfg(feature = "tracking-backend")]
+    type Backend = tracking_backend::TrackingBackend;
 
     #[cfg(feature = "rocm")]
     type Backend = general_models::rocm::RocmBackend;

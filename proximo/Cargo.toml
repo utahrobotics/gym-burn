@@ -21,6 +21,7 @@ tracing-subscriber = { version = "0.3.20", optional = true }
 tracing = { version = "0.1.41", optional = true }
 base64.workspace = true
 dhat = { version = "0.3.3", optional = true }
+tracking-backend = { path = "../tracking-backend", optional = true }
 ctrlc = "3.5.0"
 # delegate = "0.13.4"
 # derive_more = "2.0.1"
@@ -29,6 +30,7 @@ ctrlc = "3.5.0"
 wgpu = ["general-models/wgpu"]
 rocm = ["general-models/rocm"]
 cuda = ["general-models/cuda"]
+tracking-backend = ["wgpu", "dep:tracking-backend"]
 app = ["clap", "tracing-subscriber", "serde_json", "quanta", "image", "tracing"]
 default = ["app", "wgpu"]
 accelerate = ["general-models/accelerate"]

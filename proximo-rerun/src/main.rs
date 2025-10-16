@@ -105,7 +105,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             break;
         }
         // println!("{}", String::from_utf8_lossy(&buf));
-        let event: Event = serde_json::from_slice(&buf).unwrap();
+        let event: Event = match serde_json::from_slice(&buf) {
+            Ok(x) => x,
+            Err(e) => {
+                panic!("Payload: {:?}\n{e}", String::from_utf8_lossy(&buf));
+            }
+        };
         record(&viz, &event);
         record(&save, &event);
         buf.clear();
