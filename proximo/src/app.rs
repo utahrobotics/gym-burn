@@ -87,7 +87,9 @@ pub fn train() {
     type Backend = general_models::wgpu::WgpuBackend;
 
     #[cfg(feature = "tracking-backend")]
-    type Backend = tracking_backend::TrackingBackend;
+    type AutodiffBackend = tracking_backend::TrackingBackend;
+    #[cfg(feature = "tracking-backend")]
+    type Backend = <tracking_backend::TrackingBackend as burn::tensor::backend::AutodiffBackend>::InnerBackend;
 
     #[cfg(feature = "rocm")]
     type Backend = general_models::rocm::RocmBackend;
@@ -95,6 +97,7 @@ pub fn train() {
     #[cfg(feature = "cuda")]
     type Backend = general_models::cuda::CudaBackend;
 
+    #[cfg(not(feature = "tracking-backend"))]
     type AutodiffBackend = Autodiff<Backend>;
 
     #[cfg(feature = "wgpu")]

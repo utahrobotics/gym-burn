@@ -20,6 +20,7 @@ pub struct LinearModel<B: Backend> {
 
 impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
     fn forward(&self, mut tensor: burn::Tensor<B, 2>) -> burn::Tensor<B, 2> {
+        println!("C");
         for (i, (linear, norm, activation)) in self.layers.iter().enumerate() {
             tensor = linear.forward(tensor);
             if let Some(norm) = norm {
@@ -32,6 +33,7 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
                 tensor = self.dropout.forward(tensor);
             }
         }
+        println!("D");
         tensor
     }
 }
