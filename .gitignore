@@ -33,3 +33,6 @@ inference.webp
 **/slurmjob-*
 
 dhat-heap*.json
+
+/tensor_graph.txt
+/tensor_requirements.txt

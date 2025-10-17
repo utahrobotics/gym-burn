@@ -1526,9 +1526,7 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
                 "weight_shape": weight.primitive.shape.as_slice(),
             }),
         );
-        println!("A");
         let tmp = builder.finish(InnerAutodiffBackend::linear(input, weight, bias));
-        println!("B");
         tmp
     }
 }
@@ -1589,14 +1587,22 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         lhs: FloatTensor<TrackingBackend>,
         rhs: FloatElem<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_add_scalar(lhs, rhs)
+        let builder = start_tracking_tensor(&lhs, "float_add_scalar", json!({ "rhs": rhs }));
+        builder.finish(InnerAutodiffBackend::float_add_scalar(lhs, rhs))
     }
 
     fn float_sub(
         lhs: FloatTensor<TrackingBackend>,
         rhs: FloatTensor<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_sub(lhs, rhs)
+        let builders: Vec<_> = [&lhs, &rhs]
+            .into_iter()
+            .map(|tensor| start_tracking_tensor(tensor, "float_sub", Value::Null))
+            .collect();
+        let out = InnerAutodiffBackend::float_sub(lhs, rhs);
+        let to_hash = hash_tensor(&out);
+        finish_iter(builders, Some(to_hash));
+        out
     }
 
     fn float_sub_scalar(
@@ -1610,21 +1616,36 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         lhs: FloatTensor<TrackingBackend>,
         rhs: FloatTensor<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_mul(lhs, rhs)
+        let builders: Vec<_> = [&lhs, &rhs]
+            .into_iter()
+            .map(|tensor| start_tracking_tensor(tensor, "float_mul", Value::Null))
+            .collect();
+        let out = InnerAutodiffBackend::float_mul(lhs, rhs);
+        let to_hash = hash_tensor(&out);
+        finish_iter(builders, Some(to_hash));
+        out
     }
 
     fn float_mul_scalar(
         lhs: FloatTensor<TrackingBackend>,
         rhs: FloatElem<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_mul_scalar(lhs, rhs)
+        let builder = start_tracking_tensor(&lhs, "float_mul_scalar", json!({ "rhs": rhs }));
+        builder.finish(InnerAutodiffBackend::float_mul_scalar(lhs, rhs))
     }
 
     fn float_div(
         lhs: FloatTensor<TrackingBackend>,
         rhs: FloatTensor<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_div(lhs, rhs)
+        let builders: Vec<_> = [&lhs, &rhs]
+            .into_iter()
+            .map(|tensor| start_tracking_tensor(tensor, "float_div", Value::Null))
+            .collect();
+        let out = InnerAutodiffBackend::float_div(lhs, rhs);
+        let to_hash = hash_tensor(&out);
+        finish_iter(builders, Some(to_hash));
+        out
     }
 
     fn float_div_scalar(
@@ -1672,7 +1693,8 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         dim1: usize,
         dim2: usize,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_swap_dims(tensor, dim1, dim2)
+        let builder = start_tracking_tensor(&tensor, "float_swap_dims", json!({ "dim1": dim1, "dim2": dim2 }));
+        builder.finish(InnerAutodiffBackend::float_swap_dims(tensor, dim1, dim2))
     }
 
     fn float_permute(
@@ -1693,7 +1715,8 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         tensor: FloatTensor<TrackingBackend>,
         shape: Shape,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_reshape(tensor, shape)
+        let builder = start_tracking_tensor(&tensor, "float_reshape", json!({ "shape": shape.as_slice() }));
+        builder.finish(InnerAutodiffBackend::float_reshape(tensor, shape))
     }
 
     fn float_gather(
@@ -1846,7 +1869,8 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         tensor: FloatTensor<TrackingBackend>,
         dim: usize,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_mean_dim(tensor, dim)
+        let builder = start_tracking_tensor(&tensor, "float_mean_dim", json!({ "dim": dim }));
+        builder.finish(InnerAutodiffBackend::float_mean_dim(tensor, dim))
     }
 
     fn float_cumsum(
@@ -1890,7 +1914,8 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
     }
 
     fn float_sqrt(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_sqrt(tensor)
+        let builder = start_tracking_tensor(&tensor, "float_sqrt", Value::Null);
+        builder.finish(InnerAutodiffBackend::float_sqrt(tensor))
     }
 
     fn float_abs(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {
@@ -2072,7 +2097,8 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         lhs: FloatTensor<TrackingBackend>,
         rhs: IntElem<TrackingBackend>,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::float_powi_scalar(lhs, rhs)
+        let builder = start_tracking_tensor(&lhs, "float_powi_scalar", json!({ "powi": rhs }));
+        builder.finish(InnerAutodiffBackend::float_powi_scalar(lhs, rhs))
     }
 
     fn float_tan(tensor: FloatTensor<TrackingBackend>) -> FloatTensor<TrackingBackend> {

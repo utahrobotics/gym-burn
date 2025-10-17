@@ -57,11 +57,9 @@ pub struct Config {
     preset: ProcessStdinPreset,
 }
 
-fn hex_hash(bytes: &[u8]) -> String {
+fn hash(bytes: &[u8]) -> [u8; 32] {
     let hash = sha2::Sha256::digest(bytes);
-    let mut hex_out = vec![0u8; 64];
-    hex::encode_to_slice(hash, &mut hex_out).unwrap();
-    String::from_utf8(hex_out).unwrap()
+    hash.try_into().unwrap()
 }
 
 fn main() {
@@ -144,7 +142,7 @@ fn main() {
                         "INSERT OR IGNORE INTO {table_name} (input, expected) 
                             SELECT i1.row_id, i2.row_id 
                             FROM images i1, images i2 
-                            WHERE i1.sha256hex = ? AND i2.sha256hex = ?"
+                            WHERE i1.sha256hex = HEX(?) AND i2.sha256hex = HEX(?)"
                     ))
                     .unwrap();
 
@@ -154,20 +152,20 @@ fn main() {
                             SELECT i1.row_id, i2.row_id 
                             FROM images i1, images i2 
                             WHERE
-                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
-                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
-                                (i1.sha256hex = ? AND i2.sha256hex = ?) OR
-                                (i1.sha256hex = ? AND i2.sha256hex = ?)"
+                                (i1.sha256hex = HEX(?) AND i2.sha256hex = HEX(?)) OR
+                                (i1.sha256hex = HEX(?) AND i2.sha256hex = HEX(?)) OR
+                                (i1.sha256hex = HEX(?) AND i2.sha256hex = HEX(?)) OR
+                                (i1.sha256hex = HEX(?) AND i2.sha256hex = HEX(?))"
                     ))
                     .unwrap();
 
                 let mut images = VecDeque::new();
                 let mut pairs = VecDeque::new();
                 while let Ok((width, height, original, noisies)) = receiver.recv() {
-                    let original_hash = Rc::new(hex_hash(&original));
+                    let original_hash = Rc::new(hash(&original));
                     images.push_back((width, height, original, original_hash.clone()));
                     for noisy in noisies {
-                        let noisy_hash = Rc::new(hex_hash(&noisy));
+                        let noisy_hash = Rc::new(hash(&noisy));
                         pairs.push_back((original_hash.clone(), noisy_hash.clone()));
                         images.push_back((width, height, noisy, noisy_hash));
                     }

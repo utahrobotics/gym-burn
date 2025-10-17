@@ -2,7 +2,6 @@ use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime
 
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
-    backend::Autodiff,
     module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
     nn::loss::MseLoss,
     prelude::Backend,
@@ -99,7 +98,7 @@ pub fn train() {
     type Backend = general_models::cuda::CudaBackend;
 
     #[cfg(not(feature = "tracking-backend"))]
-    type AutodiffBackend = Autodiff<Backend>;
+    type AutodiffBackend = burn::backend::Autodiff<Backend>;
 
     #[cfg(feature = "wgpu")]
     let device = general_models::wgpu::get_device();
