@@ -1,4 +1,7 @@
-use burn::tensor::{backend::AutodiffBackend, ops::{BoolTensor, FloatTensor, IntTensor, QuantizedTensor}};
+use burn::tensor::{
+    backend::AutodiffBackend,
+    ops::{BoolTensor, FloatTensor, IntTensor, QuantizedTensor},
+};
 
 use crate::{InnerAutodiffBackend, InnerBackend, TrackingBackend};
 

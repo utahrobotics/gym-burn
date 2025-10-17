@@ -1011,13 +1011,17 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         bias: Option<FloatTensor<TrackingBackend>>,
         options: ConvOptions<2>,
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&x, "conv2d", json!({
-            "weight_shape": weight.primitive.shape,
-            "stride": options.stride,
-            "padding": options.padding,
-            "dilation": options.dilation,
-            "groups": options.groups
-        }));
+        let builder = start_tracking_tensor(
+            &x,
+            "conv2d",
+            json!({
+                "weight_shape": weight.primitive.shape,
+                "stride": options.stride,
+                "padding": options.padding,
+                "dilation": options.dilation,
+                "groups": options.groups
+            }),
+        );
         builder.finish(InnerAutodiffBackend::conv2d(x, weight, bias, options))
     }
 
@@ -1074,15 +1078,21 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         bias: Option<FloatTensor<TrackingBackend>>,
         options: ConvTransposeOptions<2>,
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&x, "conv_transpose2d", json!({
-            "weight_shape": weight.primitive.shape,
-            "stride": options.stride,
-            "padding": options.padding,
-            "padding_out": options.padding_out,
-            "dilation": options.dilation,
-            "groups": options.groups
-        }));
-        builder.finish(InnerAutodiffBackend::conv_transpose2d(x, weight, bias, options))
+        let builder = start_tracking_tensor(
+            &x,
+            "conv_transpose2d",
+            json!({
+                "weight_shape": weight.primitive.shape,
+                "stride": options.stride,
+                "padding": options.padding,
+                "padding_out": options.padding_out,
+                "dilation": options.dilation,
+                "groups": options.groups
+            }),
+        );
+        builder.finish(InnerAutodiffBackend::conv_transpose2d(
+            x, weight, bias, options,
+        ))
     }
 
     fn conv_transpose3d(
@@ -1112,16 +1122,27 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: [usize; 2],
         count_include_pad: bool,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::avg_pool2d_backward(x, grad, kernel_size, stride, padding, count_include_pad)
+        InnerAutodiffBackend::avg_pool2d_backward(
+            x,
+            grad,
+            kernel_size,
+            stride,
+            padding,
+            count_include_pad,
+        )
     }
 
     fn adaptive_avg_pool2d(
         x: FloatTensor<TrackingBackend>,
         output_size: [usize; 2],
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&x, "adaptive_avg_pool2d", json!({
-            "output_size": output_size,
-        }));
+        let builder = start_tracking_tensor(
+            &x,
+            "adaptive_avg_pool2d",
+            json!({
+                "output_size": output_size,
+            }),
+        );
         builder.finish(InnerAutodiffBackend::adaptive_avg_pool2d(x, output_size))
     }
 
@@ -1149,8 +1170,13 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: [usize; 2],
         dilation: [usize; 2],
     ) -> MaxPool2dWithIndices<TrackingBackend> {
-        let result =
-            InnerAutodiffBackend::max_pool2d_with_indices(x, kernel_size, stride, padding, dilation);
+        let result = InnerAutodiffBackend::max_pool2d_with_indices(
+            x,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        );
         MaxPool2dWithIndices {
             output: result.output,
             indices: result.indices,
@@ -1411,7 +1437,14 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: usize,
         count_include_pad: bool,
     ) -> FloatTensor<TrackingBackend> {
-        InnerAutodiffBackend::avg_pool1d_backward(x, grad, kernel_size, stride, padding, count_include_pad)
+        InnerAutodiffBackend::avg_pool1d_backward(
+            x,
+            grad,
+            kernel_size,
+            stride,
+            padding,
+            count_include_pad,
+        )
     }
 
     fn adaptive_avg_pool1d(
@@ -1445,8 +1478,13 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         padding: usize,
         dilation: usize,
     ) -> burn::tensor::ops::MaxPool1dWithIndices<TrackingBackend> {
-        let result =
-            InnerAutodiffBackend::max_pool1d_with_indices(x, kernel_size, stride, padding, dilation);
+        let result = InnerAutodiffBackend::max_pool1d_with_indices(
+            x,
+            kernel_size,
+            stride,
+            padding,
+            dilation,
+        );
         burn::tensor::ops::MaxPool1dWithIndices {
             output: result.output,
             indices: result.indices,
@@ -1481,9 +1519,13 @@ impl ModuleOps<TrackingBackend> for TrackingBackend {
         weight: FloatTensor<TrackingBackend>,
         bias: Option<FloatTensor<TrackingBackend>>,
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&input, "linear", json!({
-            "weight_shape": weight.primitive.shape.as_slice(),
-        }));
+        let builder = start_tracking_tensor(
+            &input,
+            "linear",
+            json!({
+                "weight_shape": weight.primitive.shape.as_slice(),
+            }),
+        );
         println!("A");
         let tmp = builder.finish(InnerAutodiffBackend::linear(input, weight, bias));
         println!("B");
@@ -2053,7 +2095,10 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         tensors: Vec<FloatTensor<TrackingBackend>>,
         dim: usize,
     ) -> FloatTensor<TrackingBackend> {
-        let builders: Vec<_> = tensors.iter().map(|tensor| start_tracking_tensor(tensor, "float_cat", Value::Null)).collect();
+        let builders: Vec<_> = tensors
+            .iter()
+            .map(|tensor| start_tracking_tensor(tensor, "float_cat", Value::Null))
+            .collect();
         let out = InnerAutodiffBackend::float_cat(tensors, dim);
         let to_hash = hash_tensor(&out);
         finish_iter(builders, Some(to_hash));
