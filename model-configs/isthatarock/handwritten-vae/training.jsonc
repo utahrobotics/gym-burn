@@ -22,10 +22,19 @@
     "grads_plan": {
         "plan": {
             "encoder": {
-                "conv": {
+                "kld_weight": 0.1,
+                "model": {
+                    "conv": {
+                        "weights_optim": { "adam": {} }
+                    },
+                    "linear": {
+                        "weights_optim": { "adam": {} }
+                    }
+                },
+                "mean": {
                     "weights_optim": { "adam": {} }
                 },
-                "linear": {
+                "logvar": {
                     "weights_optim": { "adam": {} }
                 }
             },

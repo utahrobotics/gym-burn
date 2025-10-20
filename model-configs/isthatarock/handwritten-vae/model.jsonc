@@ -30,21 +30,21 @@
             }
         },
         "mean": {
-            "input_size": 16,
+            "input_size": 64,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
-                64,
+                48,
                 [32, "none"]
             ]
             // "dropout": 0.3
         },
         "logvar": {
-            "input_size": 16,
+            "input_size": 64,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
-                64,
+                48,
                 [32, "none"]
             ]
             // "dropout": 0.3
