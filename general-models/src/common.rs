@@ -41,7 +41,7 @@ impl<B: Backend, const D: usize> SimpleInfer<B, D, D> for Norm<B> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum NormConfig {
     BatchNorm {
@@ -71,11 +71,13 @@ pub enum NormConfig {
         #[serde(default = "default_affine")]
         affine: bool,
     },
+    #[default]
+    None
 }
 
 impl NormConfig {
-    pub fn init<B: Backend>(self, device: &B::Device, input_size: usize) -> Norm<B> {
-        match self {
+    pub fn init<B: Backend>(self, device: &B::Device, input_size: usize) -> Option<Norm<B>> {
+        Some(match self {
             NormConfig::BatchNorm { epsilon, momentum } => Norm::BatchNorm(
                 BatchNormConfig {
                     num_features: input_size,
@@ -119,7 +121,8 @@ impl NormConfig {
                 }
                 .init(device),
             ),
-        }
+            NormConfig::None => return None,
+        })
     }
 }
 

@@ -1,11 +1,9 @@
 use burn::{
-    module::{Ignored, Module},
-    nn::{
+    module::{Ignored, Module}, nn::{
         Dropout, DropoutConfig, PaddingConfig2d,
         activation::Activation,
         conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
-    },
-    prelude::*,
+    }, prelude::*
 };
 use serde::{Deserialize, Serialize};
 use utils::default_f;
@@ -20,6 +18,7 @@ pub struct Conv2dModel<B: Backend> {
     input_channels: Ignored<usize>,
     layers: Vec<(Conv2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
+    dropout_last: bool
 }
 
 impl<B: Backend> Conv2dModel<B> {
@@ -52,7 +51,7 @@ impl<B: Backend> SimpleTrain<B, 4, 4> for Conv2dModel<B> {
             if let Some(activation) = activation {
                 tensor = activation.forward(tensor);
             }
-            if i < self.layers.len() - 1 {
+            if i < self.layers.len() - 1 || self.dropout_last {
                 tensor = self.dropout.forward(tensor);
             }
         }
@@ -96,6 +95,8 @@ pub struct Conv2dModelConfig {
     pub layers: Vec<Either<Conv2dLayerConfig, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
+    #[serde(default = "default_dropout_last")]
+    pub dropout_last: bool
 }
 
 impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
@@ -118,7 +119,8 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
         {
             let norm = norm
                 .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_channels));
+                .map(|norm| norm.init(device, output_channels))
+                .flatten();
             layers.push((
                 Conv2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
@@ -142,6 +144,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
             input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
+            dropout_last: self.dropout_last
         }
     }
 }
@@ -151,6 +154,7 @@ pub struct ConvTranspose2dModel<B: Backend> {
     input_channels: Ignored<usize>,
     layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
+    dropout_last: bool
 }
 
 impl<B: Backend> ConvTranspose2dModel<B> {
@@ -183,7 +187,7 @@ impl<B: Backend> SimpleTrain<B, 4, 4> for ConvTranspose2dModel<B> {
             if let Some(activation) = activation {
                 tensor = activation.forward(tensor);
             }
-            if i < self.layers.len() - 1 {
+            if i < self.layers.len() - 1 || self.dropout_last {
                 tensor = self.dropout.forward(tensor);
             }
         }
@@ -230,6 +234,8 @@ pub struct ConvTranspose2dModelConfig {
     pub layers: Vec<Either<ConvTranspose2dLayerConfig, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
+    #[serde(default = "default_dropout_last")]
+    pub dropout_last: bool
 }
 
 impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig {
@@ -253,7 +259,8 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
         {
             let norm = norm
                 .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_channels));
+                .map(|norm| norm.init(device, output_channels))
+                .flatten();
             layers.push((
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
@@ -274,6 +281,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
+            dropout_last: self.dropout_last
         }
     }
 }
@@ -281,4 +289,5 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
 default_f!(default_stride, [usize; 2], [1, 1]);
 default_f!(default_groups, usize, 1);
 default_f!(default_dropout, f64, 0.0);
+default_f!(default_dropout_last, bool, true);
 default_f!(default_padding, [usize; 2], [0, 0]);

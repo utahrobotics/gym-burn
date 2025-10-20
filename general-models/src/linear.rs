@@ -16,6 +16,7 @@ use crate::{
 pub struct LinearModel<B: Backend> {
     layers: Vec<(Linear<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
+    dropout_last: bool
 }
 
 impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
@@ -28,7 +29,7 @@ impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
             if let Some(activation) = activation {
                 tensor = activation.forward(tensor);
             }
-            if i < self.layers.len() - 1 {
+            if i < self.layers.len() - 1 || self.dropout_last {
                 tensor = self.dropout.forward(tensor);
             }
         }
@@ -74,6 +75,8 @@ pub struct LinearModelConfig {
     pub layers: Vec<Either<usize, ActivationConfig, NormConfig>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
+    #[serde(default = "default_dropout_last")]
+    pub dropout_last: bool
 }
 
 impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
@@ -84,7 +87,8 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
         for (output_size, activation, norm) in self.layers.into_iter().map(Either::into_tuple) {
             let norm = norm
                 .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_size));
+                .map(|norm| norm.init(device, output_size))
+                .flatten();
             layers.push((
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())
@@ -99,6 +103,7 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
         LinearModel {
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
+            dropout_last: self.dropout_last
         }
     }
 }
@@ -132,3 +137,4 @@ impl<B: Backend> Init<B, LinearClassifierModel<B>> for LinearClassifierModelConf
 }
 
 default_f!(default_dropout, f64, 0.0);
+default_f!(default_dropout_last, bool, true);

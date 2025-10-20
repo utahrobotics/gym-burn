@@ -5,7 +5,7 @@ use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
 use rayon::join;
 
-use crate::trainable_models::{TrainableModel, ValidatableModel, apply_gradients::ApplyGradients};
+use crate::trainable_models::{TrainableModel, ValidatableModel, apply_gradients::{ApplyAllGradients, ApplyGradients}};
 
 // pub mod presets;
 
@@ -88,7 +88,7 @@ where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item> + ApplyGradients<B>,
+    M: TrainableModel<B, Item> + ApplyAllGradients<B>,
     // M: TrainableModel<B, Item> + AutodiffModule<B>,
     Item: Send,
     M::Plan: Send,
@@ -122,11 +122,9 @@ where
             },
             || {
                 let loss = model.batch_train(batch);
-                let mut grads = loss.backward();
+                let grads = loss.backward();
                 let lr = lr_scheduler.step();
-                // let grads = burn::optim::GradientsParams::from_grads(grads, &model);
-                // let model = burn::optim::Optimizer::step(&mut optimizer, lr, model, grads);
-                model.apply_gradients(lr, &mut grads, grads_plan);
+                model.apply_all_gradients(lr, grads, grads_plan);
                 (loss, lr, model)
             },
         );
@@ -144,9 +142,9 @@ where
         },
         || {
             let loss = model.batch_train(batch);
-            let mut grads = loss.backward();
+            let grads = loss.backward();
             let lr = lr_scheduler.step();
-            model.apply_gradients(lr, &mut grads, grads_plan);
+            model.apply_all_gradients(lr, grads, grads_plan);
             (loss, lr)
         },
     );

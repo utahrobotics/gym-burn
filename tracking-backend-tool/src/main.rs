@@ -8,7 +8,7 @@ use rustc_hash::FxHashSet;
 struct Visitor {
     start_hash: Rc<str>,
     operations: Vec<Rc<str>>,
-    last_hash: String
+    last_hash: Rc<str>
 }
 
 #[derive(Eq)]
@@ -42,10 +42,12 @@ fn main() {
     }
 
     let mut queue = VecDeque::new();
+    let mut seen = FxHashSet::default();
     {
         let mut rows = stmt.query(()).unwrap();
         while let Some(float_cat_row) = rows.next().unwrap() {
-            let to_hash: String = float_cat_row.get_unwrap("to_hash");
+            let to_hash: Rc<str> = float_cat_row.get_unwrap("to_hash");
+            seen.insert(to_hash.clone());
             queue.push_back(Visitor {
                 start_hash: to_hash.clone().into(),
                 operations: vec![],
@@ -70,8 +72,11 @@ fn main() {
         let mut rows = stmt.query(params![visitor.last_hash]).unwrap();
         let mut empty = true;
         while let Some(row) = rows.next().unwrap() {
+            let to_hash: Rc<str> = row.get_unwrap("to_hash");
+            if !seen.insert(to_hash.clone()) {
+                continue;
+            }
             empty = false;
-            let to_hash: String = row.get_unwrap("to_hash");
             let operation: Rc<str> = row.get_unwrap("operation");
             let operation = if let Some(op) = string_interner.get(&operation) {
                 op.clone()

@@ -28,23 +28,66 @@ pub trait ApplyGradients<B: AutodiffBackend> {
     );
 }
 
-impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyGradients<B> for &mut M {
-    type Plan = M::Plan;
-    type PlanConfig = M::PlanConfig;
+pub trait ApplyAllGradients<B: AutodiffBackend> {
+    type Plan;
+    type PlanConfig: DeserializeOwned;
 
-    fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
-        M::config_to_plan(config)
-    }
-
-    fn apply_gradients(
+    fn config_to_plan(config: Self::PlanConfig) -> Self::Plan;
+    fn apply_all_gradients(
         &mut self,
         lr: f64,
-        grads: &mut <B as AutodiffBackend>::Gradients,
+        grads: <B as AutodiffBackend>::Gradients,
         plan: &mut Self::Plan,
-    ) {
-        <M as ApplyGradients<B>>::apply_gradients(self, lr, grads, plan);
-    }
+    );
 }
+
+// impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyAllGradients<B> for M {
+//     fn apply_gradients(
+//         &mut self,
+//         lr: f64,
+//         grads: <B as AutodiffBackend>::Gradients,
+//         plan: &mut Self::Plan,
+//     ) {
+//         <M as ApplyAllGradients<B>>::apply_gradients(self, lr, grads, plan);
+//     }
+    
+//     type Plan = M::Plan;
+    
+//     type PlanConfig = M::PlanConfig;
+    
+//     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
+//         M::config_to_plan(config)
+//     }
+// }
+
+// impl<B: AutodiffBackend, M: ApplyAllGradients<B>> ApplyAllGradients<B> for &mut M {
+//     type Plan = M::Plan;
+//     type PlanConfig = M::PlanConfig;
+
+//     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
+//         M::config_to_plan(config)
+//     }
+
+//     fn apply_gradients(
+//         &mut self,
+//         lr: f64,
+//         grads: <B as AutodiffBackend>::Gradients,
+//         plan: &mut Self::Plan,
+//     ) {
+//         <M as ApplyAllGradients<B>>::apply_gradients(self, lr, grads, plan);
+//     }
+// }
+
+// impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyGradients<B> for &mut M {
+//     fn apply_gradients(
+//         &mut self,
+//         lr: f64,
+//         grads: &mut <B as AutodiffBackend>::Gradients,
+//         plan: &mut Self::Plan,
+//     ) {
+//         <M as ApplyGradients<B>>::apply_gradients(self, lr, grads, plan);
+//     }
+// }
 
 pub struct AdHocTrainingPlan<B: AutodiffBackend, M: ApplyGradients<B> + AutodiffModule<B>> {
     default_optimizer: Optimizer<B, M>,
@@ -57,7 +100,7 @@ pub struct AdHocTrainingPlanConfig<P> {
     pub plan: Option<P>,
 }
 
-impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradients<B>
+impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyAllGradients<B>
     for AdHocLossModel<M, F>
 {
     type Plan = AdHocTrainingPlan<B, M>;
@@ -70,19 +113,19 @@ impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradi
         }
     }
 
-    fn apply_gradients(
+    fn apply_all_gradients(
         &mut self,
         lr: f64,
-        grads: &mut <B as AutodiffBackend>::Gradients,
+        mut grads: <B as AutodiffBackend>::Gradients,
         plan: &mut Self::Plan,
     ) {
         if let Some(plan) = &mut plan.plan {
             self.model
                 .as_mut()
                 .unwrap()
-                .apply_gradients(lr, grads, plan);
+                .apply_gradients(lr, &mut grads, plan);
         }
-        let grads = GradientsParams::from_module(grads, self.model.as_ref().unwrap());
+        let grads = GradientsParams::from_grads(grads, self.model.as_ref().unwrap());
         self.model = Some(
             plan.default_optimizer
                 .step(lr, self.model.take().unwrap(), grads),

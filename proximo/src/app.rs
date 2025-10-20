@@ -40,9 +40,7 @@ use crate::{
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlanConfig, ApplyGradients,
-            autoencoder::AutoEncoderModelPlanConfig,
-            image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
+            AdHocTrainingPlanConfig, ApplyAllGradients, ApplyGradients, autoencoder::AutoEncoderModelPlanConfig, image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig}
         },
     },
     training_loop::{train_epoch, validate_model},
