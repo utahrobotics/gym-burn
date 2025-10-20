@@ -114,13 +114,13 @@ fn main() {
         (),
     )
     .unwrap();
-    conn.execute(
-        &format!(
-            "CREATE INDEX IF NOT EXISTS idx_{table_name}_row_id_range ON {table_name} (row_id)"
-        ),
-        (),
-    )
-    .unwrap();
+    // conn.execute(
+    //     &format!(
+    //         "CREATE INDEX IF NOT EXISTS idx_{table_name}_row_id_range ON {table_name} (row_id)"
+    //     ),
+    //     (),
+    // )
+    // .unwrap();
     conn.execute(&format!("CREATE INDEX IF NOT EXISTS idx_{table_name}_input_expected ON {table_name} (input, expected)"), ()).unwrap();
 
     match preset {

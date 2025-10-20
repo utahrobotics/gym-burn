@@ -171,7 +171,7 @@ impl SqliteDataset {
                 batcher.ingest(I::from(row));
             }
         });
-        batcher.shuffle(rng);
+        // batcher.shuffle(rng);
         batcher.finish()
     }
 
