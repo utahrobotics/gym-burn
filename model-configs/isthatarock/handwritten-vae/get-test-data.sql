@@ -9,4 +9,4 @@ SELECT
 FROM test
 INNER JOIN images i1 ON test.input = i1.row_id
 INNER JOIN images i2 ON test.expected = i2.row_id
-WHERE test.row_id BETWEEN ?1 AND (?1 + 31)
+WHERE test.row_id BETWEEN ?1 AND (?1 + ?2 - 1)

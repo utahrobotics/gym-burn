@@ -3,7 +3,7 @@ use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
     module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
-    nn::loss::MseLoss,
+    nn::loss::{MseLoss, Reduction},
     prelude::Backend,
     record::CompactRecorder,
 };
@@ -14,13 +14,6 @@ use general_dataset::{
 };
 use general_models::{
     Init, SimpleInfer, SimpleTrain,
-    composite::{
-        autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
-        image::{
-            Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModel,
-            LinearConvTranspose2dModelConfig,
-        },
-    },
 };
 use image::{
     ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
@@ -33,16 +26,11 @@ use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::{
-        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlan},
-        loss::bce_float_loss,
-    },
+    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlanConfig}},
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlanConfig, ApplyAllGradients, ApplyGradients,
-            autoencoder::AutoEncoderModelPlanConfig,
-            image::{Conv2dLinearModelPlanConfig, LinearConvTranspose2dModelPlanConfig},
+            AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae,
         },
     },
     training_loop::{train_epoch, validate_model},
@@ -56,6 +44,7 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 pub mod config;
 pub mod loss;
+pub mod presets;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -152,20 +141,9 @@ pub fn train() {
         ModelType::ImageAutoEncoder => {
             let challenge_config: ImageAutoEncoderChallenge =
                 parse_json_file("training").expect("Expected valid training.json");
-            let model_config: AutoEncoderModelConfig<
-                Conv2dLinearModelConfig,
-                LinearConvTranspose2dModelConfig,
-            > = parse_json_file("model").expect("Expected valid model.json");
-            type AutodiffModel = AutoEncoderModel<
-                AutodiffBackend,
-                Conv2dLinearModel<AutodiffBackend>,
-                LinearConvTranspose2dModel<AutodiffBackend>,
-            >;
-            type Model = AutoEncoderModel<
-                Backend,
-                Conv2dLinearModel<Backend>,
-                LinearConvTranspose2dModel<Backend>,
-            >;
+            let model_config: ImageAutoEncoderConfig = parse_json_file("model").expect("Expected valid model.json");
+            type AutodiffModel = ImageAutoEncoder<AutodiffBackend>;
+            type Model = ImageAutoEncoder<Backend>;
             let mut model: AutodiffModel = model_config.init(device);
             std::fs::write(
                 artifact_dir.join("model.txt"),
@@ -173,22 +151,19 @@ pub fn train() {
             )
             .expect("Expected model.txt to be writable in artifact dir");
 
-            let grads_plan: TrainingGradsPlan<
+            let grads_plan: TrainingGradsPlanConfig<
                 AdHocTrainingPlanConfig<
-                    AutoEncoderModelPlanConfig<
-                        Conv2dLinearModelPlanConfig,
-                        LinearConvTranspose2dModelPlanConfig,
-                    >,
+                    ImageAutoEncoderPlanConfig,
                 >,
             > = parse_json_file("training").expect("Expected valid training.json");
             let mut grads_plan = AdHocLossModel::<_, ()>::config_to_plan(grads_plan.grads_plan);
 
             let mut training_batcher = AutoEncoderImageBatcher::<AutodiffBackend>::new(
-                model.encoder.get_input_channels(),
+                model.get_input_channels(),
                 device.clone(),
             );
             let mut testing_batcher = AutoEncoderImageBatcher::<Backend>::new(
-                model.encoder.get_input_channels(),
+                model.get_input_channels(),
                 device.clone(),
             );
 
@@ -207,15 +182,21 @@ pub fn train() {
                 let mut trainable_model = AdHocLossModel::new(
                     model,
                     |model: &AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
-                        MseLoss::new().forward(
-                            model.train(item.input),
-                            item.expected,
-                            burn::nn::loss::Reduction::Auto,
-                        )
-                        // bce_float_loss(
-                        //     model.train(item.input),
-                        //     item.expected,
-                        // )
+                        match model {
+                            ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
+                                model.train(item.input),
+                                item.expected,
+                                Reduction::Auto,
+                            ),
+                            ImageAutoEncoder::Vae(model) => {
+                                let (reconstructed, kld) = sample_vae(model, item.input);
+                                MseLoss::new().forward(
+                                    reconstructed,
+                                    item.expected,
+                                    Reduction::Auto,
+                                ) + kld
+                            }
+                        }
                     },
                 );
 
@@ -278,7 +259,7 @@ pub fn train() {
                 let model: Model = model.valid();
                 let reconstructed = model.infer(batch.input.clone());
 
-                let reconstructed_images: Vec<_> = match model.encoder.get_input_channels() {
+                let reconstructed_images: Vec<_> = match model.get_input_channels() {
                     1 => reconstructed
                         .iter_dim(0)
                         .par_bridge()
@@ -361,9 +342,10 @@ pub fn train() {
                 let mut validatable_model = AdHocLossModel::new(
                     model,
                     |model: &Model, item: AutoEncoderImageBatch<Backend>| {
-                        bce_float_loss(
+                        MseLoss::new().forward(
                             item.expected,
                             model.infer(item.input),
+                            Reduction::Auto
                             // 1.0,
                             // 0.1
                         )
@@ -416,7 +398,7 @@ pub fn train() {
                 training_start_time.elapsed().as_secs_f32()
             );
         }
-        ModelType::ImageVariationalAutoEncoder => todo!(),
+        // ModelType::ImageVariationalAutoEncoder => todo!(),
     }
 
     #[cfg(feature = "tracking-backend")]

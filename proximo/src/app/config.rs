@@ -10,8 +10,8 @@ use crate::trainable_models::apply_gradients::lr_scheduler::LrSchedulerConfig;
 pub enum ModelType {
     #[serde(alias = "image-ae", alias = "img-ae")]
     ImageAutoEncoder,
-    #[serde(alias = "image-vae", alias = "img-vae")]
-    ImageVariationalAutoEncoder,
+    // #[serde(alias = "image-vae", alias = "img-vae")]
+    // ImageVariationalAutoEncoder,
 }
 
 #[derive(Deserialize, Debug)]
@@ -43,7 +43,7 @@ pub struct ImageAutoEncoderChallenge {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct TrainingGradsPlan<T> {
+pub struct TrainingGradsPlanConfig<T> {
     pub grads_plan: T,
 }
 

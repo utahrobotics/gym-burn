@@ -9,4 +9,4 @@ SELECT
 FROM train
 INNER JOIN images i1 ON train.input = i1.row_id
 INNER JOIN images i2 ON train.expected = i2.row_id
-WHERE train.row_id BETWEEN ?1 AND (?1 + 31)
+WHERE train.row_id BETWEEN ?1 AND (?1 + ?2 - 1)

@@ -1,8 +1,0 @@
-{
-    "num_epochs": 3,
-    "batch_size": 64,
-    "num_workers": 4,
-    "seed": 42,
-    "learning_rate": 1.0e-4,
-    "artifact_dir": "artifacts/isthatarock/handwritten"
-}

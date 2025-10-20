@@ -52,7 +52,7 @@ where
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct VariationalEncoderConfig<M> {
+pub struct VariationalEncoderModelConfig<M> {
     pub model: M,
     #[serde(default = "default_kld_weight")]
     pub kld_weight: f64,
@@ -60,7 +60,7 @@ pub struct VariationalEncoderConfig<M> {
     pub logvar: LinearModelConfig,
 }
 
-impl<B, M, T> Init<B, VariationalEncoderModel<B, T>> for VariationalEncoderConfig<M>
+impl<B, M, T> Init<B, VariationalEncoderModel<B, T>> for VariationalEncoderModelConfig<M>
 where
     B: Backend,
     M: Init<B, T>,

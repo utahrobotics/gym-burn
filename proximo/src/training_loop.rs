@@ -7,7 +7,7 @@ use rayon::join;
 
 use crate::trainable_models::{
     TrainableModel, ValidatableModel,
-    apply_gradients::{ApplyAllGradients, ApplyGradients},
+    apply_gradients::{ApplyGradients},
 };
 
 // pub mod presets;
@@ -91,7 +91,7 @@ where
     M: Send,
     B: AutodiffBackend,
     Row: FromSqlRow,
-    M: TrainableModel<B, Item> + ApplyAllGradients<B>,
+    M: TrainableModel<B, Item> + ApplyGradients<B>,
     // M: TrainableModel<B, Item> + AutodiffModule<B>,
     Item: Send,
     M::Plan: Send,
@@ -125,9 +125,9 @@ where
             },
             || {
                 let loss = model.batch_train(batch);
-                let grads = loss.backward();
+                let mut grads = loss.backward();
                 let lr = lr_scheduler.step();
-                model.apply_all_gradients(lr, grads, grads_plan);
+                model.apply_gradients(lr, &mut grads, grads_plan);
                 (loss, lr, model)
             },
         );
@@ -145,9 +145,9 @@ where
         },
         || {
             let loss = model.batch_train(batch);
-            let grads = loss.backward();
+            let mut grads = loss.backward();
             let lr = lr_scheduler.step();
-            model.apply_all_gradients(lr, grads, grads_plan);
+            model.apply_gradients(lr, &mut grads, grads_plan);
             (loss, lr)
         },
     );

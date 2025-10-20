@@ -28,18 +28,18 @@ pub trait ApplyGradients<B: AutodiffBackend> {
     );
 }
 
-pub trait ApplyAllGradients<B: AutodiffBackend> {
-    type Plan;
-    type PlanConfig: DeserializeOwned;
+// pub trait ApplyAllGradients<B: AutodiffBackend> {
+//     type Plan;
+//     type PlanConfig: DeserializeOwned;
 
-    fn config_to_plan(config: Self::PlanConfig) -> Self::Plan;
-    fn apply_all_gradients(
-        &mut self,
-        lr: f64,
-        grads: <B as AutodiffBackend>::Gradients,
-        plan: &mut Self::Plan,
-    );
-}
+//     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan;
+//     fn apply_all_gradients(
+//         &mut self,
+//         lr: f64,
+//         grads: <B as AutodiffBackend>::Gradients,
+//         plan: &mut Self::Plan,
+//     );
+// }
 
 // impl<B: AutodiffBackend, M: ApplyGradients<B>> ApplyAllGradients<B> for M {
 //     fn apply_gradients(
@@ -100,7 +100,7 @@ pub struct AdHocTrainingPlanConfig<P> {
     pub plan: Option<P>,
 }
 
-impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyAllGradients<B>
+impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyGradients<B>
     for AdHocLossModel<M, F>
 {
     type Plan = AdHocTrainingPlan<B, M>;
@@ -113,10 +113,10 @@ impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyAllGr
         }
     }
 
-    fn apply_all_gradients(
+    fn apply_gradients(
         &mut self,
         lr: f64,
-        mut grads: <B as AutodiffBackend>::Gradients,
+        mut grads: &mut <B as AutodiffBackend>::Gradients,
         plan: &mut Self::Plan,
     ) {
         if let Some(plan) = &mut plan.plan {
@@ -125,7 +125,7 @@ impl<B: AutodiffBackend, F, M: ApplyGradients<B> + AutodiffModule<B>> ApplyAllGr
                 .unwrap()
                 .apply_gradients(lr, &mut grads, plan);
         }
-        let grads = GradientsParams::from_grads(grads, self.model.as_ref().unwrap());
+        let grads = GradientsParams::from_module(grads, self.model.as_ref().unwrap());
         self.model = Some(
             plan.default_optimizer
                 .step(lr, self.model.take().unwrap(), grads),
