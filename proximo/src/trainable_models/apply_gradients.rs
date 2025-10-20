@@ -94,6 +94,12 @@ pub struct AdHocTrainingPlan<B: AutodiffBackend, M: ApplyGradients<B> + Autodiff
     plan: Option<M::Plan>,
 }
 
+impl<B: AutodiffBackend, M: ApplyGradients<B> + AutodiffModule<B>> AdHocTrainingPlan<B, M> {
+    pub fn plan(&self) -> Option<&<M as ApplyGradients<B>>::Plan> {
+        self.plan.as_ref()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdHocTrainingPlanConfig<P> {
     pub default_optimizer: OptimizerConfig,

@@ -1,40 +1,62 @@
 {
     "encoder": {
-        "conv": {
-            "input_channels": 1,
-            "default_norm": { "batch_norm": {} },
-            "default_activation": "gelu",
-            "layers": [
-                {
-                    "output_channels": 4,
-                    "kernel_size": [3, 3]
-                },
-                {
-                    "output_channels": 8,
-                    "kernel_size": [3, 3]
-                }
-            ]
+        "model": {
+            "conv": {
+                "input_channels": 1,
+                "default_norm": { "batch_norm": {} },
+                "default_activation": "gelu",
+                "layers": [
+                    {
+                        "output_channels": 4,
+                        "kernel_size": [3, 3]
+                    },
+                    {
+                        "output_channels": 8,
+                        "kernel_size": [3, 3]
+                    }
+                ]
+            },
+            "adaptive_avg_pooling": [8, 8],
+            "linear": {
+                "input_size": 512,
+                "default_activation": "gelu",
+                "default_norm": { "batch_norm": {} },
+                "layers": [
+                    256,
+                    [64, "gelu"]
+                ],
+                "dropout_last": false
+                // "dropout": 0.3
+            }
         },
-        "adaptive_avg_pooling": [8, 8],
-        "linear": {
-            "input_size": 512,
-            "default_activation": "gelu",
-            "default_norm": { "batch_norm": {} },
-            "layers": [
-                64,
-                [16, "gelu"]
-            ],
-            "dropout_last": false
-            // "dropout": 0.3
-        }
-    },
-    "decoder": {
-        "linear": {
+        "mean": {
             "input_size": 16,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
                 64,
+                [32, "none"]
+            ]
+            // "dropout": 0.3
+        },
+        "logvar": {
+            "input_size": 16,
+            "default_activation": "gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                64,
+                [32, "none"]
+            ]
+            // "dropout": 0.3
+        }
+    },
+    "decoder": {
+        "linear": {
+            "input_size": 32,
+            "default_activation": "gelu",
+            "default_norm": { "batch_norm": {} },
+            "layers": [
+                256,
                 [512, "gelu"]
             ]
             // "dropout": 0.3

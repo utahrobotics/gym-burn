@@ -14,6 +14,16 @@ pub struct AutoEncoderModelPlan<E, D> {
     decoder: D,
 }
 
+impl<E, D> AutoEncoderModelPlan<E, D> {
+    pub fn encoder(&self) -> &E {
+        &self.encoder
+    }
+    
+    pub fn decoder(&self) -> &D {
+        &self.decoder
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AutoEncoderModelPlanConfig<E, D> {
     pub encoder: E,
@@ -45,16 +55,24 @@ impl<B: AutodiffBackend, E: ApplyGradients<B>, D: ApplyGradients<B>> ApplyGradie
 }
 
 pub struct VariationalEncoderModelPlan<B: AutodiffBackend, T> {
-    model_plan: T,
-    mean_plan: LinearModelPlan<B>,
-    logvar_plan: LinearModelPlan<B>,
+    model: T,
+    mean: LinearModelPlan<B>,
+    logvar: LinearModelPlan<B>,
+    kld_weight: f64,
+}
+
+impl<B: AutodiffBackend, T> VariationalEncoderModelPlan<B, T> {
+    pub fn get_kld_weight(&self) -> f64 {
+        self.kld_weight
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct VariationalEncoderModelPlanConfig<T> {
-    pub model_plan: T,
-    pub mean_plan: LinearModelPlanConfig,
-    pub logvar_plan: LinearModelPlanConfig,
+    pub model: T,
+    pub mean: LinearModelPlanConfig,
+    pub logvar: LinearModelPlanConfig,
+    pub kld_weight: f64,
 }
 
 impl<B: AutodiffBackend, T: ApplyGradients<B>> ApplyGradients<B> for VariationalEncoderModel<B, T> {
@@ -67,17 +85,18 @@ impl<B: AutodiffBackend, T: ApplyGradients<B>> ApplyGradients<B> for Variational
         grads: &mut <B as AutodiffBackend>::Gradients,
         plan: &mut Self::Plan,
     ) {
-        self.model.apply_gradients(lr, grads, &mut plan.model_plan);
-        self.mean.apply_gradients(lr, grads, &mut plan.mean_plan);
+        self.model.apply_gradients(lr, grads, &mut plan.model);
+        self.mean.apply_gradients(lr, grads, &mut plan.mean);
         self.logvar
-            .apply_gradients(lr, grads, &mut plan.logvar_plan);
+            .apply_gradients(lr, grads, &mut plan.logvar);
     }
 
     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
         VariationalEncoderModelPlan {
-            model_plan: T::config_to_plan(config.model_plan),
-            mean_plan: LinearModel::config_to_plan(config.mean_plan),
-            logvar_plan: LinearModel::config_to_plan(config.logvar_plan),
+            model: T::config_to_plan(config.model),
+            mean: LinearModel::config_to_plan(config.mean),
+            logvar: LinearModel::config_to_plan(config.logvar),
+            kld_weight: config.kld_weight
         }
     }
 }

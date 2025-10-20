@@ -1,6 +1,5 @@
 use burn::{module::ModuleDisplay, prelude::*, tensor::Distribution};
 use serde::{Deserialize, Serialize};
-use utils::default_f;
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
@@ -54,8 +53,6 @@ where
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct VariationalEncoderModelConfig<M> {
     pub model: M,
-    #[serde(default = "default_kld_weight")]
-    pub kld_weight: f64,
     pub mean: LinearModelConfig,
     pub logvar: LinearModelConfig,
 }
@@ -73,5 +70,3 @@ where
         }
     }
 }
-
-default_f!(default_kld_weight, f64, 0.1);

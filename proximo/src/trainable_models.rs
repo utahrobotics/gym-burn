@@ -1,4 +1,6 @@
-use burn::{Tensor, prelude::Backend, tensor::backend::AutodiffBackend};
+use burn::{Tensor, module::AutodiffModule, prelude::Backend, tensor::backend::AutodiffBackend};
+
+use crate::trainable_models::apply_gradients::ApplyGradients;
 
 pub mod apply_gradients;
 
@@ -6,8 +8,8 @@ pub trait ValidatableModel<B: Backend, I> {
     fn batch_valid(&mut self, batch: I) -> Tensor<B, 1>;
 }
 
-pub trait TrainableModel<B: AutodiffBackend, I> {
-    fn batch_train(&mut self, batch: I) -> Tensor<B, 1>;
+pub trait TrainableModel<B: AutodiffBackend, I>: ApplyGradients<B> {
+    fn batch_train(&mut self, batch: I, plan: &Self::Plan) -> Tensor<B, 1>;
 }
 
 pub struct AdHocLossModel<M, F = ()> {
@@ -40,10 +42,11 @@ where
 
 impl<F, B, I, M> TrainableModel<B, I> for AdHocLossModel<M, F>
 where
-    F: FnMut(&M, I) -> Tensor<B, 1>,
+    F: FnMut(&M, I, &Self::Plan) -> Tensor<B, 1>,
+    M: ApplyGradients<B> + AutodiffModule<B>,
     B: AutodiffBackend,
 {
-    fn batch_train(&mut self, batch: I) -> Tensor<B, 1> {
-        (self.f)(self.model.as_ref().unwrap(), batch)
+    fn batch_train(&mut self, batch: I, plan: &Self::Plan) -> Tensor<B, 1> {
+        (self.f)(self.model.as_ref().unwrap(), batch, plan)
     }
 }

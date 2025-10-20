@@ -26,11 +26,11 @@ use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlanConfig}},
+    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan, ImageAutoEncoderPlanConfig}},
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae,
+            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae
         },
     },
     training_loop::{train_epoch, validate_model},
@@ -181,7 +181,7 @@ pub fn train() {
 
                 let mut trainable_model = AdHocLossModel::new(
                     model,
-                    |model: &AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>| {
+                    |model: &AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>, plan: &AdHocTrainingPlan<AutodiffBackend, ImageAutoEncoder<AutodiffBackend>>| {
                         match model {
                             ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
                                 model.train(item.input),
@@ -189,12 +189,13 @@ pub fn train() {
                                 Reduction::Auto,
                             ),
                             ImageAutoEncoder::Vae(model) => {
+                                let ImageAutoEncoderPlan::Vae(plan) = plan.plan().expect("Expected VAE grads plan") else { panic!("Incorrect grads plan"); };
                                 let (reconstructed, kld) = sample_vae(model, item.input);
                                 MseLoss::new().forward(
                                     reconstructed,
                                     item.expected,
                                     Reduction::Auto,
-                                ) + kld
+                                ) + kld * plan.encoder().get_kld_weight()
                             }
                         }
                     },

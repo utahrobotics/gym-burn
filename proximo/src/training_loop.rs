@@ -124,7 +124,7 @@ where
                 )
             },
             || {
-                let loss = model.batch_train(batch);
+                let loss = model.batch_train(batch, &grads_plan);
                 let mut grads = loss.backward();
                 let lr = lr_scheduler.step();
                 model.apply_gradients(lr, &mut grads, grads_plan);
@@ -144,7 +144,7 @@ where
             post_batch(loss, lr);
         },
         || {
-            let loss = model.batch_train(batch);
+            let loss = model.batch_train(batch, &grads_plan);
             let mut grads = loss.backward();
             let lr = lr_scheduler.step();
             model.apply_gradients(lr, &mut grads, grads_plan);
