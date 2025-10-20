@@ -5,10 +5,7 @@ use general_dataset::{FromSqlRow, SqliteDataset, StatefulBatcher};
 use rand::{Rng, seq::SliceRandom};
 use rayon::join;
 
-use crate::trainable_models::{
-    TrainableModel, ValidatableModel,
-    apply_gradients::{ApplyGradients},
-};
+use crate::trainable_models::{TrainableModel, ValidatableModel, apply_gradients::ApplyGradients};
 
 // pub mod presets;
 

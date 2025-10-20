@@ -1,6 +1,8 @@
 use burn::{Tensor, prelude::Backend, tensor::backend::AutodiffBackend};
 use general_models::{
-    SimpleTrain, composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel}, linear::LinearModel
+    SimpleTrain,
+    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+    linear::LinearModel,
 };
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +20,7 @@ impl<E, D> AutoEncoderModelPlan<E, D> {
     pub fn encoder(&self) -> &E {
         &self.encoder
     }
-    
+
     pub fn decoder(&self) -> &D {
         &self.decoder
     }
@@ -87,8 +89,7 @@ impl<B: AutodiffBackend, T: ApplyGradients<B>> ApplyGradients<B> for Variational
     ) {
         self.model.apply_gradients(lr, grads, &mut plan.model);
         self.mean.apply_gradients(lr, grads, &mut plan.mean);
-        self.logvar
-            .apply_gradients(lr, grads, &mut plan.logvar);
+        self.logvar.apply_gradients(lr, grads, &mut plan.logvar);
     }
 
     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
@@ -96,7 +97,7 @@ impl<B: AutodiffBackend, T: ApplyGradients<B>> ApplyGradients<B> for Variational
             model: T::config_to_plan(config.model),
             mean: LinearModel::config_to_plan(config.mean),
             logvar: LinearModel::config_to_plan(config.logvar),
-            kld_weight: config.kld_weight
+            kld_weight: config.kld_weight,
         }
     }
 }
@@ -151,24 +152,27 @@ impl<B: AutodiffBackend, T: ApplyGradients<B>> ApplyGradients<B> for Variational
 //     }
 // }
 
-pub fn sample_vae<B, E, D, const N_I: usize>(model: &AutoEncoderModel<B, VariationalEncoderModel<B, E>, D>, input: Tensor<B, N_I>) -> (Tensor<B, N_I>, Tensor<B, 1>)
+pub fn sample_vae<B, E, D, const N_I: usize>(
+    model: &AutoEncoderModel<B, VariationalEncoderModel<B, E>, D>,
+    input: Tensor<B, N_I>,
+) -> (Tensor<B, N_I>, Tensor<B, 1>)
 where
     B: Backend,
     E: SimpleTrain<B, N_I, 2>,
-    D: SimpleTrain<B, 2, N_I>
+    D: SimpleTrain<B, 2, N_I>,
 {
-        let (actual_mean, actual_logvar) = model.encoder.train(input);
-        let sampled_latent = model
-            .encoder
-            .reparameterize(actual_mean.clone(), actual_logvar.clone());
-        let actual_reconstructed = model.decoder.train(sampled_latent);
+    let (actual_mean, actual_logvar) = model.encoder.train(input);
+    let sampled_latent = model
+        .encoder
+        .reparameterize(actual_mean.clone(), actual_logvar.clone());
+    let actual_reconstructed = model.decoder.train(sampled_latent);
 
-        let kld_element = actual_mean
-            .powf_scalar(2.0)
-            .add(actual_logvar.clone().exp())
-            .sub_scalar(1.0)
-            .sub(actual_logvar);
-        let kld = kld_element.sum_dim(1).mean().mul_scalar(0.5);
+    let kld_element = actual_mean
+        .powf_scalar(2.0)
+        .add(actual_logvar.clone().exp())
+        .sub_scalar(1.0)
+        .sub(actual_logvar);
+    let kld = kld_element.sum_dim(1).mean().mul_scalar(0.5);
 
-        (actual_reconstructed, kld)
+    (actual_reconstructed, kld)
 }

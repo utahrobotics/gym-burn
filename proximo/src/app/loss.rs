@@ -1,7 +1,4 @@
-use burn::{
-    Tensor,
-    prelude::Backend,
-};
+use burn::{Tensor, prelude::Backend};
 
 const EPSILON: f64 = 1e-7;
 

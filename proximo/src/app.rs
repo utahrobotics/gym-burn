@@ -12,9 +12,7 @@ use general_dataset::{
     SqliteDataset, StatefulBatcher,
     presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
 };
-use general_models::{
-    Init, SimpleInfer, SimpleTrain,
-};
+use general_models::{Init, SimpleInfer, SimpleTrain};
 use image::{
     ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
     codecs::webp::WebPDecoder,
@@ -26,11 +24,17 @@ use tracing::info;
 use utils::parse_json_file;
 
 use crate::{
-    app::{config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan, ImageAutoEncoderPlanConfig}},
+    app::{
+        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig},
+        presets::autoencoders::{
+            ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan,
+            ImageAutoEncoderPlanConfig,
+        },
+    },
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae
+            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae,
         },
     },
     training_loop::{train_epoch, validate_model},
@@ -141,7 +145,8 @@ pub fn train() {
         ModelType::ImageAutoEncoder => {
             let challenge_config: ImageAutoEncoderChallenge =
                 parse_json_file("training").expect("Expected valid training.json");
-            let model_config: ImageAutoEncoderConfig = parse_json_file("model").expect("Expected valid model.json");
+            let model_config: ImageAutoEncoderConfig =
+                parse_json_file("model").expect("Expected valid model.json");
             type AutodiffModel = ImageAutoEncoder<AutodiffBackend>;
             type Model = ImageAutoEncoder<Backend>;
             let mut model: AutodiffModel = model_config.init(device);
@@ -152,9 +157,7 @@ pub fn train() {
             .expect("Expected model.txt to be writable in artifact dir");
 
             let grads_plan: TrainingGradsPlanConfig<
-                AdHocTrainingPlanConfig<
-                    ImageAutoEncoderPlanConfig,
-                >,
+                AdHocTrainingPlanConfig<ImageAutoEncoderPlanConfig>,
             > = parse_json_file("training").expect("Expected valid training.json");
             let mut grads_plan = AdHocLossModel::<_, ()>::config_to_plan(grads_plan.grads_plan);
 
@@ -162,10 +165,8 @@ pub fn train() {
                 model.get_input_channels(),
                 device.clone(),
             );
-            let mut testing_batcher = AutoEncoderImageBatcher::<Backend>::new(
-                model.get_input_channels(),
-                device.clone(),
-            );
+            let mut testing_batcher =
+                AutoEncoderImageBatcher::<Backend>::new(model.get_input_channels(), device.clone());
 
             let mut input_images = vec![];
 
@@ -181,7 +182,12 @@ pub fn train() {
 
                 let mut trainable_model = AdHocLossModel::new(
                     model,
-                    |model: &AutodiffModel, item: AutoEncoderImageBatch<AutodiffBackend>, plan: &AdHocTrainingPlan<AutodiffBackend, ImageAutoEncoder<AutodiffBackend>>| {
+                    |model: &AutodiffModel,
+                     item: AutoEncoderImageBatch<AutodiffBackend>,
+                     plan: &AdHocTrainingPlan<
+                        AutodiffBackend,
+                        ImageAutoEncoder<AutodiffBackend>,
+                    >| {
                         match model {
                             ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
                                 model.train(item.input),
@@ -189,7 +195,11 @@ pub fn train() {
                                 Reduction::Auto,
                             ),
                             ImageAutoEncoder::Vae(model) => {
-                                let ImageAutoEncoderPlan::Vae(plan) = plan.plan().expect("Expected VAE grads plan") else { panic!("Incorrect grads plan"); };
+                                let ImageAutoEncoderPlan::Vae(plan) =
+                                    plan.plan().expect("Expected VAE grads plan")
+                                else {
+                                    panic!("Incorrect grads plan");
+                                };
                                 let (reconstructed, kld) = sample_vae(model, item.input);
                                 MseLoss::new().forward(
                                     reconstructed,
@@ -346,9 +356,8 @@ pub fn train() {
                         MseLoss::new().forward(
                             item.expected,
                             model.infer(item.input),
-                            Reduction::Auto
-                            // 1.0,
-                            // 0.1
+                            Reduction::Auto, // 1.0,
+                                             // 0.1
                         )
                     },
                 );
@@ -398,8 +407,7 @@ pub fn train() {
                 "Total Duration: {:.1}s",
                 training_start_time.elapsed().as_secs_f32()
             );
-        }
-        // ModelType::ImageVariationalAutoEncoder => todo!(),
+        } // ModelType::ImageVariationalAutoEncoder => todo!(),
     }
 
     #[cfg(feature = "tracking-backend")]
