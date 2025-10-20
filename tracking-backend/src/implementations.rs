@@ -1693,7 +1693,11 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         dim1: usize,
         dim2: usize,
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&tensor, "float_swap_dims", json!({ "dim1": dim1, "dim2": dim2 }));
+        let builder = start_tracking_tensor(
+            &tensor,
+            "float_swap_dims",
+            json!({ "dim1": dim1, "dim2": dim2 }),
+        );
         builder.finish(InnerAutodiffBackend::float_swap_dims(tensor, dim1, dim2))
     }
 
@@ -1715,7 +1719,11 @@ impl FloatTensorOps<TrackingBackend> for TrackingBackend {
         tensor: FloatTensor<TrackingBackend>,
         shape: Shape,
     ) -> FloatTensor<TrackingBackend> {
-        let builder = start_tracking_tensor(&tensor, "float_reshape", json!({ "shape": shape.as_slice() }));
+        let builder = start_tracking_tensor(
+            &tensor,
+            "float_reshape",
+            json!({ "shape": shape.as_slice() }),
+        );
         builder.finish(InnerAutodiffBackend::float_reshape(tensor, shape))
     }
 

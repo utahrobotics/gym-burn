@@ -1,9 +1,11 @@
 use burn::{
-    module::{Ignored, Module}, nn::{
+    module::{Ignored, Module},
+    nn::{
         Dropout, DropoutConfig, PaddingConfig2d,
         activation::Activation,
         conv::{Conv2d, Conv2dConfig, ConvTranspose2d, ConvTranspose2dConfig},
-    }, prelude::*
+    },
+    prelude::*,
 };
 use serde::{Deserialize, Serialize};
 use utils::default_f;
@@ -18,7 +20,7 @@ pub struct Conv2dModel<B: Backend> {
     input_channels: Ignored<usize>,
     layers: Vec<(Conv2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
-    dropout_last: bool
+    dropout_last: bool,
 }
 
 impl<B: Backend> Conv2dModel<B> {
@@ -96,7 +98,7 @@ pub struct Conv2dModelConfig {
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
-    pub dropout_last: bool
+    pub dropout_last: bool,
 }
 
 impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
@@ -144,7 +146,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
             input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
-            dropout_last: self.dropout_last
+            dropout_last: self.dropout_last,
         }
     }
 }
@@ -154,7 +156,7 @@ pub struct ConvTranspose2dModel<B: Backend> {
     input_channels: Ignored<usize>,
     layers: Vec<(ConvTranspose2d<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
-    dropout_last: bool
+    dropout_last: bool,
 }
 
 impl<B: Backend> ConvTranspose2dModel<B> {
@@ -235,7 +237,7 @@ pub struct ConvTranspose2dModelConfig {
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
-    pub dropout_last: bool
+    pub dropout_last: bool,
 }
 
 impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig {
@@ -281,7 +283,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             input_channels: Ignored(self.input_channels),
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
-            dropout_last: self.dropout_last
+            dropout_last: self.dropout_last,
         }
     }
 }

@@ -111,7 +111,8 @@ fn main() {
     #[cfg(not(feature = "tracking-backend"))]
     type AutodiffBackend = Autodiff<Backend>;
     #[cfg(feature = "tracking-backend")]
-    type Backend = <tracking_backend ::TrackingBackend as burn::tensor::backend::AutodiffBackend>::InnerBackend;
+    type Backend =
+        <tracking_backend::TrackingBackend as burn::tensor::backend::AutodiffBackend>::InnerBackend;
     #[cfg(feature = "tracking-backend")]
     type AutodiffBackend = tracking_backend::TrackingBackend;
 
@@ -131,7 +132,7 @@ fn main() {
 
     let artifact_dir = training_config.artifact_dir.join(secs.to_string());
     std::fs::create_dir_all(&artifact_dir).expect("Expected artifact dir to be creatable");
-    
+
     #[cfg(feature = "tracking-backend")]
     tracking_backend::set_artifact_dir(artifact_dir.clone());
 

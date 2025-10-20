@@ -50,11 +50,11 @@ pub trait ApplyAllGradients<B: AutodiffBackend> {
 //     ) {
 //         <M as ApplyAllGradients<B>>::apply_gradients(self, lr, grads, plan);
 //     }
-    
+
 //     type Plan = M::Plan;
-    
+
 //     type PlanConfig = M::PlanConfig;
-    
+
 //     fn config_to_plan(config: Self::PlanConfig) -> Self::Plan {
 //         M::config_to_plan(config)
 //     }

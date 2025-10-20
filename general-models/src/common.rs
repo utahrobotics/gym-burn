@@ -72,7 +72,7 @@ pub enum NormConfig {
         affine: bool,
     },
     #[default]
-    None
+    None,
 }
 
 impl NormConfig {

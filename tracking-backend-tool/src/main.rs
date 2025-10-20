@@ -1,14 +1,21 @@
-use std::{collections::VecDeque, fs::File, hash::Hash, io::{BufWriter, Write}, path::Path, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
+use std::{
+    collections::VecDeque,
+    fs::File,
+    hash::Hash,
+    io::{BufWriter, Write},
+    path::Path,
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use rusqlite::{Connection, params};
 use rustc_hash::FxHashSet;
-
 
 #[derive(Clone, Debug)]
 struct Visitor {
     start_hash: Rc<str>,
     operations: Vec<Rc<str>>,
-    last_hash: Rc<str>
+    last_hash: Rc<str>,
 }
 
 #[derive(Eq)]
@@ -19,7 +26,10 @@ struct UniquePipeline {
 
 impl PartialEq for UniquePipeline {
     fn eq(&self, other: &Self) -> bool {
-        self.operations.iter().zip(other.operations.iter()).all(|(a, b)| a.as_ptr() == b.as_ptr())
+        self.operations
+            .iter()
+            .zip(other.operations.iter())
+            .all(|(a, b)| a.as_ptr() == b.as_ptr())
     }
 }
 
@@ -30,15 +40,26 @@ impl Hash for UniquePipeline {
 }
 
 fn main() {
-    let conn = Connection::open(std::env::args().nth(1).expect("Expected SQLite Database path to be provided")).expect("Expected SQLite database to be valid");
-    let mut stmt = conn.prepare("SELECT DISTINCT to_hash from tensors WHERE operation = 'float_cat'").unwrap();
+    let conn = Connection::open(
+        std::env::args()
+            .nth(1)
+            .expect("Expected SQLite Database path to be provided"),
+    )
+    .expect("Expected SQLite database to be valid");
+    let mut stmt = conn
+        .prepare("SELECT DISTINCT to_hash from tensors WHERE operation = 'float_cat'")
+        .unwrap();
     let mut string_interner = FxHashSet::<Rc<str>>::default();
 
     let mut requirements = vec![];
     let tmp;
     if Path::new("tensor_requirements.txt").exists() {
         tmp = std::fs::read_to_string("tensor_requirements.txt").unwrap_or_default();
-        requirements = tmp.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).collect();
+        requirements = tmp
+            .lines()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .collect();
     }
 
     let mut queue = VecDeque::new();
@@ -51,13 +72,17 @@ fn main() {
             queue.push_back(Visitor {
                 start_hash: to_hash.clone().into(),
                 operations: vec![],
-                last_hash: to_hash
+                last_hash: to_hash,
             });
         }
     }
-    stmt = conn.prepare("SELECT DISTINCT to_hash, operation from tensors WHERE from_hash = ?").unwrap();
+    stmt = conn
+        .prepare("SELECT DISTINCT to_hash, operation from tensors WHERE from_hash = ?")
+        .unwrap();
     let mut done = FxHashSet::default();
-    let mut output = BufWriter::new(File::create("tensor_graph.txt").expect("Expected tensor_graph.txt to be created"));
+    let mut output = BufWriter::new(
+        File::create("tensor_graph.txt").expect("Expected tensor_graph.txt to be created"),
+    );
     writeln!(output, "digraph G {{").unwrap();
 
     let ctrlc_pressed: &_ = Box::leak(Box::new(AtomicBool::new(false)));
@@ -122,7 +147,12 @@ fn main() {
                     }
                     hash.extend_from_slice(chunk);
                 }
-                writeln!(output, "        label = \"{}\";", String::from_utf8(hash).unwrap()).unwrap();
+                writeln!(
+                    output,
+                    "        label = \"{}\";",
+                    String::from_utf8(hash).unwrap()
+                )
+                .unwrap();
                 for (j, op) in pipeline.operations.iter().enumerate() {
                     writeln!(output, "        n_{i}_{j}[label=\"{op}\"];").unwrap();
                 }

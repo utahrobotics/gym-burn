@@ -16,7 +16,7 @@ use crate::{
 pub struct LinearModel<B: Backend> {
     layers: Vec<(Linear<B>, Option<Norm<B>>, Option<Activation<B>>)>,
     dropout: Dropout,
-    dropout_last: bool
+    dropout_last: bool,
 }
 
 impl<B: Backend> SimpleTrain<B, 2, 2> for LinearModel<B> {
@@ -76,7 +76,7 @@ pub struct LinearModelConfig {
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
-    pub dropout_last: bool
+    pub dropout_last: bool,
 }
 
 impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
@@ -103,7 +103,7 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
         LinearModel {
             layers,
             dropout: DropoutConfig::new(self.dropout).init(),
-            dropout_last: self.dropout_last
+            dropout_last: self.dropout_last,
         }
     }
 }
