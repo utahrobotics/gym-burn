@@ -103,14 +103,14 @@ where
     let Some(first_index) = block_indices.next() else {
         return model;
     };
-    let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
+    let mut batch = dataset.query(first_index, batch_size, &mut *batcher);
     let mut last_results = None;
 
     for next_index in block_indices {
         let ((next_batch, end), (loss, lr, tmp_model)) = join(
             || {
                 join(
-                    || dataset.query(next_index, batch_size, rng, &mut *batcher),
+                    || dataset.query(next_index, batch_size, &mut *batcher),
                     || {
                         if let Some((loss, lr)) = last_results {
                             post_batch(loss, lr)
@@ -178,14 +178,14 @@ pub fn validate_model<B, M, Row, Item>(
     let Some(first_index) = block_indices.next() else {
         return;
     };
-    let mut batch = dataset.query(first_index, batch_size, rng, &mut *batcher);
+    let mut batch = dataset.query(first_index, batch_size, &mut *batcher);
     let mut last_results = None;
 
     for next_index in block_indices {
         let ((next_batch, end), loss) = join(
             || {
                 join(
-                    || dataset.query(next_index, batch_size, rng, &mut *batcher),
+                    || dataset.query(next_index, batch_size, &mut *batcher),
                     || {
                         if let Some(loss) = last_results {
                             post_batch(loss)

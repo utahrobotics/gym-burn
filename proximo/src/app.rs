@@ -25,11 +25,10 @@ use utils::parse_json_file;
 
 use crate::{
     app::{
-        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig},
-        presets::autoencoders::{
+        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, loss::bce_float_loss, presets::autoencoders::{
             ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan,
             ImageAutoEncoderPlanConfig,
-        },
+        }
     },
     trainable_models::{
         AdHocLossModel,
@@ -183,14 +182,15 @@ pub fn train() {
                 let mut trainable_model = AdHocLossModel::new(
                     model,
                     |model: &AutodiffModel,
-                     item: AutoEncoderImageBatch<AutodiffBackend>,
+                     mut item: AutoEncoderImageBatch<AutodiffBackend>,
                      plan: &AdHocTrainingPlan<
                         AutodiffBackend,
                         ImageAutoEncoder<AutodiffBackend>,
                     >| {
+                        item.input = item.input.sub_scalar(0.5);
                         match model {
                             ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
-                                model.train(item.input),
+                                model.train(item.input).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0),
                                 item.expected,
                                 Reduction::Auto,
                             ),
@@ -200,12 +200,15 @@ pub fn train() {
                                 else {
                                     panic!("Incorrect grads plan");
                                 };
-                                let (reconstructed, kld) = sample_vae(model, item.input);
-                                MseLoss::new().forward(
-                                    reconstructed,
-                                    item.expected,
-                                    Reduction::Auto,
-                                ) + kld * plan.encoder().get_kld_weight()
+                                let (mut reconstructed, mut kld) = sample_vae(model, item.input);
+                                reconstructed = reconstructed.div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0);
+                                kld = kld * plan.encoder().get_kld_weight();
+                                // MseLoss::new().forward(
+                                //     reconstructed,
+                                //     item.expected,
+                                //     Reduction::Auto,
+                                // ) + kld
+                                bce_float_loss(item.expected, reconstructed) + kld
                             }
                         }
                     },
@@ -268,7 +271,7 @@ pub fn train() {
                 }
                 let batch = testing_batcher.finish();
                 let model: Model = model.valid();
-                let reconstructed = model.infer(batch.input.clone());
+                let reconstructed = model.infer(batch.input.clone()).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0);
 
                 let reconstructed_images: Vec<_> = match model.get_input_channels() {
                     1 => reconstructed
@@ -354,8 +357,8 @@ pub fn train() {
                     model,
                     |model: &Model, item: AutoEncoderImageBatch<Backend>| {
                         MseLoss::new().forward(
+                            model.infer(item.input).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0),
                             item.expected,
-                            model.infer(item.input),
                             Reduction::Auto, // 1.0,
                                              // 0.1
                         )

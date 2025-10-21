@@ -1,6 +1,5 @@
 use burn::prelude::*;
 use image::{ImageFormat, load_from_memory_with_format};
-use rand::seq::SliceRandom;
 use rayon::join;
 
 use crate::{StatefulBatcher, sql_object};
@@ -89,10 +88,10 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
         );
     }
 
-    fn shuffle(&mut self, rng: &mut impl rand::Rng) {
-        self.input_tensors.shuffle(rng);
-        self.expected_tensors.shuffle(rng);
-    }
+    // fn shuffle(&mut self, rng: &mut impl rand::Rng) {
+    //     self.input_tensors.shuffle(rng);
+    //     self.expected_tensors.shuffle(rng);
+    // }
 
     fn finish(&mut self) -> AutoEncoderImageBatch<B> {
         let input_replace = Vec::with_capacity(self.input_tensors.len());

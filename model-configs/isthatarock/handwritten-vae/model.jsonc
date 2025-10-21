@@ -23,10 +23,10 @@
                 "default_norm": { "batch_norm": {} },
                 "layers": [
                     256,
-                    [64, "gelu"]
+                    64
                 ],
+                // "dropout": 0.3,
                 "dropout_last": false
-                // "dropout": 0.3
             }
         },
         "mean": {
@@ -35,9 +35,10 @@
             "default_norm": { "batch_norm": {} },
             "layers": [
                 48,
-                [32, "none"]
-            ]
-            // "dropout": 0.3
+                [32, "none", "none"]
+            ],
+            // "dropout": 0.3,
+            "dropout_last": false
         },
         "logvar": {
             "input_size": 64,
@@ -45,9 +46,10 @@
             "default_norm": { "batch_norm": {} },
             "layers": [
                 48,
-                [32, "none"]
-            ]
-            // "dropout": 0.3
+                [32, "none", "none"]
+            ],
+            // "dropout": 0.3,
+            "dropout_last": false
         }
     },
     "decoder": {
@@ -57,7 +59,7 @@
             "default_norm": { "batch_norm": {} },
             "layers": [
                 256,
-                [512, "gelu"]
+                512
             ]
             // "dropout": 0.3
         },
@@ -81,8 +83,7 @@
                         "padding": [3, 3],
                         "padding_out": [1, 1]
                     },
-                    // "none",
-                    "none"
+                    "tanh"
                 ]
             ],
             "dropout_last": false

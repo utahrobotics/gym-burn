@@ -133,7 +133,7 @@ impl TryFrom<SqliteDatasetConfig> for SqliteDataset {
 pub trait StatefulBatcher<I, O> {
     fn reset(&mut self);
     fn ingest(&mut self, item: I);
-    fn shuffle(&mut self, rng: &mut impl Rng);
+    // fn shuffle(&mut self, rng: &mut impl Rng);
     fn finish(&mut self) -> O;
 }
 
@@ -146,9 +146,9 @@ impl<I, O, T: StatefulBatcher<I, O>> StatefulBatcher<I, O> for &mut T {
         T::ingest(self, item);
     }
 
-    fn shuffle(&mut self, rng: &mut impl Rng) {
-        T::shuffle(self, rng);
-    }
+    // fn shuffle(&mut self, rng: &mut impl Rng) {
+    //     T::shuffle(self, rng);
+    // }
 
     fn finish(&mut self) -> O {
         T::finish(self)
@@ -160,7 +160,6 @@ impl SqliteDataset {
         &self,
         index: usize,
         limit: usize,
-        rng: &mut impl Rng,
         mut batcher: impl StatefulBatcher<I, O>,
     ) -> O {
         batcher.reset();
@@ -171,7 +170,6 @@ impl SqliteDataset {
                 batcher.ingest(I::from(row));
             }
         });
-        // batcher.shuffle(rng);
         batcher.finish()
     }
 
