@@ -1,0 +1,2 @@
+{"rule":"YOUR_YOU_RE","sentence":"^\\QIn other words, if in front and behind of you is a steep wall, what about to your right, or your left?\\E$"}
+{"rule":"YOUR_YOU_RE","sentence":"^\\QIn other words, if in front and behind of you is a steep wall, what about to your right or your left?\\E$"}
