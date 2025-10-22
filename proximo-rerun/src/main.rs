@@ -14,7 +14,7 @@ enum Event {
     TrainingLoss {
         batch_i: usize,
         epoch: usize,
-        loss: f64,
+        loss: Option<f64>,
         lr: f64,
     },
     ValidationLoss {
@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut stdin = stdin().lock();
     let mut buf = vec![];
     let mut iterations = 0i64;
+    let mut found_nan = false;
 
     let mut record = |rec: &RecordingStream, event: &Event| {
         rec.set_time_sequence("iterations", iterations);
@@ -47,6 +48,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 loss,
                 lr,
             } => {
+                let Some(loss) = loss else {
+                    if !found_nan {
+                        found_nan = true;
+                        eprintln!("Encountered NaN in training loss");
+                    }
+                    return;
+                };
                 rec.set_time_sequence("batch_i", *batch_i as i64);
                 rec.set_time_sequence("epoch", *epoch as i64);
                 rec.log("training_loss", &rerun::Scalars::single(*loss))

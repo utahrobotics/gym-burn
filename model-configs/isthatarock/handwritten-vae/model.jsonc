@@ -83,7 +83,8 @@
                         "padding": [3, 3],
                         "padding_out": [1, 1]
                     },
-                    "tanh"
+                    "sigmoid",
+                    "none"
                 ]
             ],
             "dropout_last": false

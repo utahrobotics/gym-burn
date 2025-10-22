@@ -114,15 +114,57 @@ pub struct LinearConvTranspose2dModel<B: Backend> {
     output_interpolate: Option<Interpolate2d>,
 }
 
+
+/// Source: Claude Sonnet 4.5
+fn resize_to_aspect(len: usize, aspect_ratio: f64) -> (usize, usize) {
+    let mut best_width = len;
+    let mut best_height = 1;
+    let mut best_diff = f64::INFINITY;
+    
+    for h in 1..=(len as f64).sqrt() as usize + 1 {
+        if len % h == 0 {
+            let w = len / h;
+            let current_aspect = w as f64 / h as f64;
+            let diff = (current_aspect - aspect_ratio).abs();
+            
+            if diff < best_diff {
+                best_diff = diff;
+                best_width = w;
+                best_height = h;
+            }
+        }
+    }
+    
+    (best_width, best_height)
+}
+
 impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTranspose2dModel<B> {
-    fn forward(&self, tensor: Tensor<B, 2>) -> Tensor<B, 4> {
-        let batch_size = tensor.dims()[0];
-        let tensor = self.conv.infer(self.linear.infer(tensor).reshape([
-            batch_size,
-            self.conv.get_input_channels(),
-            self.conv_input_size[0],
-            self.conv_input_size[1],
-        ]));
+    fn forward(&self, mut tensor: Tensor<B, 2>) -> Tensor<B, 4> {
+        tensor = self.linear.infer(tensor);
+
+        let mut tensor = if let Some(interpolate) = &self.intermediate_interpolate {
+            let [batch_size, len] = tensor.dims();
+            let aspect = self.conv_input_size[0] as f64 / self.conv_input_size[1] as f64;
+            let (width, height) = resize_to_aspect(len / self.conv.get_input_channels(), aspect);
+            let tensor = tensor.reshape([
+                batch_size,
+                self.conv.get_input_channels(),
+                width,
+                height
+            ]);
+            interpolate.forward(tensor)
+        } else {
+            let batch_size = tensor.dims()[0];
+            tensor.reshape([
+                batch_size,
+                self.conv.get_input_channels(),
+                self.conv_input_size[0],
+                self.conv_input_size[1]
+            ])
+        };
+
+        tensor = self.conv.infer(tensor);
+        
         if let Some(interpolate) = &self.output_interpolate {
             interpolate.forward(tensor)
         } else {
@@ -133,18 +175,31 @@ impl<B: Backend> SimpleInfer<B, 2, 4> for LinearConvTranspose2dModel<B> {
 
 impl<B: Backend> SimpleTrain<B, 2, 4> for LinearConvTranspose2dModel<B> {
     fn forward(&self, mut tensor: Tensor<B, 2>) -> Tensor<B, 4> {
-        let batch_size = tensor.dims()[0];
         tensor = self.linear.train(tensor);
-        let mut tensor = tensor.reshape([
-            batch_size,
-            self.conv.get_input_channels(),
-            self.conv_input_size[0],
-            self.conv_input_size[1],
-        ]);
-        if let Some(interpolate) = &self.intermediate_interpolate {
-            tensor = interpolate.forward(tensor);
-        }
-        let tensor = self.conv.train(tensor);
+
+        let mut tensor = if let Some(interpolate) = &self.intermediate_interpolate {
+            let [batch_size, len] = tensor.dims();
+            let aspect = self.conv_input_size[0] as f64 / self.conv_input_size[1] as f64;
+            let (width, height) = resize_to_aspect(len / self.conv.get_input_channels(), aspect);
+            let tensor = tensor.reshape([
+                batch_size,
+                self.conv.get_input_channels(),
+                width,
+                height
+            ]);
+            interpolate.forward(tensor)
+        } else {
+            let batch_size = tensor.dims()[0];
+            tensor.reshape([
+                batch_size,
+                self.conv.get_input_channels(),
+                self.conv_input_size[0],
+                self.conv_input_size[1]
+            ])
+        };
+
+        tensor = self.conv.train(tensor);
+        
         if let Some(interpolate) = &self.output_interpolate {
             interpolate.forward(tensor)
         } else {

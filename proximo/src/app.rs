@@ -182,15 +182,15 @@ pub fn train() {
                 let mut trainable_model = AdHocLossModel::new(
                     model,
                     |model: &AutodiffModel,
-                     mut item: AutoEncoderImageBatch<AutodiffBackend>,
+                    item: AutoEncoderImageBatch<AutodiffBackend>,
                      plan: &AdHocTrainingPlan<
                         AutodiffBackend,
                         ImageAutoEncoder<AutodiffBackend>,
                     >| {
-                        item.input = item.input.sub_scalar(0.5);
+                        // item.input = item.input.sub_scalar(0.5);
                         match model {
                             ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
-                                model.train(item.input).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0),
+                                model.train(item.input),
                                 item.expected,
                                 Reduction::Auto,
                             ),
@@ -201,14 +201,14 @@ pub fn train() {
                                     panic!("Incorrect grads plan");
                                 };
                                 let (mut reconstructed, mut kld) = sample_vae(model, item.input);
-                                reconstructed = reconstructed.div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0);
+                                reconstructed = reconstructed;
                                 kld = kld * plan.encoder().get_kld_weight();
-                                // MseLoss::new().forward(
-                                //     reconstructed,
-                                //     item.expected,
-                                //     Reduction::Auto,
-                                // ) + kld
-                                bce_float_loss(item.expected, reconstructed) + kld
+                                MseLoss::new().forward(
+                                    reconstructed,
+                                    item.expected,
+                                    Reduction::Auto,
+                                ) + kld
+                                // bce_float_loss(item.expected, reconstructed) + kld
                             }
                         }
                     },
@@ -271,7 +271,7 @@ pub fn train() {
                 }
                 let batch = testing_batcher.finish();
                 let model: Model = model.valid();
-                let reconstructed = model.infer(batch.input.clone()).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0);
+                let reconstructed = model.infer(batch.input.clone());
 
                 let reconstructed_images: Vec<_> = match model.get_input_channels() {
                     1 => reconstructed
@@ -357,7 +357,7 @@ pub fn train() {
                     model,
                     |model: &Model, item: AutoEncoderImageBatch<Backend>| {
                         MseLoss::new().forward(
-                            model.infer(item.input).div_scalar(2.0).add_scalar(0.5).clamp(0.0, 1.0),
+                            model.infer(item.input),
                             item.expected,
                             Reduction::Auto, // 1.0,
                                              // 0.1
