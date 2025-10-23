@@ -18,7 +18,7 @@ use image::{
     codecs::webp::WebPDecoder,
 };
 use rand::{Rng, SeedableRng, rngs::SmallRng};
-use rayon::iter::{IndexedParallelIterator, ParallelBridge, ParallelIterator};
+use rayon::iter::{IndexedParallelIterator, ParallelIterator};
 use serde_json::json;
 use tracing::info;
 use utils::parse_json_file;
@@ -279,7 +279,6 @@ pub fn train() {
                 let reconstructed_images: Vec<_> = match model.get_input_channels() {
                     1 => reconstructed
                         .iter_dim(0)
-                        .par_bridge()
                         .map(|tensor| {
                             let [_, _, width, height] = tensor.dims();
                             let buf = tensor.into_data().into_vec::<f32>().unwrap();
