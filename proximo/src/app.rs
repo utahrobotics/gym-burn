@@ -189,11 +189,14 @@ pub fn train() {
                     >| {
                         // item.input = item.input.sub_scalar(0.5);
                         match model {
-                            ImageAutoEncoder::Normal(model) => MseLoss::new().forward(
-                                model.train(item.input),
-                                item.expected,
-                                Reduction::Auto,
-                            ),
+                            ImageAutoEncoder::Normal(model) => {
+                                bce_float_loss(item.expected, model.train(item.input))
+                                // MseLoss::new().forward(
+                                //     model.train(item.input),
+                                //     item.expected,
+                                //     Reduction::Auto,
+                                // )
+                            },
                             ImageAutoEncoder::Vae(model) => {
                                 let ImageAutoEncoderPlan::Vae(plan) =
                                     plan.plan().expect("Expected VAE grads plan")
