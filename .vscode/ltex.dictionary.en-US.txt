@@ -3,3 +3,6 @@ Conv
 ReLUs
 ReLU
 Underfitting
+VSCode
+Desmos
+entropies

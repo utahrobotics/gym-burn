@@ -1,2 +1,4 @@
 {"rule":"YOUR_YOU_RE","sentence":"^\\QIn other words, if in front and behind of you is a steep wall, what about to your right, or your left?\\E$"}
 {"rule":"YOUR_YOU_RE","sentence":"^\\QIn other words, if in front and behind of you is a steep wall, what about to your right or your left?\\E$"}
+{"rule":"EN_WORD_COHERENCY","sentence":"^\\QThis fundamentally confounds how we think about shaping these layers, and as a result the best and only real answer to determining how big these layers should be, outside of some very complicated mathematical analyses, is to just experiment.\\E$"}
+{"rule":"ENGLISH_WORD_REPEAT_BEGINNING_RULE","sentence":"^\\QIn 100,000 dimensional space,\\E$"}
