@@ -206,10 +206,9 @@ pub fn train() {
                                 let (mut reconstructed, mut kld) = sample_vae(model, item.input);
                                 reconstructed = reconstructed;
                                 kld = kld * plan.encoder().get_kld_weight();
-                                MseLoss::new().forward(
-                                    reconstructed,
+                                bce_float_loss(
                                     item.expected,
-                                    Reduction::Auto,
+                                    reconstructed,
                                 ) + kld
                                 // bce_float_loss(item.expected, reconstructed) + kld
                             }

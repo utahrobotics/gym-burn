@@ -4,7 +4,7 @@
     "batch_size": 256,
     // "lr_scheduler": { "constant": 2.0e-4 },
     "lr_scheduler": { "linear": {
-        "initial_lr": 2.0e-4,
+        "initial_lr": 1.0e-4,
         "num_iters": 1000,
         "final_lr": 5.0e-5
     } },
@@ -21,13 +21,13 @@
         "get_sql": "@get-test-data.sql",
         "len_sql": "SELECT COUNT(*) as len FROM test"
     },
-    "viz_command": ["cargo", "run", "--manifest-path", "proximo-rerun/Cargo.toml", "--release"],
+    // "viz_command": ["cargo", "run", "--manifest-path", "proximo-rerun/Cargo.toml", "--release"],
     "training_max_batch_count": 512,
     "testing_max_batch_count": 64,
     "grads_plan": {
         "default_optimizer": { "adam": {
             "grad_clipping": {
-                "Norm": 3.0
+                "Norm": 1.0
             }
         } }
     },

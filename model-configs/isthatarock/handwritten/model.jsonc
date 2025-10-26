@@ -45,13 +45,28 @@
             ]
             // "dropout": 0.3
         },
-        "intermediate_interpolate": "Nearest",
-        "conv_input_size": [20, 20],
+        // "intermediate_interpolate": "Nearest",
+        // "conv_input_size": [22, 22],
+        "conv_input_size": [8, 8],
         "conv": {
             "input_channels": 16,
             "default_activation": "gelu",
             "default_norm": { "batch_norm": {} },
             "layers": [
+                // Upscaling
+                {
+                    "output_channels": 16,
+                    "kernel_size": [5, 5],
+                    "stride": [3, 3],
+                    "padding": [3, 3]
+                },
+                {
+                    "output_channels": 16,
+                    "kernel_size": [3, 3],
+                    // "stride": [3, 3],
+                    "padding": [1, 1]
+                },
+                // Processing
                 {
                     "output_channels": 8,
                     "kernel_size": [3, 3]
@@ -63,10 +78,8 @@
                 [
                     {
                         "output_channels": 1,
-                        "kernel_size": [5, 5]
-                        // "stride": [2, 2],
-                        // "padding": [3, 3],
-                        // "padding_out": [1, 1]
+                        "kernel_size": [5, 5],
+                        "padding": [2, 2]
                     },
                     "sigmoid",
                     "none"
@@ -74,6 +87,10 @@
             ],
             "dropout_last": false
             // "dropout": 0.1
+        },
+        "output_interpolate": {
+            "output_size": [28, 28],
+            "mode": "Nearest"
         }
     }
 }
