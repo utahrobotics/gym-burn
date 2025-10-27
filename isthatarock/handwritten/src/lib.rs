@@ -8,14 +8,17 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::TensorData,
 };
-use general_models::{Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, vae::{VariationalEncoderModel, VariationalEncoderModelConfig}}, image::{Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModelConfig}}, error::LoadModelError};
+use general_models::{Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, AutoEncoderModelRecord, vae::{VariationalEncoderModel, VariationalEncoderModelConfig, VariationalEncoderModelRecord}}, image::{Conv2dLinearModel, Conv2dLinearModelConfig, Conv2dLinearModelRecord, LinearConvTranspose2dModel, LinearConvTranspose2dModelConfig}}, error::LoadModelError};
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
 
 pub type VaeModel<B> = VariationalEncoderModel<B, Conv2dLinearModel<B>>;
 pub type VaeConfig = VariationalEncoderModelConfig<Conv2dLinearModelConfig>;
+pub type VaeRecord<B> = VariationalEncoderModelRecord<B, Conv2dLinearModelRecord<B>>;
+
 pub type Model<B> = Conv2dLinearModel<B>;
 pub type Config = Conv2dLinearModelConfig;
+pub type Record<B> = Conv2dLinearModelRecord<B>;
 
 pub struct ImageEncoder<B: Backend, M> {
     encoder: M,
@@ -31,8 +34,8 @@ impl<B: Backend> ImageEncoder<B, Model<B>> {
         let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTranspose2dModelConfig> =
             parse_json_file(autoencoder_config)?;
         let mut encoder = autoencoder_config.encoder.init(device);
-        encoder = encoder
-            .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);
+        let record: AutoEncoderModelRecord<B, Model<B>, LinearConvTranspose2dModel<B>> = CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?;
+        encoder = encoder.load_record(record.encoder);
         Ok(Self {
             encoder,
             device: device.clone(),
@@ -40,23 +43,23 @@ impl<B: Backend> ImageEncoder<B, Model<B>> {
     }
 }
 
-impl<B: Backend> ImageEncoder<B, VaeModel<B>> {
-    pub fn load(
-        autoencoder_config: impl AsRef<Path>,
-        encoder_weights: impl AsRef<Path>,
-        device: &B::Device,
-    ) -> Result<Self, LoadModelError> {
-        let autoencoder_config: AutoEncoderModelConfig<VaeConfig, LinearConvTranspose2dModelConfig> =
-            parse_json_file(autoencoder_config)?;
-        let mut encoder = autoencoder_config.encoder.init(device);
-        encoder = encoder
-            .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);
-        Ok(Self {
-            encoder,
-            device: device.clone(),
-        })
-    }
-}
+// impl<B: Backend> ImageEncoder<B, VaeModel<B>> {
+//     pub fn load(
+//         autoencoder_config: impl AsRef<Path>,
+//         encoder_weights: impl AsRef<Path>,
+//         device: &B::Device,
+//     ) -> Result<Self, LoadModelError> {
+//         let autoencoder_config: AutoEncoderModelConfig<VaeConfig, LinearConvTranspose2dModelConfig> =
+//             parse_json_file(autoencoder_config)?;
+//         let mut encoder = autoencoder_config.encoder.init(device);
+//         encoder = encoder
+//             .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);
+//         Ok(Self {
+//             encoder,
+//             device: device.clone(),
+//         })
+//     }
+// }
 
 impl<B: Backend, M> ImageEncoder<B, M> {
     pub fn get_encoder(&self) -> &M {

@@ -252,13 +252,26 @@ pub fn train() {
 
                 model = trainable_model.unwrap();
 
-                model
-                    .clone()
-                    .save_file(
-                        artifact_dir.join(format!("model-{epoch}.mpk")),
-                        &CompactRecorder::new(),
-                    )
-                    .expect("Expected model to be saveable to artifact dir");
+                match &model {
+                    ImageAutoEncoder::Normal(model) => {
+                        model
+                            .clone()
+                            .save_file(
+                                artifact_dir.join(format!("model-{epoch}.mpk")),
+                                &CompactRecorder::new(),
+                            )
+                            .expect("Expected model to be saveable to artifact dir");
+                    }
+                    ImageAutoEncoder::Vae(model) => {
+                        model
+                            .clone()
+                            .save_file(
+                                artifact_dir.join(format!("model-{epoch}.mpk")),
+                                &CompactRecorder::new(),
+                            )
+                            .expect("Expected model to be saveable to artifact dir");
+                    }
+                }
 
                 testing_batcher.reset();
                 let mut output_width = 0usize;
