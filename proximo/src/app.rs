@@ -24,16 +24,16 @@ use utils::parse_json_file;
 
 use crate::{
     app::{
-        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{
+        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig},
+        presets::autoencoders::{
             ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan,
             ImageAutoEncoderPlanConfig,
-        }
+        },
     },
     trainable_models::{
         AdHocLossModel,
-        apply_gradients::{
-            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients,
-        }, vae::sample_vae,
+        apply_gradients::{AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients},
+        vae::sample_vae,
     },
     training_loop::{train_epoch, validate_model},
 };
@@ -173,7 +173,7 @@ pub fn train() {
                 let mut trainable_model = AdHocLossModel::new(
                     model,
                     |model: &AutodiffModel,
-                    item: AutoEncoderImageBatch<AutodiffBackend>,
+                     item: AutoEncoderImageBatch<AutodiffBackend>,
                      plan: &AdHocTrainingPlan<
                         AutodiffBackend,
                         ImageAutoEncoder<AutodiffBackend>,
@@ -187,7 +187,7 @@ pub fn train() {
                                 //     item.expected,
                                 //     Reduction::Auto,
                                 // )
-                            },
+                            }
                             ImageAutoEncoder::Vae(model) => {
                                 let ImageAutoEncoderPlan::Vae(plan) =
                                     plan.plan().expect("Expected VAE grads plan")
@@ -197,10 +197,7 @@ pub fn train() {
                                 let (mut reconstructed, mut kld) = sample_vae(model, item.input);
                                 reconstructed = reconstructed;
                                 kld = kld * plan.encoder().get_kld_weight();
-                                bce_float_loss(
-                                    item.expected,
-                                    reconstructed,
-                                ) + kld
+                                bce_float_loss(item.expected, reconstructed) + kld
                                 // bce_float_loss(item.expected, reconstructed) + kld
                             }
                         }
@@ -361,10 +358,7 @@ pub fn train() {
                 let mut validatable_model = AdHocLossModel::new(
                     model,
                     |model: &Model, item: AutoEncoderImageBatch<Backend>| {
-                        bce_float_loss(
-                            model.infer(item.input),
-                            item.expected,
-                        )
+                        bce_float_loss(model.infer(item.input), item.expected)
                     },
                 );
 

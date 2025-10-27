@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use burn::{config::Config};
+use burn::config::Config;
 use crossbeam::queue::SegQueue;
 use parking_lot::Mutex;
 use rand::Rng;
@@ -71,7 +71,7 @@ impl SqliteDataset {
         db_file: impl AsRef<Path>,
         get_sql: String,
         len_sql: String,
-        shuffle_sqls: Vec<String>
+        shuffle_sqls: Vec<String>,
     ) -> rusqlite::Result<Self> {
         let db_file = db_file.as_ref().to_path_buf();
 

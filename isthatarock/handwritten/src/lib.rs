@@ -8,7 +8,23 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::TensorData,
 };
-use general_models::{Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, AutoEncoderModelRecord, vae::{VariationalEncoderModel, VariationalEncoderModelConfig, VariationalEncoderModelRecord}}, image::{Conv2dLinearModel, Conv2dLinearModelConfig, Conv2dLinearModelRecord, LinearConvTranspose2dModel, LinearConvTranspose2dModelConfig}}, error::LoadModelError};
+use general_models::{
+    Init, SimpleInfer,
+    composite::{
+        autoencoder::{
+            AutoEncoderModelConfig, AutoEncoderModelRecord,
+            vae::{
+                VariationalEncoderModel, VariationalEncoderModelConfig,
+                VariationalEncoderModelRecord,
+            },
+        },
+        image::{
+            Conv2dLinearModel, Conv2dLinearModelConfig, Conv2dLinearModelRecord,
+            LinearConvTranspose2dModel, LinearConvTranspose2dModelConfig,
+        },
+    },
+    error::LoadModelError,
+};
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
 
@@ -22,7 +38,7 @@ pub type Record<B> = Conv2dLinearModelRecord<B>;
 
 pub struct ImageEncoder<B: Backend, M> {
     encoder: M,
-    device: B::Device
+    device: B::Device,
 }
 
 impl<B: Backend> ImageEncoder<B, Model<B>> {
@@ -34,7 +50,8 @@ impl<B: Backend> ImageEncoder<B, Model<B>> {
         let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTranspose2dModelConfig> =
             parse_json_file(autoencoder_config)?;
         let mut encoder = autoencoder_config.encoder.init(device);
-        let record: AutoEncoderModelRecord<B, Model<B>, LinearConvTranspose2dModel<B>> = CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?;
+        let record: AutoEncoderModelRecord<B, Model<B>, LinearConvTranspose2dModel<B>> =
+            CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?;
         encoder = encoder.load_record(record.encoder);
         Ok(Self {
             encoder,

@@ -1,6 +1,8 @@
 use burn::{Tensor, prelude::Backend};
-use general_models::{SimpleTrain, composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel}};
-
+use general_models::{
+    SimpleTrain,
+    composite::autoencoder::{AutoEncoderModel, vae::VariationalEncoderModel},
+};
 
 pub fn sample_vae<B, E, D, const N_I: usize>(
     model: &AutoEncoderModel<B, VariationalEncoderModel<B, E>, D>,

@@ -1,4 +1,8 @@
-use burn::{Tensor, nn::loss::{MseLoss, Reduction}, prelude::Backend};
+use burn::{
+    Tensor,
+    nn::loss::{MseLoss, Reduction},
+    prelude::Backend,
+};
 
 const EPSILON: f64 = 1e-7;
 
