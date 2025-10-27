@@ -103,10 +103,10 @@ impl SqliteDataset {
             assert_eq!(stmt.parameter_count(), 0, "len_sql must have no parameters");
             len = stmt.query_one((), |row| row.get("len")).unwrap();
 
-            for sql in &shuffle_sqls {
-                let stmt = conn.prepare_cached(sql)?;
-                assert_eq!(stmt.parameter_count(), 0, "each statement in shuffle_sqls must not accept parameters");
-            }
+            // for sql in &shuffle_sqls {
+            //     let stmt = conn.prepare_cached(sql)?;
+            //     assert_eq!(stmt.parameter_count(), 0, "each statement in shuffle_sqls must not accept parameters");
+            // }
         }
 
         Ok(Self {

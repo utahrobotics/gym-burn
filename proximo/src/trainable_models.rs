@@ -3,6 +3,7 @@ use burn::{Tensor, module::AutodiffModule, prelude::Backend, tensor::backend::Au
 use crate::trainable_models::apply_gradients::ApplyGradients;
 
 pub mod apply_gradients;
+pub mod vae;
 
 pub trait ValidatableModel<B: Backend, I> {
     fn batch_valid(&mut self, batch: I) -> Tensor<B, 1>;

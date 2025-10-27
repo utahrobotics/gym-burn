@@ -18,6 +18,7 @@ use linfa::{
 use linfa_clustering::Dbscan;
 use linfa_reduction::Pca;
 use ndarray::{Array1, Array2, Axis};
+use rerun::Color;
 use rustc_hash::FxHashMap;
 use utils::parse_json_file;
 
@@ -39,7 +40,7 @@ enum Command {
         config_path: PathBuf,
         #[arg(short, long)]
         dataset_configs: Vec<PathBuf>,
-        #[arg(long, default_value_t = 64)]
+        #[arg(long, default_value_t = 256)]
         batch_size: usize,
         #[arg(long, default_value_t = 3)]
         min_points: usize,
@@ -69,6 +70,7 @@ fn main() {
             .expect("Configuration should be valid");
 
             let mut latents: Vec<f32> = vec![];
+            let mut expected_brightnesses = vec![];
             let mut latent_size = None;
             let mut batcher = AutoEncoderImageBatcher::new(1, device.clone());
 
@@ -82,7 +84,12 @@ fn main() {
                     let tensor = model.get_encoder().forward(batch.input);
                     let [_, tmp] = tensor.dims();
                     latent_size = Some(tmp);
+                    if tensor.clone().contains_nan().into_scalar() != 0 {
+                        println!("Found NaN");
+                        continue;
+                    }
                     latents.extend(tensor.into_data().iter::<f32>());
+                    expected_brightnesses.extend(batch.expected.mean_dims(&[1, 2, 3]).into_data().iter::<f32>());
                 }
 
                 println!("Latents size: {}", latents.len());
@@ -92,6 +99,8 @@ fn main() {
                 eprintln!("No latents created");
                 return;
             };
+
+            let max_brightness = *expected_brightnesses.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
 
             let latent_points = Array2::from_shape_vec(
                 (latents.len() / latent_size, latent_size),
@@ -111,36 +120,21 @@ fn main() {
                     .save("clustering.rrd")
                     .unwrap();
 
-                // println!("Running PCA 2D");
-                // let embedding2 = Pca::params(2).fit(&pca_dataset).unwrap();
-                // let output2 = embedding2.predict(&pca_dataset);
-
-                // println!("Saving PCA 2D");
-                // for point in output2.axis_iter(Axis(0)) {
-                //     rerun_save
-                //         .log(
-                //             "pca2d",
-                //             &rerun::Points2D::new(
-                //                 [(point[0] as f32, point[1] as f32)],
-                //             )
-                //             .with_radii(Some(0.1)),
-                //         )
-                //         .unwrap();
-                // }
-
                 println!("Running PCA 3D");
                 let embedding3 = Pca::params(3).fit(&pca_dataset).unwrap();
                 let output3 = embedding3.predict(&pca_dataset);
 
                 println!("Saving PCA 3D");
-                for point in output3.axis_iter(Axis(0)) {
+                let points: Vec<_> = output3.axis_iter(Axis(0)).collect();
+                for (points, brightnesses) in points.chunks(batch_size).zip(expected_brightnesses.chunks(batch_size)) {
                     rerun_save
                         .log(
                             "pca3d",
                             &rerun::Points3D::new(
-                                [(point[0] as f32, point[1] as f32, point[2] as f32)],
+                                points.iter().map(|point| (point[0] as f32, point[1] as f32, point[2] as f32)),
                             )
-                            .with_radii(Some(0.1)),
+                            .with_colors(brightnesses.iter().map(|b| (*b / max_brightness * 255.0) as u8).map(|b| Color::from_rgb(b, b, b)))
+                            .with_radii((0..points.len()).map(|_| 0.01)),
                         )
                         .unwrap();
                 }

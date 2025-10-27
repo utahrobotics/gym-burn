@@ -3,7 +3,6 @@ use std::{io::Cursor, process::Stdio, sync::atomic::AtomicBool, time::SystemTime
 use base64::{Engine, prelude::BASE64_STANDARD};
 use burn::{
     module::{AutodiffModule, DisplaySettings, Module, ModuleDisplay},
-    nn::loss::{MseLoss, Reduction},
     prelude::Backend,
     record::CompactRecorder,
 };
@@ -33,8 +32,8 @@ use crate::{
     trainable_models::{
         AdHocLossModel,
         apply_gradients::{
-            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients, autoencoder::sample_vae,
-        },
+            AdHocTrainingPlan, AdHocTrainingPlanConfig, ApplyGradients,
+        }, vae::sample_vae,
     },
     training_loop::{train_epoch, validate_model},
 };
@@ -362,11 +361,9 @@ pub fn train() {
                 let mut validatable_model = AdHocLossModel::new(
                     model,
                     |model: &Model, item: AutoEncoderImageBatch<Backend>| {
-                        MseLoss::new().forward(
+                        bce_float_loss(
                             model.infer(item.input),
                             item.expected,
-                            Reduction::Auto, // 1.0,
-                                             // 0.1
                         )
                     },
                 );
