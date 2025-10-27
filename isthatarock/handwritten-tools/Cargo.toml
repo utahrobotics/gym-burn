@@ -1,0 +1,11 @@
+[package]
+name = "handwritten-tools"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rerun = { version = "0.25.1", default-features = false, features = ["sdk", "image"] }
+handwritten.path = "../handwritten"
+linfa-clustering = "0.8.0"
+linfa-reduction = "0.8.0"
+clap = { version = "4", features = ["derive"] }

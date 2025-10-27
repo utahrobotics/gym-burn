@@ -19,7 +19,7 @@ use ndarray::{Array1, Array2, Axis};
 use rustc_hash::FxHashMap;
 use utils::parse_json_file;
 
-use crate::ImageEncoder;
+use handwritten::ImageEncoder;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -46,7 +46,7 @@ enum Command {
     },
 }
 
-pub fn main() {
+fn main() {
     let args = Args::parse();
     let device = general_models::wgpu::get_device();
 

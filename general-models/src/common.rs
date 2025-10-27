@@ -12,13 +12,12 @@ use burn::{
     tensor::backend::AutodiffBackend,
 };
 use delegate::delegate;
-use derive_more::From;
 use serde::{Deserialize, Serialize};
 use utils::default_f;
 
 use crate::SimpleInfer;
 
-#[derive(Debug, From, Module)]
+#[derive(Debug, derive_more::From, Module)]
 pub enum Norm<B: Backend> {
     BatchNorm(BatchNorm<B>),
     RmsNorm(RmsNorm<B>),

@@ -8,40 +8,27 @@ use burn::{
     record::{CompactRecorder, Recorder},
     tensor::TensorData,
 };
-use general_models::{
-    Init, SimpleInfer,
-    composite::{
-        autoencoder::{
-            AutoEncoderModelConfig,
-            vae::{VariationalEncoder, VariationalEncoderConfig},
-        },
-        image::{ConvLinearModel, ConvLinearModelConfig, LinearConvTransposedModelConfig},
-    },
-    error::LoadModelError,
-};
+use general_models::{Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModelConfig, vae::{VariationalEncoderModel, VariationalEncoderModelConfig}}, image::{Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModelConfig}}, error::LoadModelError};
 use image::{ImageBuffer, Luma, buffer::ConvertBuffer};
 use utils::parse_json_file;
 
-#[cfg(feature = "app")]
-pub mod app;
+pub type VaeModel<B> = VariationalEncoderModel<B, Conv2dLinearModel<B>>;
+pub type VaeConfig = VariationalEncoderModelConfig<Conv2dLinearModelConfig>;
+pub type Model<B> = Conv2dLinearModel<B>;
+pub type Config = Conv2dLinearModelConfig;
 
-type Model<B> = VariationalEncoder<B, ConvLinearModel<B>>;
-type Config = VariationalEncoderConfig<ConvLinearModelConfig>;
-// type Model<B> = ConvLinearModel<B>;
-// type Config = ConvLinearModelConfig;
-
-pub struct ImageEncoder<B: Backend> {
-    encoder: Model<B>,
-    device: B::Device,
+pub struct ImageEncoder<B: Backend, M> {
+    encoder: M,
+    device: B::Device
 }
 
-impl<B: Backend> ImageEncoder<B> {
+impl<B: Backend> ImageEncoder<B, Model<B>> {
     pub fn load(
         autoencoder_config: impl AsRef<Path>,
         encoder_weights: impl AsRef<Path>,
         device: &B::Device,
     ) -> Result<Self, LoadModelError> {
-        let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTransposedModelConfig> =
+        let autoencoder_config: AutoEncoderModelConfig<Config, LinearConvTranspose2dModelConfig> =
             parse_json_file(autoencoder_config)?;
         let mut encoder = autoencoder_config.encoder.init(device);
         encoder = encoder
@@ -51,11 +38,33 @@ impl<B: Backend> ImageEncoder<B> {
             device: device.clone(),
         })
     }
+}
 
-    pub fn get_encoder(&self) -> &Model<B> {
+impl<B: Backend> ImageEncoder<B, VaeModel<B>> {
+    pub fn load(
+        autoencoder_config: impl AsRef<Path>,
+        encoder_weights: impl AsRef<Path>,
+        device: &B::Device,
+    ) -> Result<Self, LoadModelError> {
+        let autoencoder_config: AutoEncoderModelConfig<VaeConfig, LinearConvTranspose2dModelConfig> =
+            parse_json_file(autoencoder_config)?;
+        let mut encoder = autoencoder_config.encoder.init(device);
+        encoder = encoder
+            .load_record(CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?);
+        Ok(Self {
+            encoder,
+            device: device.clone(),
+        })
+    }
+}
+
+impl<B: Backend, M> ImageEncoder<B, M> {
+    pub fn get_encoder(&self) -> &M {
         &self.encoder
     }
+}
 
+impl<B: Backend, M: SimpleInfer<B, 4, 2>> ImageEncoder<B, M> {
     /// Encodes the given Luma images with edge-detection already performed.
     ///
     /// # Panic
@@ -71,7 +80,7 @@ impl<B: Backend> ImageEncoder<B> {
             .map(|tensor| tensor.reshape([1, 1, 28, 28]))
             .collect();
         let tensor = Tensor::cat(tensors, 0);
-        let latent_dims = self.encoder.forward(tensor);
+        let latent_dims = self.encoder.infer(tensor);
         let [_, latent_size] = latent_dims.dims();
         Encodings {
             data: latent_dims.into_data().into_vec::<f32>().unwrap(),

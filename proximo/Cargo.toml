@@ -7,7 +7,6 @@ edition = "2024"
 general-models.workspace = true
 general-dataset.workspace = true
 burn = { workspace = true, features = ["autodiff"] }
-# image = { workspace = true, features = ["webp"] }
 utils.workspace = true
 clap = { workspace = true, optional = true }
 rand.workspace = true
@@ -16,15 +15,12 @@ serde.workspace = true
 serde_json = { workspace = true, optional = true }
 image = { workspace = true, optional = true, features = ["webp"] }
 rayon.workspace = true
-# rusqlite = { workspace = true, optional = true }
 tracing-subscriber = { version = "0.3.20", optional = true }
 tracing = { version = "0.1.41", optional = true }
 base64.workspace = true
 dhat = { version = "0.3.3", optional = true }
 tracking-backend = { path = "../tracking-backend", optional = true }
 ctrlc = "3.5.0"
-# delegate = "0.13.4"
-# derive_more = "2.0.1"
 
 [features]
 wgpu = ["general-models/wgpu"]

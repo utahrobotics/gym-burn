@@ -21,6 +21,7 @@ artifacts/
 /pca_visualization.png
 
 proximo-rerun/target/
+isthatarock/handwritten-tools/target/
 
 inference.webp
 

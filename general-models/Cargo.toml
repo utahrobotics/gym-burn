@@ -10,7 +10,7 @@ thiserror.workspace = true
 serde_json.workspace = true
 utils.workspace = true
 delegate = "0.13.4"
-derive_more = "2.0.1"
+derive_more = { version = "2.0.1", features = ["from"]}
 
 [features]
 wgpu = ["burn/wgpu"]
