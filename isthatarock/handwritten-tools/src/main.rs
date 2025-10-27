@@ -111,31 +111,22 @@ fn main() {
                     .save("clustering.rrd")
                     .unwrap();
 
-                println!("Running PCA 2D");
-                let embedding2 = Pca::params(2).fit(&pca_dataset).unwrap();
-                let output2 = embedding2.predict(&pca_dataset);
+                // println!("Running PCA 2D");
+                // let embedding2 = Pca::params(2).fit(&pca_dataset).unwrap();
+                // let output2 = embedding2.predict(&pca_dataset);
 
-                // rerun_save
-                //     .log(
-                //         "pca2d",
-                //         &rerun::Points2D::new(
-                //             output2.axis_iter(Axis(0)).map(|p| (p[0] as f32, p[1] as f32)),
+                // println!("Saving PCA 2D");
+                // for point in output2.axis_iter(Axis(0)) {
+                //     rerun_save
+                //         .log(
+                //             "pca2d",
+                //             &rerun::Points2D::new(
+                //                 [(point[0] as f32, point[1] as f32)],
+                //             )
+                //             .with_radii(Some(0.1)),
                 //         )
-                //         .with_radii((0..output2.shape()[0]).map(|_| 0.1)),
-                //     )
-                //     .unwrap();
-                println!("Saving PCA 2D");
-                for point in output2.axis_iter(Axis(0)) {
-                    rerun_save
-                        .log(
-                            "pca2d",
-                            &rerun::Points2D::new(
-                                [(point[0] as f32, point[1] as f32)],
-                            )
-                            .with_radii(Some(0.1)),
-                        )
-                        .unwrap();
-                }
+                //         .unwrap();
+                // }
 
                 println!("Running PCA 3D");
                 let embedding3 = Pca::params(3).fit(&pca_dataset).unwrap();
