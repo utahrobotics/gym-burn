@@ -104,9 +104,6 @@ pub fn train() {
     let artifact_dir = training_config.artifact_dir.join(secs.to_string());
     std::fs::create_dir_all(&artifact_dir).expect("Expected artifact dir to be creatable");
 
-    #[cfg(feature = "tracking-backend")]
-    tracking_backend::set_artifact_dir(artifact_dir.clone());
-
     let mut training_dataset: SqliteDataset = training_config
         .training_dataset
         .try_into()
@@ -169,6 +166,9 @@ pub fn train() {
             for epoch in 0..training_config.num_epochs {
                 let epoch_start_time = clock.now();
                 let mut batch_i = 0usize;
+
+                training_dataset.shuffle();
+
                 info!("Training Epoch {epoch}");
 
                 let mut trainable_model = AdHocLossModel::new(
@@ -416,11 +416,8 @@ pub fn train() {
                 "Total Duration: {:.1}s",
                 training_start_time.elapsed().as_secs_f32()
             );
-        } // ModelType::ImageVariationalAutoEncoder => todo!(),
+        }
     }
-
-    #[cfg(feature = "tracking-backend")]
-    tracking_backend::wait_until_paused();
 }
 
 pub fn main() {

@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use burn::config::Config;
+use burn::{config::Config};
 use crossbeam::queue::SegQueue;
 use parking_lot::Mutex;
 use rand::Rng;
 use rusqlite::{Connection, Row, params};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[cfg(feature = "burn_dataset")]
@@ -13,12 +14,16 @@ pub mod burn_dataset;
 pub mod cache;
 pub mod presets;
 
-#[derive(Debug, Config)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SqliteDatasetConfig {
     pub db_file: PathBuf,
     pub get_sql: String,
     pub len_sql: String,
+    #[serde(default)]
+    pub shuffle_sqls: Vec<String>,
 }
+
+impl Config for SqliteDatasetConfig {}
 
 pub trait FromSqlRow {
     fn from(row: &Row) -> Self;
@@ -57,6 +62,7 @@ pub struct SqliteDataset {
     extra_conns: SegQueue<Connection>,
     db_file: PathBuf,
     get_sql: String,
+    shuffle_sqls: Vec<String>,
     len: usize,
 }
 
@@ -65,6 +71,7 @@ impl SqliteDataset {
         db_file: impl AsRef<Path>,
         get_sql: String,
         len_sql: String,
+        shuffle_sqls: Vec<String>
     ) -> rusqlite::Result<Self> {
         let db_file = db_file.as_ref().to_path_buf();
 
@@ -94,7 +101,12 @@ impl SqliteDataset {
                 "len_sql does not output a `len` column"
             );
             assert_eq!(stmt.parameter_count(), 0, "len_sql must have no parameters");
-            len = stmt.query_one((), |row| row.get("len")).unwrap()
+            len = stmt.query_one((), |row| row.get("len")).unwrap();
+
+            for sql in &shuffle_sqls {
+                let stmt = conn.prepare_cached(sql)?;
+                assert_eq!(stmt.parameter_count(), 0, "each statement in shuffle_sqls must not accept parameters");
+            }
         }
 
         Ok(Self {
@@ -102,6 +114,7 @@ impl SqliteDataset {
             get_sql,
             len,
             db_file,
+            shuffle_sqls,
             extra_conns: SegQueue::new(),
         })
     }
@@ -127,13 +140,12 @@ impl TryFrom<SqliteDatasetConfig> for SqliteDataset {
         } else {
             value.get_sql
         };
-        Self::new(value.db_file, get_sql, value.len_sql).map_err(Into::into)
+        Self::new(value.db_file, get_sql, value.len_sql, value.shuffle_sqls).map_err(Into::into)
     }
 }
 pub trait StatefulBatcher<I, O> {
     fn reset(&mut self);
     fn ingest(&mut self, item: I);
-    // fn shuffle(&mut self, rng: &mut impl Rng);
     fn finish(&mut self) -> O;
 }
 
@@ -145,10 +157,6 @@ impl<I, O, T: StatefulBatcher<I, O>> StatefulBatcher<I, O> for &mut T {
     fn ingest(&mut self, item: I) {
         T::ingest(self, item);
     }
-
-    // fn shuffle(&mut self, rng: &mut impl Rng) {
-    //     T::shuffle(self, rng);
-    // }
 
     fn finish(&mut self) -> O {
         T::finish(self)
@@ -173,6 +181,19 @@ impl SqliteDataset {
         batcher.finish()
     }
 
+    pub fn shuffle(&self) {
+        if self.shuffle_sqls.is_empty() {
+            return;
+        }
+        self.with_conn(|conn| {
+            let tx = conn.transaction().unwrap();
+            for sql in &self.shuffle_sqls {
+                tx.prepare_cached(sql).unwrap().execute(()).unwrap();
+            }
+            tx.commit().unwrap();
+        });
+    }
+
     pub fn get_batch_count(&self, batch_size: usize) -> usize {
         self.len.div_ceil(batch_size)
     }
@@ -181,14 +202,14 @@ impl SqliteDataset {
         self.get(rng.random_range(0..self.len))
     }
 
-    pub fn with_conn<T>(&self, f: impl FnOnce(&Connection) -> T) -> T {
+    pub fn with_conn<T>(&self, f: impl FnOnce(&mut Connection) -> T) -> T {
         match self.conn.try_lock() {
-            Some(x) => f(&x),
+            Some(mut x) => f(&mut x),
             None => {
-                let conn = self.extra_conns.pop().unwrap_or_else(|| {
+                let mut conn = self.extra_conns.pop().unwrap_or_else(|| {
                     Connection::open(&self.db_file).expect("Expected db file to be valid")
                 });
-                let result = f(&conn);
+                let result = f(&mut conn);
                 self.extra_conns.push(conn);
                 result
             }
