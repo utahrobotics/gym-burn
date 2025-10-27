@@ -5,6 +5,7 @@ pub mod composite;
 pub mod conv;
 pub mod error;
 pub mod linear;
+pub mod loss;
 
 pub trait Init<B: Backend, T> {
     fn init(self, device: &B::Device) -> T;
@@ -47,7 +48,7 @@ pub mod wgpu {
     use burn::backend::{Wgpu, wgpu::WgpuDevice};
     pub type WgpuBackend = Wgpu<f32, i32>;
 
-    static DEVICE: LazyLock<WgpuDevice> = LazyLock::new(Default::default);
+    static DEVICE: LazyLock<WgpuDevice> = LazyLock::new(Default::default); 
 
     pub fn get_device() -> &'static WgpuDevice {
         &DEVICE

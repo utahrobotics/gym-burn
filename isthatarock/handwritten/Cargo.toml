@@ -6,12 +6,6 @@ edition = "2024"
 [dependencies]
 general-models.workspace = true
 burn.workspace = true
-linfa.workspace = true
 utils.workspace = true
-rustc-hash.workspace = true
-linfa-clustering = "0.8.0"
 image = { workspace = true, default-features = true }
 imageproc.workspace = true
-clap = { workspace = true, optional = true }
-general-dataset = { workspace = true, optional = true }
-ndarray = { version = "0.16.1", optional = true }

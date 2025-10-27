@@ -1,18 +1,14 @@
+#![recursion_limit = "256"]
 use std::{
     collections::hash_map::Entry,
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
-    sync::Arc,
 };
 
-use burn::data::{dataloader::batcher::Batcher, dataset::Dataset};
 use clap::{Parser, Subcommand};
+use general_dataset::{SqliteDataset, SqliteDatasetConfig, presets::autoencoder::AutoEncoderImageBatcher};
 use general_models::{SimpleInfer, wgpu::WgpuBackend};
-use general_training::{
-    batches::{AutoEncoderImageBatcher, AutoEncoderImageItem},
-    dataset::{SqliteDataset, SqliteDatasetConfig},
-};
 use linfa::traits::Transformer;
 use linfa_clustering::Dbscan;
 use ndarray::{Array1, Array2, Axis};
@@ -59,40 +55,24 @@ fn main() {
             min_points,
             tolerance,
         } => {
-            let model = ImageEncoder::<WgpuBackend>::load(config_path, weights_path, device)
+            let model = ImageEncoder::<WgpuBackend, handwritten::Model<WgpuBackend>>::load(config_path, weights_path, device)
                 .expect("Configuration should be valid");
             let mut latents: Vec<f32> = vec![];
             let mut latent_size = None;
-            let batcher = AutoEncoderImageBatcher { channels: 1 };
+            let mut batcher = AutoEncoderImageBatcher::new(1, device.clone());
 
             for dataset_config in dataset_configs {
                 println!("Reading from {:?}", dataset_config);
                 let dataset_config: SqliteDatasetConfig = parse_json_file(dataset_config).unwrap();
-                let dataset: SqliteDataset<Arc<AutoEncoderImageItem>> =
+                let dataset: SqliteDataset =
                     dataset_config.try_into().unwrap();
 
-                let mut batch_items = Vec::with_capacity(batch_size);
-                for i in 0..dataset.len() {
-                    batch_items.push(dataset.get(i).unwrap());
-                    if batch_items.len() >= batch_size {
-                        let batch = batcher.batch(
-                            std::mem::replace(&mut batch_items, Vec::with_capacity(batch_size)),
-                            device,
-                        );
-                        let tensor = model.encoder.forward(batch.input);
+                for i in 0..dataset.get_batch_count(batch_size) {
+                    let batch = dataset.query(i, batch_size, &mut batcher);
+                        let tensor = model.get_encoder().forward(batch.input);
                         let [_, tmp] = tensor.dims();
                         latent_size = Some(tmp);
                         latents.extend(tensor.into_data().iter::<f32>());
-                    }
-                }
-
-                if !batch_items.is_empty() {
-                    let batch = batcher.batch(batch_items, device);
-                    let tensor = model.encoder.forward(batch.input);
-                    let [_, tmp] = tensor.dims();
-                    latent_size = Some(tmp);
-                    latents.extend(tensor.into_data().iter::<f32>());
-                    // latents.extend(tensor.iter_dim(0).map(|tensor| tensor.into_data()));
                 }
 
                 println!("Latents size: {}", latents.len());

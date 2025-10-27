@@ -4,8 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-rerun = { version = "0.25.1", default-features = false, features = ["sdk", "image"] }
+rerun = { version = "0.25.1", default-features = false, features = ["sdk"] }
 handwritten.path = "../handwritten"
+utils.path = "../../utils"
+general-dataset.path = "../../general-dataset"
 linfa-clustering = "0.8.0"
 linfa-reduction = "0.8.0"
 clap = { version = "4", features = ["derive"] }
+general-models = { path = "../../general-models", features = ["wgpu"] }
+rustc-hash = "2.1.1"
+linfa = "0.8.0"
+ndarray = "0.16.1"

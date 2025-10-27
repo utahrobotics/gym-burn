@@ -12,7 +12,7 @@ use general_dataset::{
     SqliteDataset, StatefulBatcher,
     presets::autoencoder::{AutoEncoderImageBatch, AutoEncoderImageBatcher, AutoEncoderImageItem},
 };
-use general_models::{Init, SimpleInfer, SimpleTrain};
+use general_models::{Init, SimpleInfer, SimpleTrain, loss::bce_float_loss};
 use image::{
     ImageBuffer, ImageDecoder, ImageFormat, Luma, Rgb, buffer::ConvertBuffer,
     codecs::webp::WebPDecoder,
@@ -25,7 +25,7 @@ use utils::parse_json_file;
 
 use crate::{
     app::{
-        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, loss::bce_float_loss, presets::autoencoders::{
+        config::{ImageAutoEncoderChallenge, ModelType, TrainingConfig, TrainingGradsPlanConfig}, presets::autoencoders::{
             ImageAutoEncoder, ImageAutoEncoderConfig, ImageAutoEncoderPlan,
             ImageAutoEncoderPlanConfig,
         }
@@ -46,7 +46,6 @@ use rayon::iter::ParallelDrainRange;
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 pub mod config;
-pub mod loss;
 pub mod presets;
 
 #[derive(Parser, Debug)]

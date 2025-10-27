@@ -5,6 +5,7 @@ artifacts/
 **.sqlite
 **.sqlite-journal
 /.venv/
+.zed/
 
 /model.json
 /model.jsonc
