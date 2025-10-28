@@ -9,7 +9,7 @@ general-dataset.path = "general-dataset"
 utils.path = "utils"
 
 rustc-hash = "2.1.1"
-burn = { git = "https://github.com/tracel-ai/burn.git", features = ["std", "fusion", "ndarray"], default-features = false, rev = "b2a36753005afca430d5914801367127e485c0a7" }
+burn = { git = "https://github.com/tracel-ai/burn.git", features = ["std", "fusion", "ndarray"], default-features = false, rev = "cb640801460ac45ccb0150abd515b8495a1a13cf" }
 rand = { version = "0.9.2", features = ["small_rng"], default-features = false }
 image = { version = "0.25", default-features = false }
 serde = { version = "1.0.226", features = ["derive"] }
