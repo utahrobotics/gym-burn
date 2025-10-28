@@ -86,7 +86,7 @@ pub struct Conv2dLayerConfig {
     pub dilation: [usize; 2],
     #[serde(default = "default_groups")]
     pub groups: usize,
-    pub padding: Option<[usize; 2]>
+    pub padding: Option<[usize; 2]>,
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -94,7 +94,9 @@ pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<Conv2dLayerConfig, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>>,
+    pub layers: Vec<
+        Either<Conv2dLayerConfig, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>,
+    >,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
@@ -116,7 +118,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
             },
             activation,
             norm,
-            weights_gain
+            weights_gain,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
             let (norm, activation, init) = handle_norm_activation(
@@ -126,7 +128,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                 &self.default_activation,
                 weights_gain,
                 output_channels,
-                device
+                device,
             );
             layers.push((
                 Conv2dConfig::new([input_channels, output_channels], kernel_size)
@@ -142,7 +144,7 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                     )
                     .init(device),
                 norm,
-                activation
+                activation,
             ));
             input_channels = output_channels;
         }
@@ -237,7 +239,14 @@ pub struct ConvTranspose2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<ConvTranspose2dLayerConfig, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>>,
+    pub layers: Vec<
+        Either<
+            ConvTranspose2dLayerConfig,
+            Optional<ActivationConfig>,
+            Optional<NormConfig>,
+            Option<f64>,
+        >,
+    >,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
@@ -261,7 +270,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             },
             activation,
             norm,
-            weights_gain
+            weights_gain,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
             let (norm, activation, init) = handle_norm_activation(
@@ -271,7 +280,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                 &self.default_activation,
                 weights_gain,
                 output_channels,
-                device
+                device,
             );
             layers.push((
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
@@ -284,7 +293,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                     .with_groups(groups)
                     .init(device),
                 norm,
-                activation
+                activation,
             ));
             input_channels = output_channels;
         }

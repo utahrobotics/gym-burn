@@ -91,7 +91,9 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
     fn init(self, device: &B::Device) -> LinearModel<B> {
         let mut input_size = self.input_size;
         let mut layers = vec![];
-        for (output_size, activation, norm, weights_gain) in self.layers.into_iter().map(Either::into_tuple) {
+        for (output_size, activation, norm, weights_gain) in
+            self.layers.into_iter().map(Either::into_tuple)
+        {
             let (norm, activation, init) = handle_norm_activation(
                 norm,
                 activation,
@@ -99,7 +101,7 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
                 &self.default_activation,
                 weights_gain,
                 output_size,
-                device
+                device,
             );
             layers.push((
                 LinearConfig::new(input_size, output_size)
@@ -107,7 +109,7 @@ impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
                     .with_initializer(init)
                     .init(device),
                 norm,
-                activation
+                activation,
             ));
             input_size = output_size;
         }

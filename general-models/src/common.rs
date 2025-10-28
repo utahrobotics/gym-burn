@@ -5,7 +5,9 @@ use burn::{
     config::Config,
     module::{AutodiffModule, ConstantRecord, Module, ModuleDisplay, ModuleDisplayDefault},
     nn::{
-        BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, Initializer, InstanceNorm, InstanceNormConfig, LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig, activation::Activation
+        BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, Initializer, InstanceNorm,
+        InstanceNormConfig, LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig,
+        activation::Activation,
     },
     prelude::Backend,
     tensor::backend::AutodiffBackend,
@@ -191,10 +193,7 @@ pub enum ActivationConfig {
 }
 
 impl ActivationConfig {
-    pub fn init<B: Backend>(
-        self,
-        device: &B::Device,
-    ) -> burn::nn::activation::Activation<B> {
+    pub fn init<B: Backend>(self, device: &B::Device) -> burn::nn::activation::Activation<B> {
         use burn::nn::activation::ActivationConfig as Config;
         let config = match self {
             ActivationConfig::Gelu => Config::Gelu,
@@ -295,7 +294,7 @@ impl<A, B: Default, C: Default, D: Default> Either<A, B, C, D> {
             Either::One(a) => (a, B::default(), C::default(), D::default()),
             Either::Two(a, b) => (a, b, C::default(), D::default()),
             Either::Three(a, b, c) => (a, b, c, D::default()),
-            Either::Four(a, b, c, d) => (a, b, c, d)
+            Either::Four(a, b, c, d) => (a, b, c, d),
         }
     }
 }
@@ -336,13 +335,30 @@ pub(crate) fn handle_norm_activation<B: Backend>(
     let activation = activation
         .resolve(|| default_activation.clone())
         .map(|x| x.init(device));
-    
+
     let init = match &activation {
-        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(2.0f64.sqrt()), fan_out_only: false },
-        Some(Activation::LeakyRelu(relu)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or_else(|| (2.0 / (1.0 + relu.negative_slope.powi(2))).sqrt()), fan_out_only: false },
-        Some(Activation::HardSigmoid(_) | Activation::Sigmoid(_) | Activation::Tanh(_) | Activation::SwiGlu(_)) | None => Initializer::XavierNormal { gain: default_weights_gain.unwrap_or(1.0) },
+        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_)) => {
+            Initializer::KaimingNormal {
+                gain: default_weights_gain.unwrap_or(2.0f64.sqrt()),
+                fan_out_only: false,
+            }
+        }
+        Some(Activation::LeakyRelu(relu)) => Initializer::KaimingNormal {
+            gain: default_weights_gain
+                .unwrap_or_else(|| (2.0 / (1.0 + relu.negative_slope.powi(2))).sqrt()),
+            fan_out_only: false,
+        },
+        Some(
+            Activation::HardSigmoid(_)
+            | Activation::Sigmoid(_)
+            | Activation::Tanh(_)
+            | Activation::SwiGlu(_),
+        )
+        | None => Initializer::XavierNormal {
+            gain: default_weights_gain.unwrap_or(1.0),
+        },
         // the compiler can't tell that all variants are handled
-        Some(_) => unreachable!()
+        Some(_) => unreachable!(),
     };
 
     (norm, activation, init)
