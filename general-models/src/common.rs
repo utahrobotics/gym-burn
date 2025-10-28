@@ -299,11 +299,19 @@ impl<A, B: Default, C: Default, D: Default> Either<A, B, C, D> {
     }
 }
 
+/// A slightly more advanced `Option` that adds a default variant.
+/// 
+/// The [`Optional::Default`] variant is now the default instead of [`Optional::None`].
+/// What this means is omitting this enum, writing `null` in JSON, or writing "default",
+/// will result in [`Optional::Default`], which delegates the value to `default_f` in [`Optional::resolve`].
+/// 
+/// Explicitly writing `"none"` will lead to [`Optional::Default`], which always returns [`Option::None`]
+/// in [`Optional::resolve`].
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Optional<T> {
-    #[default]
     None,
+    #[default]
     Default,
     #[serde(untagged)]
     Inner(T),

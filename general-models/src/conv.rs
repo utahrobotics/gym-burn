@@ -273,7 +273,7 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             weights_gain,
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
-            let (norm, activation, init) = handle_norm_activation(
+            let (norm, activation, _init) = handle_norm_activation(
                 norm,
                 activation,
                 &self.default_norm,
@@ -286,7 +286,8 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
                     .with_stride(stride)
-                    .with_initializer(init)
+                    // Bug in Burn when using Xavier
+                    // .with_initializer(init)
                     .with_dilation(dilation)
                     .with_padding(padding)
                     .with_padding_out(padding_out)
