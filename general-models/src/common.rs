@@ -338,7 +338,8 @@ pub(crate) fn handle_norm_activation<B: Backend>(
         .map(|x| x.init(device));
     
     let init = match &activation {
-        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_) | Activation::LeakyRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(2.0f64.sqrt()), fan_out_only: false },
+        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(2.0f64.sqrt()), fan_out_only: false },
+        Some(Activation::LeakyRelu(relu)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or_else(|| (2.0 / (1.0 + relu.negative_slope.powi(2))).sqrt()), fan_out_only: false },
         Some(Activation::HardSigmoid(_) | Activation::Sigmoid(_) | Activation::Tanh(_) | Activation::SwiGlu(_)) | None => Initializer::XavierNormal { gain: default_weights_gain.unwrap_or(1.0) },
         // the compiler can't tell that all variants are handled
         Some(_) => unreachable!()
