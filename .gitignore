@@ -25,6 +25,7 @@ proximo-rerun/target/
 isthatarock/handwritten-tools/target/
 isthatarock/handwritten-tools/*.mpk
 isthatarock/handwritten-tools/*.jsonc
+isthatarock/handwritten-tools/*.json
 isthatarock/handwritten-tools/*.sql
 isthatarock/handwritten-tools/*.rrd
 

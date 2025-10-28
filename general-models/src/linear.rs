@@ -65,6 +65,14 @@ impl<B: Backend> LinearModel<B> {
             .map(|(linear, norm, activation)| map(linear, norm, activation))
             .collect();
     }
+
+    pub fn get_input_size(&self) -> usize {
+        self.layers[0].0.weight.dims()[1]
+    }
+
+    pub fn get_output_size(&self) -> usize {
+        self.layers.last().unwrap().0.weight.dims()[1]
+    }
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
