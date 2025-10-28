@@ -9,7 +9,7 @@ use utils::default_f;
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
-    common::{ActivationConfig, Either, Norm, NormConfig},
+    common::{ActivationConfig, Either, Norm, NormConfig, Optional, handle_norm_activation},
 };
 
 #[derive(Debug, Module)]
@@ -80,31 +80,35 @@ pub struct LinearModelConfig {
     pub input_size: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<usize, ActivationConfig, NormConfig>>,
+    pub layers: Vec<Either<usize, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
     pub dropout_last: bool,
+    pub weights_gain: Option<f64>
 }
 
 impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {
     fn init(self, device: &B::Device) -> LinearModel<B> {
-        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_size = self.input_size;
         let mut layers = vec![];
-        for (output_size, activation, norm) in self.layers.into_iter().map(Either::into_tuple) {
-            let norm = norm
-                .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_size))
-                .flatten();
+        for (output_size, activation, norm, weights_gain) in self.layers.into_iter().map(Either::into_tuple) {
+            let (norm, activation, init) = handle_norm_activation(
+                norm,
+                activation,
+                &self.default_norm,
+                &self.default_activation,
+                weights_gain,
+                output_size,
+                device
+            );
             layers.push((
                 LinearConfig::new(input_size, output_size)
                     .with_bias(norm.is_none())
+                    .with_initializer(init)
                     .init(device),
                 norm,
                 activation
-                    .unwrap_or_else(|| default_activation.clone())
-                    .init(device),
             ));
             input_size = output_size;
         }

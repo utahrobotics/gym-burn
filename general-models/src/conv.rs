@@ -12,7 +12,7 @@ use utils::default_f;
 
 use crate::{
     Init, SimpleInfer, SimpleTrain,
-    common::{ActivationConfig, Either, Norm, NormConfig},
+    common::{ActivationConfig, Either, Norm, NormConfig, Optional, handle_norm_activation},
 };
 
 #[derive(Debug, Module)]
@@ -86,7 +86,7 @@ pub struct Conv2dLayerConfig {
     pub dilation: [usize; 2],
     #[serde(default = "default_groups")]
     pub groups: usize,
-    pub padding: Option<[usize; 2]>,
+    pub padding: Option<[usize; 2]>
 }
 
 #[derive(Serialize, Debug, Deserialize, Clone)]
@@ -94,7 +94,7 @@ pub struct Conv2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<Conv2dLayerConfig, ActivationConfig, NormConfig>>,
+    pub layers: Vec<Either<Conv2dLayerConfig, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
@@ -103,7 +103,6 @@ pub struct Conv2dModelConfig {
 
 impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
     fn init(self, device: &B::Device) -> Conv2dModel<B> {
-        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
         for (
@@ -117,16 +116,23 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
             },
             activation,
             norm,
+            weights_gain
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
-            let norm = norm
-                .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_channels))
-                .flatten();
+            let (norm, activation, init) = handle_norm_activation(
+                norm,
+                activation,
+                &self.default_norm,
+                &self.default_activation,
+                weights_gain,
+                output_channels,
+                device
+            );
             layers.push((
                 Conv2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
                     .with_stride(stride)
+                    .with_initializer(init)
                     .with_dilation(dilation)
                     .with_groups(groups)
                     .with_padding(
@@ -137,8 +143,6 @@ impl<B: Backend> Init<B, Conv2dModel<B>> for Conv2dModelConfig {
                     .init(device),
                 norm,
                 activation
-                    .unwrap_or_else(|| default_activation.clone())
-                    .init(device),
             ));
             input_channels = output_channels;
         }
@@ -233,7 +237,7 @@ pub struct ConvTranspose2dModelConfig {
     pub input_channels: usize,
     pub default_activation: Option<ActivationConfig>,
     pub default_norm: Option<NormConfig>,
-    pub layers: Vec<Either<ConvTranspose2dLayerConfig, ActivationConfig, NormConfig>>,
+    pub layers: Vec<Either<ConvTranspose2dLayerConfig, Optional<ActivationConfig>, Optional<NormConfig>, Option<f64>>>,
     #[serde(default = "default_dropout")]
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
@@ -242,9 +246,9 @@ pub struct ConvTranspose2dModelConfig {
 
 impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig {
     fn init(self, device: &B::Device) -> ConvTranspose2dModel<B> {
-        let default_activation = self.default_activation.unwrap_or_default();
         let mut input_channels = self.input_channels;
         let mut layers = vec![];
+
         for (
             ConvTranspose2dLayerConfig {
                 output_channels,
@@ -257,16 +261,23 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
             },
             activation,
             norm,
+            weights_gain
         ) in self.layers.into_iter().map(Either::into_tuple)
         {
-            let norm = norm
-                .or_else(|| self.default_norm.clone())
-                .map(|norm| norm.init(device, output_channels))
-                .flatten();
+            let (norm, activation, init) = handle_norm_activation(
+                norm,
+                activation,
+                &self.default_norm,
+                &self.default_activation,
+                weights_gain,
+                output_channels,
+                device
+            );
             layers.push((
                 ConvTranspose2dConfig::new([input_channels, output_channels], kernel_size)
                     .with_bias(norm.is_none())
                     .with_stride(stride)
+                    .with_initializer(init)
                     .with_dilation(dilation)
                     .with_padding(padding)
                     .with_padding_out(padding_out)
@@ -274,11 +285,10 @@ impl<B: Backend> Init<B, ConvTranspose2dModel<B>> for ConvTranspose2dModelConfig
                     .init(device),
                 norm,
                 activation
-                    .unwrap_or_else(|| default_activation.clone())
-                    .init(device),
             ));
             input_channels = output_channels;
         }
+
         ConvTranspose2dModel {
             input_channels: Ignored(self.input_channels),
             layers,

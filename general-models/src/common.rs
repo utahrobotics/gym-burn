@@ -5,8 +5,7 @@ use burn::{
     config::Config,
     module::{AutodiffModule, ConstantRecord, Module, ModuleDisplay, ModuleDisplayDefault},
     nn::{
-        BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, InstanceNorm, InstanceNormConfig,
-        LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig,
+        BatchNorm, BatchNormConfig, GroupNorm, GroupNormConfig, Initializer, InstanceNorm, InstanceNormConfig, LayerNorm, LayerNormConfig, RmsNorm, RmsNormConfig, activation::Activation
     },
     prelude::Backend,
     tensor::backend::AutodiffBackend,
@@ -178,7 +177,7 @@ impl<B: Backend> ModuleDisplayDefault for PhantomBackend<B> {
 
 use burn::nn::{HardSigmoidConfig, LeakyReluConfig, PReluConfig, SwiGluConfig};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivationConfig {
     Gelu,
@@ -189,15 +188,13 @@ pub enum ActivationConfig {
     Sigmoid,
     Tanh,
     HardSigmoid(HardSigmoidConfig),
-    #[default]
-    None,
 }
 
 impl ActivationConfig {
     pub fn init<B: Backend>(
         self,
         device: &B::Device,
-    ) -> Option<burn::nn::activation::Activation<B>> {
+    ) -> burn::nn::activation::Activation<B> {
         use burn::nn::activation::ActivationConfig as Config;
         let config = match self {
             ActivationConfig::Gelu => Config::Gelu,
@@ -210,9 +207,8 @@ impl ActivationConfig {
             ActivationConfig::HardSigmoid(hard_sigmoid_config) => {
                 Config::HardSigmoid(hard_sigmoid_config)
             }
-            ActivationConfig::None => return None,
         };
-        Some(config.init(device))
+        config.init(device)
     }
 }
 
@@ -286,20 +282,71 @@ impl ActivationConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[serde(untagged)]
-pub enum Either<A, B, C> {
+pub enum Either<A, B, C, D> {
     One(A),
     Two(A, B),
     Three(A, B, C),
+    Four(A, B, C, D),
 }
 
-impl<A, B, C> Either<A, B, C> {
-    pub fn into_tuple(self) -> (A, Option<B>, Option<C>) {
+impl<A, B: Default, C: Default, D: Default> Either<A, B, C, D> {
+    pub fn into_tuple(self) -> (A, B, C, D) {
         match self {
-            Either::One(a) => (a, None, None),
-            Either::Two(a, b) => (a, Some(b), None),
-            Either::Three(a, b, c) => (a, Some(b), Some(c)),
+            Either::One(a) => (a, B::default(), C::default(), D::default()),
+            Either::Two(a, b) => (a, b, C::default(), D::default()),
+            Either::Three(a, b, c) => (a, b, c, D::default()),
+            Either::Four(a, b, c, d) => (a, b, c, d)
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Optional<T> {
+    Inner {
+        #[serde(flatten)]
+        inner: T
+    },
+    #[default]
+    None,
+    Default
+}
+
+impl<T> Optional<T> {
+    pub fn resolve(self, default_f: impl FnOnce() -> Option<T>) -> Option<T> {
+        match self {
+            Optional::Inner { inner } => Some(inner),
+            Optional::None => None,
+            Optional::Default => default_f(),
+        }
+    }
+}
+
+pub(crate) fn handle_norm_activation<B: Backend>(
+    norm: Optional<NormConfig>,
+    activation: Optional<ActivationConfig>,
+    default_norm: &Option<NormConfig>,
+    default_activation: &Option<ActivationConfig>,
+    default_weights_gain: Option<f64>,
+    input_size: usize,
+    device: &B::Device,
+) -> (Option<Norm<B>>, Option<Activation<B>>, Initializer) {
+    let norm = norm
+        .resolve(|| default_norm.clone())
+        .map(|norm| norm.init(device, input_size))
+        .flatten();
+    let activation = activation
+        .resolve(|| default_activation.clone())
+        .map(|x| x.init(device));
+    
+    let init = match &activation {
+        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_) | Activation::LeakyRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(1.0), fan_out_only: false },
+        Some(Activation::HardSigmoid(_) | Activation::Sigmoid(_) | Activation::Tanh(_) | Activation::SwiGlu(_)) | None => Initializer::XavierNormal { gain: default_weights_gain.unwrap_or(1.0) },
+        // the compiler can't tell that all variants are handled
+        Some(_) => unreachable!()
+    };
+
+    (norm, activation, init)
 }
 
 default_f!(default_epsilon, f64, 1e-5);
