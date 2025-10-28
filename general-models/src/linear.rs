@@ -85,7 +85,6 @@ pub struct LinearModelConfig {
     pub dropout: f64,
     #[serde(default = "default_dropout_last")]
     pub dropout_last: bool,
-    pub weights_gain: Option<f64>
 }
 
 impl<B: Backend> Init<B, LinearModel<B>> for LinearModelConfig {

@@ -303,19 +303,17 @@ impl<A, B: Default, C: Default, D: Default> Either<A, B, C, D> {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum Optional<T> {
-    Inner {
-        #[serde(flatten)]
-        inner: T
-    },
     #[default]
     None,
-    Default
+    Default,
+    #[serde(untagged)]
+    Inner(T),
 }
 
 impl<T> Optional<T> {
     pub fn resolve(self, default_f: impl FnOnce() -> Option<T>) -> Option<T> {
         match self {
-            Optional::Inner { inner } => Some(inner),
+            Optional::Inner(inner) => Some(inner),
             Optional::None => None,
             Optional::Default => default_f(),
         }
@@ -340,7 +338,7 @@ pub(crate) fn handle_norm_activation<B: Backend>(
         .map(|x| x.init(device));
     
     let init = match &activation {
-        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_) | Activation::LeakyRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(1.0), fan_out_only: false },
+        Some(Activation::Gelu(_) | Activation::Relu(_) | Activation::PRelu(_) | Activation::LeakyRelu(_)) => Initializer::KaimingNormal { gain: default_weights_gain.unwrap_or(2.0f64.sqrt()), fan_out_only: false },
         Some(Activation::HardSigmoid(_) | Activation::Sigmoid(_) | Activation::Tanh(_) | Activation::SwiGlu(_)) | None => Initializer::XavierNormal { gain: default_weights_gain.unwrap_or(1.0) },
         // the compiler can't tell that all variants are handled
         Some(_) => unreachable!()
