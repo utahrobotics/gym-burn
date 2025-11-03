@@ -159,27 +159,31 @@ fn main() {
             let mut batcher = AutoEncoderImageBatcher::new(1, device.clone());
 
             let conn = Connection::open("latents.sqlite").unwrap();
+            let mut field_defs = String::new();
             let mut fields = String::new();
 
             for i in 0..latents_size {
+                field_defs.push_str(", p");
+                field_defs.push_str(&i.to_string());
+                field_defs.push_str(" REAL NOT NULL");
+
                 fields.push_str(", p");
                 fields.push_str(&i.to_string());
-                fields.push_str(" REAL NOT NULL");
             }
 
-            conn.execute(&format!("CREATE TABLE IF NOT EXISTS latents (row_id INTEGER PRIMARY KEY, brightness REAL NOT NULL{fields})"), ()).unwrap();
+            conn.execute(&format!("CREATE TABLE IF NOT EXISTS latents (row_id INTEGER PRIMARY KEY, brightness REAL NOT NULL{field_defs}, UNIQUE(brightness{fields}))"), ()).unwrap();
             conn.execute("DELETE FROM latents", ()).unwrap();
-            fields.clear();
+            field_defs.clear();
             let mut inputs = String::new();
 
             for i in 0..latents_size {
-                fields.push_str(", p");
-                fields.push_str(&i.to_string());
+                field_defs.push_str(", p");
+                field_defs.push_str(&i.to_string());
                 inputs.push_str(", ?");
                 inputs.push_str(&(i + 2).to_string());
             }
 
-            let mut stmt = conn.prepare_cached(&format!("INSERT INTO latents (brightness{fields}) VALUES (?1{inputs})")).unwrap();
+            let mut stmt = conn.prepare_cached(&format!("INSERT OR IGNORE INTO latents (brightness{field_defs}) VALUES (?1{inputs})")).unwrap();
 
             for dataset_config in dataset_configs {
                 println!("Reading from {:?}", dataset_config);
