@@ -1,0 +1,12 @@
+[package]
+name = "handwritten-infer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+handwritten.workspace = true
+rusqlite.workspace = true
+general-models.workspace = true
+general-dataset.workspace = true
+utils.workspace = true
+clap.workspace = true

@@ -1,19 +1,18 @@
-[package]
-name = "handwritten-tools"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = ["handwritten-cluster", "handwritten-infer", "handwritten-pca", "handwritten-viz"]
+exclude = []
 
-[dependencies]
-rerun = { version = "0.25.1", default-features = false, features = ["sdk"] }
+[workspace.dependencies]
 handwritten.path = "../handwritten"
+general-models = { path = "../../general-models", features = ["wgpu"] }
 utils.path = "../../utils"
 general-dataset.path = "../../general-dataset"
-linfa-clustering = "0.8.0"
-linfa-reduction = "0.8.0"
+
 clap = { version = "4", features = ["derive"] }
-general-models = { path = "../../general-models", features = ["wgpu"] }
-rustc-hash = "2.1.1"
-linfa = "0.8.0"
-ndarray = { version = "0.16.1", features = ["serde"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
-serde_json = "1.0.145"
+ndarray = { version = "0.16.1", features = ["serde"] }
+
+[profile.release]
+strip = false
+debug = true
