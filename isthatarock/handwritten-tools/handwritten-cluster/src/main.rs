@@ -2,7 +2,6 @@ use efficient_pca::PCA;
 use ndarray::{Array1, Array2};
 use serde::Deserialize;
 
-
 #[derive(Deserialize)]
 struct PcaJson {
     mean: Array1<f64>,
@@ -10,12 +9,12 @@ struct PcaJson {
     scale: Array1<f64>,
 }
 
-
 fn main() {
     let pca_json: PcaJson = serde_json::from_reader(
-        std::fs::File::open("pca.json").expect("Expected pca.json to exist")
-    ).unwrap();
-    
+        std::fs::File::open("pca.json").expect("Expected pca.json to exist"),
+    )
+    .unwrap();
+
     let mut pca = PCA::new();
     pca.mean = Some(pca_json.mean);
     pca.rotation = Some(pca_json.components);

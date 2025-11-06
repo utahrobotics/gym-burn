@@ -10,7 +10,6 @@ use handwritten::{Detector, wgpu::WgpuBackend};
 use rusqlite::{Connection, ToSql};
 use utils::parse_json_file;
 
-
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -33,12 +32,8 @@ fn main() {
     } = Args::parse();
     let device = handwritten::wgpu::get_device();
 
-    let model = Detector::<WgpuBackend>::load(
-        config_path,
-        weights_path,
-        device,
-    )
-    .expect("Configuration should be valid");
+    let model = Detector::<WgpuBackend>::load(config_path, weights_path, device)
+        .expect("Configuration should be valid");
 
     let latents_size = model.get_latents_size();
     let mut batcher = AutoEncoderImageBatcher::new(1, device.clone());

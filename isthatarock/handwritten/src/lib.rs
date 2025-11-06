@@ -2,9 +2,25 @@
 
 use std::path::Path;
 
-use burn::{Tensor, module::Module, prelude::Backend, record::{CompactRecorder, Recorder}};
+use burn::{
+    Tensor,
+    module::Module,
+    prelude::Backend,
+    record::{CompactRecorder, Recorder},
+};
 use efficient_pca::PCA;
-use general_models::{Init, SimpleInfer, composite::{autoencoder::{AutoEncoderModel, AutoEncoderModelConfig}, image::{Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModel, LinearConvTranspose2dModelConfig}}, error::LoadModelError, wgpu::WgpuBackend};
+use general_models::{
+    Init, SimpleInfer,
+    composite::{
+        autoencoder::{AutoEncoderModel, AutoEncoderModelConfig},
+        image::{
+            Conv2dLinearModel, Conv2dLinearModelConfig, LinearConvTranspose2dModel,
+            LinearConvTranspose2dModelConfig,
+        },
+    },
+    error::LoadModelError,
+    wgpu::WgpuBackend,
+};
 use ndarray::Array2;
 use utils::parse_json_file;
 
@@ -20,7 +36,7 @@ const IMAGE_HEIGHT: usize = 28;
 pub struct Detector<B: Backend = WgpuBackend> {
     model: AutoEncoderModel<B, Conv2dLinearModel<B>, LinearConvTranspose2dModel<B>>,
     device: B::Device,
-    pca: Option<PCA>
+    pca: Option<PCA>,
 }
 
 impl<B: Backend> Detector<B> {
@@ -29,11 +45,12 @@ impl<B: Backend> Detector<B> {
         encoder_weights: impl AsRef<Path>,
         device: &B::Device,
     ) -> Result<Self, LoadModelError> {
-        let autoencoder_config: AutoEncoderModelConfig<Conv2dLinearModelConfig, LinearConvTranspose2dModelConfig> =
-            parse_json_file(autoencoder_config)?;
+        let autoencoder_config: AutoEncoderModelConfig<
+            Conv2dLinearModelConfig,
+            LinearConvTranspose2dModelConfig,
+        > = parse_json_file(autoencoder_config)?;
         let mut model = autoencoder_config.init(device);
-        let record =
-            CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?;
+        let record = CompactRecorder::new().load(encoder_weights.as_ref().into(), device)?;
         model = model.load_record(record);
         Ok(Self {
             model,
@@ -52,13 +69,18 @@ impl<B: Backend> Detector<B> {
                     .map(move |y| (x, y))
             })
             .map(|(x, y)| {
-                tensor.clone().slice(burn::tensor::s![.., x..x+IMAGE_WIDTH, y..y+IMAGE_HEIGHT, ..])
+                tensor.clone().slice(burn::tensor::s![
+                    ..,
+                    x..x + IMAGE_WIDTH,
+                    y..y + IMAGE_HEIGHT,
+                    ..
+                ])
             })
             .collect();
 
         self.encode_tensor_batch_ndarray(Tensor::cat(tensors, 0))
     }
-    
+
     pub fn encode_tensor_batch_raw(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
         self.model.encoder.infer(tensor)
     }
@@ -76,12 +98,12 @@ impl<B: Backend> Detector<B> {
         let raw_encodings = self.encode_tensor_batch_raw(tensor);
         let shape = raw_encodings.dims();
         let raw_encodings = raw_encodings.into_data().into_vec::<f64>().unwrap();
-        let raw_encodings_ndarray = Array2::from_shape_vec(
-            (shape[0], shape[1]),
-            raw_encodings
-        ).unwrap();
+        let raw_encodings_ndarray =
+            Array2::from_shape_vec((shape[0], shape[1]), raw_encodings).unwrap();
         let pca = self.pca.as_ref().expect("Expected PCA to be provided");
-        let fitted = pca.transform(raw_encodings_ndarray).expect("Expected PCA to already be fitted");
+        let fitted = pca
+            .transform(raw_encodings_ndarray)
+            .expect("Expected PCA to already be fitted");
         fitted
     }
 

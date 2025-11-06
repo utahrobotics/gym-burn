@@ -107,9 +107,7 @@ fn main() {
                     .map(|[x, y, z]| [x as f64, y as f64, z as f64])
                     .map(|[x, y, z]| {
                         let distance_squared =
-                            (x - mean[0]).powi(2) +
-                            (y - mean[1]).powi(2) +
-                            (z - mean[2]).powi(2);
+                            (x - mean[0]).powi(2) + (y - mean[1]).powi(2) + (z - mean[2]).powi(2);
                         distance_squared
                     })
                     .sum();
@@ -122,15 +120,9 @@ fn main() {
                 rerun_save
                     .log(
                         "pca3d_std_dev",
-                        &rerun::Points3D::new([
-                            mean
-                        ])
-                        .with_colors([
-                            Color::from_rgb(brightness, brightness, brightness)
-                        ])
-                        .with_radii([
-                            std_dev as f32
-                        ]),
+                        &rerun::Points3D::new([mean])
+                            .with_colors([Color::from_rgb(brightness, brightness, brightness)])
+                            .with_radii([std_dev as f32]),
                     )
                     .unwrap();
             }
