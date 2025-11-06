@@ -35,7 +35,7 @@ const IMAGE_HEIGHT: usize = 28;
 
 pub struct Detector<B: Backend = WgpuBackend> {
     model: AutoEncoderModel<B, Conv2dLinearModel<B>, LinearConvTranspose2dModel<B>>,
-    device: B::Device,
+    // device: B::Device,
     pca: Option<PCA>,
 }
 
@@ -55,7 +55,7 @@ impl<B: Backend> Detector<B> {
         Ok(Self {
             model,
             pca: None,
-            device: device.clone(),
+            // device: device.clone(),
         })
     }
 

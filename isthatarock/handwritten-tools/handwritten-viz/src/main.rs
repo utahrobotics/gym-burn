@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use rerun::Color;
+use rerun::{Color, FillMode};
 use rusqlite::Connection;
 
 #[derive(Parser, Debug)]
@@ -120,9 +120,12 @@ fn main() {
                 rerun_save
                     .log(
                         "pca3d_std_dev",
-                        &rerun::Points3D::new([mean])
+                        &rerun::Capsules3D::from_lengths_and_radii([0.0], [std_dev as f32])
                             .with_colors([Color::from_rgb(brightness, brightness, brightness)])
-                            .with_radii([std_dev as f32]),
+                            .with_translations([
+                                mean
+                            ])
+                            .with_fill_mode(FillMode::Solid)
                     )
                     .unwrap();
             }
