@@ -124,7 +124,8 @@ impl<B: Backend> Detector<B> {
         let raw_encodings = self.encode_tensor_batch_raw(tensor);
         let after_pca = self.pca.as_ref().map(|pca| {
             let shape = raw_encodings.dims();
-            let raw_encodings_vec = raw_encodings.clone().into_data().into_vec::<f64>().unwrap();
+            let raw_encodings_vec = raw_encodings.clone().into_data().into_vec::<f32>().unwrap();
+            let raw_encodings_vec = raw_encodings_vec.into_iter().map(|x| x as f64).collect();
             let raw_encodings_ndarray =
                 Array2::from_shape_vec((shape[0], shape[1]), raw_encodings_vec).unwrap();
             pca
