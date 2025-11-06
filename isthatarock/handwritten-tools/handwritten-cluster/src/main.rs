@@ -1,24 +1,69 @@
-use efficient_pca::PCA;
-use ndarray::{Array1, Array2};
-use serde::Deserialize;
+use std::path::PathBuf;
 
-#[derive(Deserialize)]
-struct PcaJson {
-    mean: Array1<f64>,
-    components: Array2<f64>,
-    scale: Array1<f64>,
+use clap::Parser;
+use handwritten::{Detector, burn::{Tensor, tensor::TensorData}, psnr, psnr_batched, wgpu::WgpuBackend};
+use ndarray::Axis;
+use rusqlite::{Connection, params};
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    image: PathBuf,
+    #[arg(short, long)]
+    weights_path: PathBuf,
+    #[arg(long, default_value = "model.json")]
+    config_path: PathBuf,
+    #[arg(long, default_value = "pca.json")]
+    pca_path: PathBuf,
+    #[arg(short, long)]
+    feature_size: Vec<usize>,
 }
 
 fn main() {
-    let pca_json: PcaJson = serde_json::from_reader(
-        std::fs::File::open("pca.json").expect("Expected pca.json to exist"),
-    )
-    .unwrap();
+    let args = Args::parse();
 
-    let mut pca = PCA::new();
-    pca.mean = Some(pca_json.mean);
-    pca.rotation = Some(pca_json.components);
-    pca.scale = Some(pca_json.scale);
+    let device = handwritten::wgpu::get_device();
+
+    let mut detector: Detector<WgpuBackend> = Detector::load(args.config_path, args.weights_path, device).unwrap();
+    detector.load_pca(args.pca_path).expect("Expected pca to be readable");
+
+    let image = image::open(args.image).expect("Expected image to be readable");
+    let image = image.to_luma32f();
+    let img_width = image.width() as usize;
+    let img_height = image.height() as usize;
+    let mut image_tensor = Tensor::<WgpuBackend, 3>::from_data(TensorData::new(image.into_vec(), [img_width, img_height, 1]), device);
+    image_tensor = image_tensor.permute([2, 0, 1]);
+
+    let encodings = detector.encode_tensor(image_tensor, args.feature_size);
+    let decoded = detector.decode_latents(encodings.latents);
+
+    let batch_psnr = psnr_batched(encodings.batched.clone(), decoded.clone()).into_data().to_vec::<f32>().unwrap();
+
+    for (i, original) in encodings.batched.iter_dim(0).enumerate() {
+        let decoded = decoded.clone().slice_dim(0, i..=i);
+        let psnr = psnr(original, decoded);
+        println!("{psnr:.2} {:.2}", batch_psnr[i]);
+    }
+
+    let conn = Connection::open("handwritten.sqlite").unwrap();
+    conn.execute("DROP TABLE IF EXISTS pca", ()).unwrap();
+    conn.execute("CREATE TABLE pca (row_id INTEGER PRIMARY KEY, brightness REAL NOT NULL, p0 REAL NOT NULL, p1 REAL NOT NULL, p2 REAL NOT NULL)", ()).unwrap();
+    let mut stmt = conn
+        .prepare_cached(
+            "INSERT OR IGNORE INTO pca (brightness, p0, p1, p2) VALUES (?1, ?2, ?3, ?4)",
+        )
+        .unwrap();
+
+    for point in encodings.latents_pca.unwrap().axis_iter(Axis(0)) {
+        stmt.execute(params![
+            1.0,
+            point[0],
+            point[1],
+            point[2]
+        ])
+        .unwrap();
+    }
 }
 
 // println!("Running Dbscan");

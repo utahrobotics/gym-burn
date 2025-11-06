@@ -120,11 +120,8 @@ fn main() {
                 rerun_save
                     .log(
                         "pca3d_std_dev",
-                        &rerun::Capsules3D::from_lengths_and_radii([0.0], [std_dev as f32])
+                        &rerun::Ellipsoids3D::from_centers_and_radii([mean], [std_dev as f32])
                             .with_colors([Color::from_rgb(brightness, brightness, brightness)])
-                            .with_translations([
-                                mean
-                            ])
                             .with_fill_mode(FillMode::Solid)
                     )
                     .unwrap();
