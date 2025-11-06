@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 rerun = { version = "0.25.1", default-features = false, features = ["sdk"] }
+clap.workspace = true
+rusqlite.workspace = true

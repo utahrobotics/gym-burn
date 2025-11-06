@@ -1,18 +1,15 @@
 #![recursion_limit = "256"]
-use std::{
-    path::PathBuf,
-};
+use std::path::PathBuf;
 
 use clap::Parser;
 use general_dataset::{
     SqliteDataset, SqliteDatasetConfig, presets::autoencoder::AutoEncoderImageBatcher,
 };
-use general_models::{SimpleInfer, wgpu::WgpuBackend};
 
+use handwritten::{Detector, wgpu::WgpuBackend};
 use rusqlite::{Connection, ToSql};
 use utils::parse_json_file;
 
-use handwritten::ImageEncoder;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -27,19 +24,23 @@ struct Args {
     batch_size: usize,
 }
 
-
 fn main() {
-    let Args { weights_path, config_path, dataset_configs, batch_size } = Args::parse();
-    let device = general_models::wgpu::get_device();
+    let Args {
+        weights_path,
+        config_path,
+        dataset_configs,
+        batch_size,
+    } = Args::parse();
+    let device = handwritten::wgpu::get_device();
 
-    let model = ImageEncoder::<WgpuBackend, handwritten::Model<WgpuBackend>>::load(
+    let model = Detector::<WgpuBackend>::load(
         config_path,
         weights_path,
         device,
     )
     .expect("Configuration should be valid");
 
-    let latents_size = model.get_encoder().linear.get_output_size();
+    let latents_size = model.get_latents_size();
     let mut batcher = AutoEncoderImageBatcher::new(1, device.clone());
 
     let conn = Connection::open("handwritten.sqlite").unwrap();
@@ -67,7 +68,11 @@ fn main() {
         inputs.push_str(&(i + 2).to_string());
     }
 
-    let mut stmt = conn.prepare_cached(&format!("INSERT OR IGNORE INTO latents (brightness{field_defs}) VALUES (?1{inputs})")).unwrap();
+    let mut stmt = conn
+        .prepare_cached(&format!(
+            "INSERT OR IGNORE INTO latents (brightness{field_defs}) VALUES (?1{inputs})"
+        ))
+        .unwrap();
 
     for dataset_config in dataset_configs {
         println!("Reading from {:?}", dataset_config);
@@ -76,12 +81,17 @@ fn main() {
 
         for i in 0..dataset.get_batch_count(batch_size) {
             let batch = dataset.query(i, batch_size, &mut batcher);
-            let tensor = model.get_encoder().forward(batch.input);
+            let tensor = model.encode_tensor_batch_raw(batch.input);
             // if tensor.clone().contains_nan().into_scalar() != 0 {
             //     println!("Found NaN");
             //     continue;
             // }
-            let expected_data = batch.expected.mean_dims(&[1, 2, 3]).into_data().into_vec::<f32>().unwrap();
+            let expected_data = batch
+                .expected
+                .mean_dims(&[1, 2, 3])
+                .into_data()
+                .into_vec::<f32>()
+                .unwrap();
             let components = tensor.into_data().into_vec::<f32>().unwrap();
 
             let iter = expected_data.iter().zip(components.chunks(latents_size));

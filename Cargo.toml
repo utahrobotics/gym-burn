@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = [ "general-dataset", "general-dataset-tools", "general-models", "proximo", "utils", "isthatarock/handwritten"]
-exclude = ["proximo-rerun", "isthatarock/handwritten-tools"]
+members = [ "general-dataset", "general-dataset-tools", "general-models", "proximo", "utils"]
+exclude = ["proximo-rerun", "isthatarock"]
 
 [workspace.dependencies]
 general-models.path = "general-models"

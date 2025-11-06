@@ -2638,17 +2638,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "handwritten"
-version = "0.1.0"
-dependencies = [
- "burn",
- "general-models",
- "image",
- "imageproc",
- "utils",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

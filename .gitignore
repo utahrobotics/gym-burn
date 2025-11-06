@@ -23,6 +23,7 @@ artifacts/
 
 proximo-rerun/target/
 isthatarock/handwritten-tools/target/
+isthatarock/handwritten/target/
 isthatarock/handwritten-tools/*.mpk
 isthatarock/handwritten-tools/*.jsonc
 isthatarock/handwritten-tools/*.json

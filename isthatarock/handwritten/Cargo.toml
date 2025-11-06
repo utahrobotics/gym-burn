@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-general-models.workspace = true
-burn.workspace = true
-utils.workspace = true
-image = { workspace = true, default-features = true }
-imageproc.workspace = true
+general-models = { path = "../../general-models", features = ["wgpu"] }
+utils.path = "../../utils"
+burn = { git = "https://github.com/tracel-ai/burn.git", features = ["std", "fusion", "ndarray"], default-features = false, rev = "35996edd412fe8274c5471bce00d734798fee1a5" }
+serde_json = { version = "1.0.145", features = ["std"] }
+
+efficient_pca = { version = "0.1.8", default-features = false, features = ["backend_faer"] }
+ndarray = { version = "0.16.1", features = ["serde"] }
+serde = { version = "1.0.228", features = ["derive"] }

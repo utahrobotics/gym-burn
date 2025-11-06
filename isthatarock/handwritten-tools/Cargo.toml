@@ -11,6 +11,7 @@ general-dataset.path = "../../general-dataset"
 
 clap = { version = "4", features = ["derive"] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+efficient_pca = { version = "0.1.8", default-features = false, features = ["backend_faer"] }
 ndarray = { version = "0.16.1", features = ["serde"] }
 
 [profile.release]
