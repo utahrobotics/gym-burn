@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use handwritten::{Detector, burn::{Tensor, tensor::TensorData}, psnr, psnr_batched, wgpu::WgpuBackend};
+use handwritten::{Detector, burn::{Tensor, tensor::TensorData}, psnr_batched, wgpu::WgpuBackend};
 use ndarray::Axis;
 use rusqlite::{Connection, params};
 
@@ -35,35 +35,45 @@ fn main() {
     let mut image_tensor = Tensor::<WgpuBackend, 3>::from_data(TensorData::new(image.into_vec(), [img_width, img_height, 1]), device);
     image_tensor = image_tensor.permute([2, 0, 1]);
 
-    let encodings = detector.encode_tensor(image_tensor, args.feature_size);
-    let decoded = detector.decode_latents(encodings.latents);
-
-    let batch_psnr = psnr_batched(encodings.batched.clone(), decoded.clone()).into_data().to_vec::<f32>().unwrap();
-
-    for (i, original) in encodings.batched.iter_dim(0).enumerate() {
-        let decoded = decoded.clone().slice_dim(0, i..=i);
-        let psnr = psnr(original, decoded);
-        println!("{psnr:.2} {:.2}", batch_psnr[i]);
-    }
-
     let conn = Connection::open("handwritten.sqlite").unwrap();
     conn.execute("DROP TABLE IF EXISTS pca", ()).unwrap();
     conn.execute("CREATE TABLE pca (row_id INTEGER PRIMARY KEY, brightness REAL NOT NULL, p0 REAL NOT NULL, p1 REAL NOT NULL, p2 REAL NOT NULL)", ()).unwrap();
-    let mut stmt = conn
-        .prepare_cached(
-            "INSERT OR IGNORE INTO pca (brightness, p0, p1, p2) VALUES (?1, ?2, ?3, ?4)",
-        )
-        .unwrap();
 
-    for point in encodings.latents_pca.unwrap().axis_iter(Axis(0)) {
-        stmt.execute(params![
-            1.0,
-            point[0],
-            point[1],
-            point[2]
-        ])
-        .unwrap();
+    let encodings = detector.encode_tensor(image_tensor, args.feature_size);
+    let mut psnr_sum = 0.0;
+    let mut psnr_count = 0.0;
+
+    for ((latents, batched), latents_pca) in encodings.latents.into_iter().zip(encodings.batched).zip(encodings.latents_pca) {
+        let decoded = detector.decode_latents(latents);
+
+        let psnr_val = psnr_batched(batched.clone(), decoded.clone()).mean().into_scalar();
+        psnr_sum += psnr_val;
+        psnr_count += 1.0;
+
+        // for (i, original) in batched.iter_dim(0).enumerate() {
+        //     let decoded = decoded.clone().slice_dim(0, i..=i);
+        //     let psnr = psnr(original, decoded);
+        //     println!("{psnr:.2} {:.2}", batch_psnr[i]);
+        // }
+
+        let mut stmt = conn
+            .prepare_cached(
+                "INSERT OR IGNORE INTO pca (brightness, p0, p1, p2) VALUES (?1, ?2, ?3, ?4)",
+            )
+            .unwrap();
+
+        for point in latents_pca.axis_iter(Axis(0)) {
+            stmt.execute(params![
+                1.0,
+                point[0],
+                point[1],
+                point[2]
+            ])
+            .unwrap();
+        }
     }
+
+    println!("Mean PSNR: {:.2}", psnr_sum / psnr_count);
 }
 
 // println!("Running Dbscan");

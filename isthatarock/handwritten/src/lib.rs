@@ -1,6 +1,6 @@
 #![recursion_limit = "256"]
 
-use std::path::Path;
+use std::{num::NonZeroUsize, path::Path};
 
 use burn::{
     Tensor, module::Module, nn::{interpolate::{Interpolate2dConfig, InterpolateMode}, loss::{MseLoss, Reduction}}, prelude::Backend, record::{CompactRecorder, Recorder}, tensor::Bool,
@@ -34,13 +34,14 @@ pub struct Detector<B: Backend = WgpuBackend> {
     model: AutoEncoderModel<B, Conv2dLinearModel<B>, LinearConvTranspose2dModel<B>>,
     // device: B::Device,
     pca: Option<PCA>,
+    pub batch_size: NonZeroUsize
 }
 
 #[derive(Debug)]
 pub struct EncodingOutput<B: Backend> {
-    pub batched: Tensor<B, 4>,
-    pub latents: Tensor<B, 2>,
-    pub latents_pca: Option<Array2<f64>>
+    pub batched: Vec<Tensor<B, 4>>,
+    pub latents: Vec<Tensor<B, 2>>,
+    pub latents_pca: Vec<Array2<f64>>
 }
 
 impl<B: Backend> Detector<B> {
@@ -59,6 +60,7 @@ impl<B: Backend> Detector<B> {
         Ok(Self {
             model,
             pca: None,
+            batch_size: NonZeroUsize::new(256).unwrap()
             // device: device.clone(),
         })
     }
@@ -66,15 +68,11 @@ impl<B: Backend> Detector<B> {
     /// Encodes the given tensor by sliding the model across it like a kernel. There will be a kernel for each feature size.
     /// 
     /// The tensor's dimension should be [image width, image height, number of color channels]
-    /// 
-    /// # Note
-    /// All of the feature sizes across all possible locations in the input tensor are batched *before* running the encoder.
-    /// If memory is limited, you will have to call this method several times with a subset of the feature sizes.
     pub fn encode_tensor(&self, tensor: Tensor<B, 3>, feature_sizes: impl IntoIterator<Item = usize>) -> EncodingOutput<B> {
         let [channels, width, height] = tensor.dims();
         let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Linear).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
 
-        let tensors: Vec<_> = feature_sizes.into_iter()
+        let mut item_iter = feature_sizes.into_iter()
             .flat_map(|feature_size| {
                 (0..width - feature_size + 1)
                     .into_iter()
@@ -92,18 +90,27 @@ impl<B: Backend> Detector<B> {
                         .reshape([1, channels, feature_size, feature_size])
                     })
                     .map(|tensor| interp.forward(tensor))
-            })
-            .collect();
+            });
 
-        let batched = Tensor::cat(tensors, 0);
+        let mut latents_vec = vec![];
+        let mut latents_pca_vec = vec![];
+        let mut batched_vec = vec![];
+        while let Some(item) = item_iter.next() {
+            let mut tensors: Vec<_> = (&mut item_iter)
+                .take(self.batch_size.get() - 1)
+                .collect();
+            tensors.push(item);
+            let batched = Tensor::cat(tensors, 0);
 
-        let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
-        EncodingOutput {
-            latents,
-            latents_pca,
-            batched,
+            let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
+            if let Some(latents_pca) = latents_pca {
+                latents_pca_vec.push(latents_pca);
+            }
+            latents_vec.push(latents);
+            batched_vec.push(batched);
         }
-        
+
+        EncodingOutput { batched: batched_vec, latents: latents_vec, latents_pca: latents_pca_vec }
     }
 
     pub fn encode_tensor_batch_raw(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
@@ -173,6 +180,13 @@ pub fn psnr<B: Backend<FloatElem = f32>, const N: usize>(a: Tensor<B, N>, b: Ten
     10.0 * (1.0 / MseLoss::new().forward(a, b, Reduction::Mean).into_scalar()).log10()
 }
 
+/// Peak Signal-to-Noise Ratio between two batched float tensors whose values are in [0, 1]. It is assumed
+/// that the first axis is the batch axis.
+/// 
+/// - \>40 dB: Excellent quality, differences barely perceptible
+/// - 30-40 dB: Good quality, acceptable for most applications
+/// - 20-30 dB: Fair quality, noticeable differences
+/// - <20 dB: Poor quality, significant degradation
 pub fn psnr_batched<B: Backend<FloatElem = f32>, const N: usize>(a: Tensor<B, N>, b: Tensor<B, N>) -> Tensor<B, 1> {
     assert_eq!(a.shape(), b.shape(), "The shapes of a and b are different");
     let batch_size = a.dims()[0];
