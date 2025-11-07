@@ -38,10 +38,16 @@ pub struct Detector<B: Backend = WgpuBackend> {
 }
 
 #[derive(Debug)]
-pub struct EncodingOutput<B: Backend> {
+pub struct Feature<B: Backend> {
+    pub feature_size: usize,
     pub batched: Vec<Tensor<B, 4>>,
     pub latents: Vec<Tensor<B, 2>>,
     pub latents_pca: Vec<Array2<f64>>
+}
+
+#[derive(Debug)]
+pub struct EncodingOutput<B: Backend> {
+    pub features: Vec<Feature<B>>
 }
 
 impl<B: Backend> Detector<B> {
@@ -72,8 +78,9 @@ impl<B: Backend> Detector<B> {
         let [channels, width, height] = tensor.dims();
         let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Linear).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
 
-        let mut item_iter = feature_sizes.into_iter()
-            .flat_map(|feature_size| {
+        let mut features = vec![];
+        for feature_size in feature_sizes {
+            let mut item_iter = 
                 (0..width - feature_size + 1)
                     .into_iter()
                     .flat_map(move |x| {
@@ -89,28 +96,30 @@ impl<B: Backend> Detector<B> {
                         ])
                         .reshape([1, channels, feature_size, feature_size])
                     })
-                    .map(|tensor| interp.forward(tensor))
-            });
+                    .map(|tensor| interp.forward(tensor));
+            
+            let mut latents_vec = vec![];
+            let mut latents_pca_vec = vec![];
+            let mut batched_vec = vec![];
+            while let Some(item) = item_iter.next() {
+                let mut tensors: Vec<_> = (&mut item_iter)
+                    .take(self.batch_size.get() - 1)
+                    .collect();
+                tensors.push(item);
+                let batched = Tensor::cat(tensors, 0);
 
-        let mut latents_vec = vec![];
-        let mut latents_pca_vec = vec![];
-        let mut batched_vec = vec![];
-        while let Some(item) = item_iter.next() {
-            let mut tensors: Vec<_> = (&mut item_iter)
-                .take(self.batch_size.get() - 1)
-                .collect();
-            tensors.push(item);
-            let batched = Tensor::cat(tensors, 0);
-
-            let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
-            if let Some(latents_pca) = latents_pca {
-                latents_pca_vec.push(latents_pca);
+                let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
+                if let Some(latents_pca) = latents_pca {
+                    latents_pca_vec.push(latents_pca);
+                }
+                latents_vec.push(latents);
+                batched_vec.push(batched);
             }
-            latents_vec.push(latents);
-            batched_vec.push(batched);
+
+            features.push(Feature { feature_size, batched: batched_vec, latents: latents_vec, latents_pca: latents_pca_vec });
         }
 
-        EncodingOutput { batched: batched_vec, latents: latents_vec, latents_pca: latents_pca_vec }
+        EncodingOutput { features }
     }
 
     pub fn encode_tensor_batch_raw(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {

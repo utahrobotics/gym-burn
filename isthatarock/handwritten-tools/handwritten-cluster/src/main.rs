@@ -1,7 +1,12 @@
-use std::path::PathBuf;
+use std::{iter::repeat, path::PathBuf};
 
 use clap::Parser;
-use handwritten::{Detector, burn::{Tensor, tensor::TensorData}, psnr_batched, wgpu::WgpuBackend};
+use handwritten::{
+    Detector,
+    burn::{Tensor, tensor::TensorData},
+    psnr_batched,
+    wgpu::WgpuBackend,
+};
 use ndarray::Axis;
 use rusqlite::{Connection, params};
 
@@ -25,14 +30,20 @@ fn main() {
 
     let device = handwritten::wgpu::get_device();
 
-    let mut detector: Detector<WgpuBackend> = Detector::load(args.config_path, args.weights_path, device).unwrap();
-    detector.load_pca(args.pca_path).expect("Expected pca to be readable");
+    let mut detector: Detector<WgpuBackend> =
+        Detector::load(args.config_path, args.weights_path, device).unwrap();
+    detector
+        .load_pca(args.pca_path)
+        .expect("Expected pca to be readable");
 
     let image = image::open(args.image).expect("Expected image to be readable");
     let image = image.to_luma32f();
     let img_width = image.width() as usize;
     let img_height = image.height() as usize;
-    let mut image_tensor = Tensor::<WgpuBackend, 3>::from_data(TensorData::new(image.into_vec(), [img_width, img_height, 1]), device);
+    let mut image_tensor = Tensor::<WgpuBackend, 3>::from_data(
+        TensorData::new(image.into_vec(), [img_width, img_height, 1]),
+        device,
+    );
     image_tensor = image_tensor.permute([2, 0, 1]);
 
     let conn = Connection::open("handwritten.sqlite").unwrap();
@@ -42,19 +53,24 @@ fn main() {
     let encodings = detector.encode_tensor(image_tensor, args.feature_size);
     let mut psnr_sum = 0.0;
     let mut psnr_count = 0.0;
+    let mut i = 0usize;
 
-    for ((latents, batched), latents_pca) in encodings.latents.into_iter().zip(encodings.batched).zip(encodings.latents_pca) {
+    for (((latents, batched), latents_pca), feature_size) in encodings.features.into_iter().flat_map(|feature| {
+        feature
+            .latents
+            .into_iter()
+            .zip(feature.batched)
+            .zip(feature.latents_pca)
+            .zip(repeat(feature.feature_size))
+    }) {
+        let img_width = img_width - feature_size + 1;
         let decoded = detector.decode_latents(latents);
 
-        let psnr_val = psnr_batched(batched.clone(), decoded.clone()).mean().into_scalar();
+        let psnr_val = psnr_batched(batched.clone(), decoded.clone())
+            .mean()
+            .into_scalar();
         psnr_sum += psnr_val;
         psnr_count += 1.0;
-
-        // for (i, original) in batched.iter_dim(0).enumerate() {
-        //     let decoded = decoded.clone().slice_dim(0, i..=i);
-        //     let psnr = psnr(original, decoded);
-        //     println!("{psnr:.2} {:.2}", batch_psnr[i]);
-        // }
 
         let mut stmt = conn
             .prepare_cached(
@@ -63,13 +79,10 @@ fn main() {
             .unwrap();
 
         for point in latents_pca.axis_iter(Axis(0)) {
-            stmt.execute(params![
-                1.0,
-                point[0],
-                point[1],
-                point[2]
-            ])
-            .unwrap();
+            let brightness = (i % img_width) as f64 / img_width as f64;
+            stmt.execute(params![brightness, point[0], point[1], point[2]])
+                .unwrap();
+            i += 1;
         }
     }
 

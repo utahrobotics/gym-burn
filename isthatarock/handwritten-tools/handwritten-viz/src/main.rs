@@ -12,10 +12,15 @@ struct Args {
 #[derive(Subcommand, Debug)]
 enum Command {
     PCA {
+        #[arg(short, long)]
         #[clap(default_value = "32")]
         batch_size: usize,
+        #[arg(short, long)]
         #[clap(default_value = "20")]
         std_dev_count: usize,
+        // #[clap(default_value = "false")]
+        #[arg(short, long)]
+        unsorted: bool
     },
 }
 
@@ -26,11 +31,16 @@ fn main() {
         Command::PCA {
             batch_size,
             std_dev_count,
+            unsorted
         } => {
             let conn = Connection::open("handwritten.sqlite")
                 .expect("Expected handwritten.sqlite to be readable");
             let mut stmt = conn
-                .prepare("SELECT * FROM pca ORDER BY brightness DESC")
+                .prepare(if unsorted {
+                    "SELECT * FROM pca"
+                } else {
+                    "SELECT * FROM pca ORDER BY brightness DESC"
+                })
                 .expect("Expected pca table to exist");
             let max_brightness: f32 = conn
                 .prepare("SELECT MAX(brightness) AS max_brightness FROM pca")
