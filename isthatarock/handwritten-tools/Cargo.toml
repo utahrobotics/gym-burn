@@ -17,6 +17,9 @@ ndarray = { version = "0.16.1", features = ["serde"] }
 [profile.release]
 strip = false
 debug = true
+lto = false
+incremental = true
+codegen-units = 256
 
-[profile.dev]
-opt-level = 3
+# [profile.dev]
+# opt-level = 3

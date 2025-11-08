@@ -20,7 +20,7 @@ enum Command {
         std_dev_count: usize,
         // #[clap(default_value = "false")]
         #[arg(short, long)]
-        unsorted: bool
+        unsorted: bool,
     },
 }
 
@@ -31,7 +31,7 @@ fn main() {
         Command::PCA {
             batch_size,
             std_dev_count,
-            unsorted
+            unsorted,
         } => {
             let conn = Connection::open("handwritten.sqlite")
                 .expect("Expected handwritten.sqlite to be readable");
@@ -132,7 +132,7 @@ fn main() {
                         "pca3d_std_dev",
                         &rerun::Ellipsoids3D::from_centers_and_radii([mean], [std_dev as f32])
                             .with_colors([Color::from_rgb(brightness, brightness, brightness)])
-                            .with_fill_mode(FillMode::Solid)
+                            .with_fill_mode(FillMode::Solid),
                     )
                     .unwrap();
             }

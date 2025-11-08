@@ -1,12 +1,17 @@
-use std::{iter::repeat, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser;
 use handwritten::{
     Detector,
-    burn::{Tensor, tensor::TensorData},
-    psnr_batched,
+    burn::{
+        Tensor,
+        nn::interpolate::{Interpolate2dConfig, InterpolateMode},
+        tensor::{TensorData, s},
+    },
+    psnr, psnr_batched,
     wgpu::WgpuBackend,
 };
+use image::{DynamicImage, ImageBuffer, Luma};
 use ndarray::Axis;
 use rusqlite::{Connection, params};
 
@@ -22,7 +27,7 @@ struct Args {
     #[arg(long, default_value = "pca.json")]
     pca_path: PathBuf,
     #[arg(short, long)]
-    feature_size: Vec<usize>,
+    feature_size: usize,
 }
 
 fn main() {
@@ -40,53 +45,104 @@ fn main() {
     let image = image.to_luma32f();
     let img_width = image.width() as usize;
     let img_height = image.height() as usize;
-    let mut image_tensor = Tensor::<WgpuBackend, 3>::from_data(
+    let mut original_image_tensor = Tensor::<WgpuBackend, 3>::from_data(
         TensorData::new(image.into_vec(), [img_width, img_height, 1]),
         device,
     );
-    image_tensor = image_tensor.permute([2, 0, 1]);
+    original_image_tensor = original_image_tensor.permute([2, 1, 0]);
 
     let conn = Connection::open("handwritten.sqlite").unwrap();
     conn.execute("DROP TABLE IF EXISTS pca", ()).unwrap();
     conn.execute("CREATE TABLE pca (row_id INTEGER PRIMARY KEY, brightness REAL NOT NULL, p0 REAL NOT NULL, p1 REAL NOT NULL, p2 REAL NOT NULL)", ()).unwrap();
 
-    let encodings = detector.encode_tensor(image_tensor, args.feature_size);
+    let mut stmt = conn
+        .prepare("INSERT OR IGNORE INTO pca (brightness, p0, p1, p2) VALUES (?1, ?2, ?3, ?4)")
+        .unwrap();
+
+    let mut encodings = detector.encode_tensor(original_image_tensor.clone(), [args.feature_size]);
     let mut psnr_sum = 0.0;
     let mut psnr_count = 0.0;
     let mut i = 0usize;
 
-    for (((latents, batched), latents_pca), feature_size) in encodings.features.into_iter().flat_map(|feature| {
-        feature
-            .latents
-            .into_iter()
-            .zip(feature.batched)
-            .zip(feature.latents_pca)
-            .zip(repeat(feature.feature_size))
-    }) {
-        let img_width = img_width - feature_size + 1;
-        let decoded = detector.decode_latents(latents);
+    let mut sum_image = Tensor::<WgpuBackend, 3>::zeros([1, img_height, img_width], device);
+    let mut count_image = Tensor::<WgpuBackend, 3>::zeros([1, img_height, img_width], device);
+    let feature_ones =
+        Tensor::<WgpuBackend, 3>::ones([1, args.feature_size, args.feature_size], device);
+
+    let feature = encodings.features.pop().unwrap();
+    let interp = Interpolate2dConfig::new()
+        .with_mode(InterpolateMode::Cubic)
+        .with_output_size(Some([args.feature_size, args.feature_size]))
+        .init();
+    let mut j = 0usize;
+    let _ = std::fs::create_dir_all("slices");
+
+    for ((latents, batched), latents_pca) in feature
+        .latents
+        .into_iter()
+        .zip(feature.batched)
+        .zip(feature.latents_pca)
+    {
+        let img_width = img_width - args.feature_size + 1;
+        let mut decoded = detector.decode_latents(latents);
+
+        for decoded in decoded.clone().iter_dim(0) {
+            let decoded = decoded.reshape([1, 28, 28]);
+            let image = ImageBuffer::<Luma<f32>, _>::from_vec(
+                28,
+                28,
+                decoded.permute([2, 1, 0]).into_data().into_vec().unwrap(),
+            )
+            .unwrap();
+            DynamicImage::from(image).save(format!("slices/{j}.webp")).unwrap();
+            j += 1;
+        }
 
         let psnr_val = psnr_batched(batched.clone(), decoded.clone())
             .mean()
             .into_scalar();
         psnr_sum += psnr_val;
         psnr_count += 1.0;
+        decoded = interp.forward(decoded);
 
-        let mut stmt = conn
-            .prepare_cached(
-                "INSERT OR IGNORE INTO pca (brightness, p0, p1, p2) VALUES (?1, ?2, ?3, ?4)",
-            )
-            .unwrap();
+        for (point, decoded) in latents_pca.axis_iter(Axis(0)).zip(decoded.iter_dim(0)) {
+            let x = i % img_width;
+            let y = i / img_width;
 
-        for point in latents_pca.axis_iter(Axis(0)) {
-            let brightness = (i % img_width) as f64 / img_width as f64;
+            let slice = s![.., y..y + args.feature_size, x..x + args.feature_size];
+            let initial = sum_image.clone().slice(slice);
+            sum_image = sum_image.slice_assign(
+                slice,
+                initial + decoded.reshape([1, args.feature_size, args.feature_size]),
+            );
+
+            let initial = count_image.clone().slice(slice);
+            count_image = count_image.slice_assign(slice, initial + feature_ones.clone());
+
+            let brightness = x as f64 / img_width as f64;
             stmt.execute(params![brightness, point[0], point[1], point[2]])
                 .unwrap();
             i += 1;
         }
     }
 
-    println!("Mean PSNR: {:.2}", psnr_sum / psnr_count);
+    let decoded_image_tensor = sum_image / count_image.clone();
+    let psnr = psnr(decoded_image_tensor.clone(), original_image_tensor);
+    println!("PSNR: {:.2}", psnr);
+    let image = ImageBuffer::<Luma<f32>, _>::from_vec(
+        img_width as u32,
+        img_height as u32,
+        decoded_image_tensor
+            .permute([2, 1, 0])
+            .into_data()
+            .into_vec()
+            .unwrap(),
+    )
+    .unwrap();
+    DynamicImage::from(image).save("output.webp").unwrap();
+
+    println!("Mean element-wise PSNR: {:.2}", psnr_sum / psnr_count);
+    assert!(count_image.greater_elem(0.0).all().into_scalar() != 0);
 }
 
 // println!("Running Dbscan");

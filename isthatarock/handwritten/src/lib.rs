@@ -75,24 +75,24 @@ impl<B: Backend> Detector<B> {
     /// 
     /// The tensor's dimension should be [image width, image height, number of color channels]
     pub fn encode_tensor(&self, tensor: Tensor<B, 3>, feature_sizes: impl IntoIterator<Item = usize>) -> EncodingOutput<B> {
-        let [channels, width, height] = tensor.dims();
-        let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Linear).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
+        let [channels, height, width] = tensor.dims();
+        let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Cubic).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
 
         let mut features = vec![];
         for feature_size in feature_sizes {
             let mut item_iter = 
-                (0..width - feature_size + 1)
+                (0..height - feature_size + 1)
                     .into_iter()
-                    .flat_map(move |x| {
-                        (0..height - feature_size + 1)
+                    .flat_map(move |y| {
+                        (0..width - feature_size + 1)
                             .into_iter()
-                            .map(move |y| (x, y, feature_size))
+                            .map(move |x| (x, y, feature_size))
                     })
                     .map(|(x, y, feature_size)| {
                         tensor.clone().slice(burn::tensor::s![
                             ..,
-                            x..x + feature_size,
                             y..y + feature_size,
+                            x..x + feature_size,
                         ])
                         .reshape([1, channels, feature_size, feature_size])
                     })
@@ -102,10 +102,11 @@ impl<B: Backend> Detector<B> {
             let mut latents_pca_vec = vec![];
             let mut batched_vec = vec![];
             while let Some(item) = item_iter.next() {
-                let mut tensors: Vec<_> = (&mut item_iter)
-                    .take(self.batch_size.get() - 1)
-                    .collect();
+                let mut tensors = Vec::with_capacity(self.batch_size.get());
                 tensors.push(item);
+                tensors.extend((&mut item_iter)
+                    .take(self.batch_size.get() - 1)
+                );
                 let batched = Tensor::cat(tensors, 0);
 
                 let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
