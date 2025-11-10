@@ -103,9 +103,15 @@ fn main() {
             .into_scalar();
         psnr_sum += psnr_val;
         psnr_count += 1.0;
+        let brightnesses = decoded
+            .clone()
+            .mean_dims(&[1, 2, 3])
+            .into_data()
+            .into_vec::<f32>()
+            .unwrap();
         decoded = interp.forward(decoded);
 
-        for (point, decoded) in latents_pca.axis_iter(Axis(0)).zip(decoded.iter_dim(0)) {
+        for ((point, decoded), brightness) in latents_pca.axis_iter(Axis(0)).zip(decoded.iter_dim(0)).zip(brightnesses) {
             let x = i % img_width;
             let y = i / img_width;
 
@@ -119,7 +125,7 @@ fn main() {
             let initial = count_image.clone().slice(slice);
             count_image = count_image.slice_assign(slice, initial + feature_ones.clone());
 
-            let brightness = x as f64 / img_width as f64;
+            // let brightness = x as f64 / img_width as f64;
             stmt.execute(params![brightness, point[0], point[1], point[2]])
                 .unwrap();
             i += 1;

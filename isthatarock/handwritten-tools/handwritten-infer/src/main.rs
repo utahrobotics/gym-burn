@@ -81,7 +81,7 @@ fn main() {
             //     println!("Found NaN");
             //     continue;
             // }
-            let expected_data = batch
+            let brightnesses = batch
                 .expected
                 .mean_dims(&[1, 2, 3])
                 .into_data()
@@ -89,7 +89,7 @@ fn main() {
                 .unwrap();
             let components = tensor.into_data().into_vec::<f32>().unwrap();
 
-            let iter = expected_data.iter().zip(components.chunks(latents_size));
+            let iter = brightnesses.iter().zip(components.chunks(latents_size));
             let mut params = Vec::<&dyn ToSql>::with_capacity(1 + latents_size);
 
             for (brightness, point) in iter {
