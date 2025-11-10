@@ -72,7 +72,7 @@ impl<B: Backend> StatefulBatcher<AutoEncoderImageItem, AutoEncoderImageBatch<B>>
                 // assert!(data.iter().all(|x| *x >= 0.0), "{:?}", data);
                 Tensor::<B, 1>::from_data(data.as_slice(), &self.device)
                     .reshape([1, item.input_width, item.input_height, self.channels])
-                    .permute([0, 3, 2, 1])
+                    .permute([0, 3, 1, 2])
                     .clamp(0.0, 1.0)
                     .detach()
             }};

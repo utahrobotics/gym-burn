@@ -46,10 +46,10 @@ fn main() {
     let img_width = image.width() as usize;
     let img_height = image.height() as usize;
     let mut original_image_tensor = Tensor::<WgpuBackend, 3>::from_data(
-        TensorData::new(image.into_vec(), [img_width, img_height, 1]),
+        TensorData::new(image.into_vec(), [img_height, img_width, 1]),
         device,
     );
-    original_image_tensor = original_image_tensor.permute([2, 1, 0]);
+    original_image_tensor = original_image_tensor.permute([2, 0, 1]);
 
     let conn = Connection::open("handwritten.sqlite").unwrap();
     conn.execute("DROP TABLE IF EXISTS pca", ()).unwrap();
@@ -91,7 +91,7 @@ fn main() {
             let image = ImageBuffer::<Luma<f32>, _>::from_vec(
                 28,
                 28,
-                decoded.permute([2, 1, 0]).into_data().into_vec().unwrap(),
+                decoded.permute([1, 2, 0]).into_data().into_vec().unwrap(),
             )
             .unwrap();
             DynamicImage::from(image).save(format!("slices/{j}.webp")).unwrap();
@@ -133,7 +133,7 @@ fn main() {
         img_width as u32,
         img_height as u32,
         decoded_image_tensor
-            .permute([2, 1, 0])
+            .permute([1, 2, 0])
             .into_data()
             .into_vec()
             .unwrap(),
