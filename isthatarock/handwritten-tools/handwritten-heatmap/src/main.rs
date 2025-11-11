@@ -97,8 +97,8 @@ fn main() {
                 return pixel;
             }
 
-            let brightness = scores
-                [x - args.feature_size / 2 + (y - args.feature_size / 2) * smaller_img_width];
+            let brightness =
+                scores[x - args.feature_size / 2 + (y - args.feature_size / 2) * smaller_img_width];
 
             pixel[0] = map(pixel[0], 1.0, brightness as f32);
             pixel[1] = map(pixel[1], 0.0, brightness as f32);

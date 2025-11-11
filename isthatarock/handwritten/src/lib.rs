@@ -3,7 +3,15 @@
 use std::{num::NonZeroUsize, path::Path};
 
 use burn::{
-    Tensor, module::Module, nn::{interpolate::{Interpolate2dConfig, InterpolateMode}, loss::{MseLoss, Reduction}}, prelude::Backend, record::{CompactRecorder, Recorder}, tensor::Bool,
+    Tensor,
+    module::Module,
+    nn::{
+        interpolate::{Interpolate2dConfig, InterpolateMode},
+        loss::{MseLoss, Reduction},
+    },
+    prelude::Backend,
+    record::{CompactRecorder, Recorder},
+    tensor::Bool,
 };
 use efficient_pca::PCA;
 use general_models::{
@@ -21,8 +29,8 @@ use general_models::{
 use ndarray::{Array1, Array2};
 use utils::parse_json_file;
 
-pub use general_models::wgpu;
 pub use burn;
+pub use general_models::wgpu;
 
 use crate::pca::load_pca;
 
@@ -36,7 +44,7 @@ pub struct Detector<B: Backend = WgpuBackend> {
     pca: Option<PCA>,
     pub batch_size: NonZeroUsize,
     pub target_encodings: Vec<Array1<f64>>,
-    pub distance_falloff: f64
+    pub distance_falloff: f64,
 }
 
 #[derive(Debug)]
@@ -44,12 +52,12 @@ pub struct Feature<B: Backend> {
     pub feature_size: usize,
     pub batched: Vec<Tensor<B, 4>>,
     pub latents: Vec<Tensor<B, 2>>,
-    pub latents_pca: Vec<Array2<f64>>
+    pub latents_pca: Vec<Array2<f64>>,
 }
 
 #[derive(Debug)]
 pub struct EncodingOutput<B: Backend> {
-    pub features: Vec<Feature<B>>
+    pub features: Vec<Feature<B>>,
 }
 
 impl<B: Backend> Detector<B> {
@@ -70,47 +78,52 @@ impl<B: Backend> Detector<B> {
             pca: None,
             batch_size: NonZeroUsize::new(256).unwrap(),
             target_encodings: vec![],
-            distance_falloff: 2.0
-            // device: device.clone(),
+            distance_falloff: 2.0, // device: device.clone(),
         })
     }
 
     /// Encodes the given tensor by sliding the model across it like a kernel. There will be a kernel for each feature size.
-    /// 
+    ///
     /// The tensor's dimension should be [image width, image height, number of color channels]
-    pub fn encode_tensor(&self, tensor: Tensor<B, 3>, feature_sizes: impl IntoIterator<Item = usize>) -> EncodingOutput<B> {
+    pub fn encode_tensor(
+        &self,
+        tensor: Tensor<B, 3>,
+        feature_sizes: impl IntoIterator<Item = usize>,
+    ) -> EncodingOutput<B> {
         let [channels, height, width] = tensor.dims();
-        let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Linear).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
+        let interp = Interpolate2dConfig::new()
+            .with_mode(InterpolateMode::Linear)
+            .with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH]))
+            .init();
 
         let mut features = vec![];
         for feature_size in feature_sizes {
-            let mut item_iter = 
-                (0..height - feature_size + 1)
-                    .into_iter()
-                    .flat_map(move |y| {
-                        (0..width - feature_size + 1)
-                            .into_iter()
-                            .map(move |x| (x, y, feature_size))
-                    })
-                    .map(|(x, y, feature_size)| {
-                        tensor.clone().slice(burn::tensor::s![
+            let mut item_iter = (0..height - feature_size + 1)
+                .into_iter()
+                .flat_map(move |y| {
+                    (0..width - feature_size + 1)
+                        .into_iter()
+                        .map(move |x| (x, y, feature_size))
+                })
+                .map(|(x, y, feature_size)| {
+                    tensor
+                        .clone()
+                        .slice(burn::tensor::s![
                             ..,
                             y..y + feature_size,
                             x..x + feature_size,
                         ])
                         .reshape([1, channels, feature_size, feature_size])
-                    })
-                    .map(|tensor| interp.forward(tensor));
-            
+                })
+                .map(|tensor| interp.forward(tensor));
+
             let mut latents_vec = vec![];
             let mut latents_pca_vec = vec![];
             let mut batched_vec = vec![];
             while let Some(item) = item_iter.next() {
                 let mut tensors = Vec::with_capacity(self.batch_size.get());
                 tensors.push(item);
-                tensors.extend((&mut item_iter)
-                    .take(self.batch_size.get() - 1)
-                );
+                tensors.extend((&mut item_iter).take(self.batch_size.get() - 1));
                 let batched = Tensor::cat(tensors, 0);
 
                 let (latents, latents_pca) = self.encode_tensor_batch(batched.clone());
@@ -121,7 +134,12 @@ impl<B: Backend> Detector<B> {
                 batched_vec.push(batched);
             }
 
-            features.push(Feature { feature_size, batched: batched_vec, latents: latents_vec, latents_pca: latents_pca_vec });
+            features.push(Feature {
+                feature_size,
+                batched: batched_vec,
+                latents: latents_vec,
+                latents_pca: latents_pca_vec,
+            });
         }
 
         EncodingOutput { features }
@@ -139,7 +157,8 @@ impl<B: Backend> Detector<B> {
     pub fn load_target_encodings(&mut self, file: impl AsRef<Path>) -> serde_json::Result<()> {
         let data: Vec<[f64; 3]> = parse_json_file(file)?;
         self.target_encodings.clear();
-        self.target_encodings.extend(data.into_iter().map(|arr| ndarray::arr1(&arr)));
+        self.target_encodings
+            .extend(data.into_iter().map(|arr| ndarray::arr1(&arr)));
         Ok(())
     }
 
@@ -152,15 +171,11 @@ impl<B: Backend> Detector<B> {
             let raw_encodings_vec = raw_encodings_vec.into_iter().map(|x| x as f64).collect();
             let raw_encodings_ndarray =
                 Array2::from_shape_vec((shape[0], shape[1]), raw_encodings_vec).unwrap();
-            pca
-                .transform(raw_encodings_ndarray)
+            pca.transform(raw_encodings_ndarray)
                 .expect("Expected PCA to already be fitted")
         });
 
-        (
-            raw_encodings,
-            after_pca
-        )
+        (raw_encodings, after_pca)
     }
 
     /// Appends the scores of the given `encoding` against the target encodings to the `output`. Does NOT clear
@@ -208,7 +223,7 @@ impl<B: Backend> Detector<B> {
 }
 
 /// Peak Signal-to-Noise Ratio between two float tensors whose values are in [0, 1].
-/// 
+///
 /// - \>40 dB: Excellent quality, differences barely perceptible
 /// - 30-40 dB: Good quality, acceptable for most applications
 /// - 20-30 dB: Fair quality, noticeable differences
@@ -219,15 +234,22 @@ pub fn psnr<B: Backend<FloatElem = f32>, const N: usize>(a: Tensor<B, N>, b: Ten
 
 /// Peak Signal-to-Noise Ratio between two batched float tensors whose values are in [0, 1]. It is assumed
 /// that the first axis is the batch axis.
-/// 
+///
 /// - \>40 dB: Excellent quality, differences barely perceptible
 /// - 30-40 dB: Good quality, acceptable for most applications
 /// - 20-30 dB: Fair quality, noticeable differences
 /// - <20 dB: Poor quality, significant degradation
-pub fn psnr_batched<B: Backend<FloatElem = f32>, const N: usize>(a: Tensor<B, N>, b: Tensor<B, N>) -> Tensor<B, 1> {
+pub fn psnr_batched<B: Backend<FloatElem = f32>, const N: usize>(
+    a: Tensor<B, N>,
+    b: Tensor<B, N>,
+) -> Tensor<B, 1> {
     assert_eq!(a.shape(), b.shape(), "The shapes of a and b are different");
     let batch_size = a.dims()[0];
-    let c = a.sub(b).square().mean_dims((1..N).into_iter().collect::<Vec<_>>().as_slice()).reshape([batch_size]);
+    let c = a
+        .sub(b)
+        .square()
+        .mean_dims((1..N).into_iter().collect::<Vec<_>>().as_slice())
+        .reshape([batch_size]);
     let device = c.device();
 
     c.recip().log() / (Tensor::ones([batch_size], &device) * 10.0).log() * 10.0

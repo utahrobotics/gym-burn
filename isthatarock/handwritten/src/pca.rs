@@ -25,8 +25,7 @@ pub fn save_pca(pca: &PCA, file: impl AsRef<Path>) -> serde_json::Result<()> {
 }
 
 pub fn load_pca(file: impl AsRef<Path>) -> serde_json::Result<PCA> {
-    let pca_json: PcaJson =
-        parse_json_file(file)?;
+    let pca_json: PcaJson = parse_json_file(file)?;
 
     let mut pca = PCA::new();
     pca.mean = Some(pca_json.mean);
