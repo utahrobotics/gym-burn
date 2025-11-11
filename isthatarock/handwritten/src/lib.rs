@@ -18,7 +18,7 @@ use general_models::{
     error::LoadModelError,
     wgpu::WgpuBackend,
 };
-use ndarray::Array2;
+use ndarray::{Array1, Array2};
 use utils::parse_json_file;
 
 pub use general_models::wgpu;
@@ -34,7 +34,9 @@ pub struct Detector<B: Backend = WgpuBackend> {
     model: AutoEncoderModel<B, Conv2dLinearModel<B>, LinearConvTranspose2dModel<B>>,
     // device: B::Device,
     pca: Option<PCA>,
-    pub batch_size: NonZeroUsize
+    pub batch_size: NonZeroUsize,
+    pub target_encodings: Vec<Array1<f64>>,
+    pub distance_falloff: f64
 }
 
 #[derive(Debug)]
@@ -66,7 +68,9 @@ impl<B: Backend> Detector<B> {
         Ok(Self {
             model,
             pca: None,
-            batch_size: NonZeroUsize::new(256).unwrap()
+            batch_size: NonZeroUsize::new(256).unwrap(),
+            target_encodings: vec![],
+            distance_falloff: 2.0
             // device: device.clone(),
         })
     }
@@ -127,12 +131,15 @@ impl<B: Backend> Detector<B> {
         self.model.encoder.infer(tensor)
     }
 
-    pub fn set_pca(&mut self, pca: PCA) {
-        self.pca.replace(pca);
-    }
-
     pub fn load_pca(&mut self, file: impl AsRef<Path>) -> serde_json::Result<()> {
         self.pca.replace(load_pca(file)?);
+        Ok(())
+    }
+
+    pub fn load_target_encodings(&mut self, file: impl AsRef<Path>) -> serde_json::Result<()> {
+        let data: Vec<[f64; 3]> = parse_json_file(file)?;
+        self.target_encodings.clear();
+        self.target_encodings.extend(data.into_iter().map(|arr| ndarray::arr1(&arr)));
         Ok(())
     }
 
@@ -154,6 +161,26 @@ impl<B: Backend> Detector<B> {
             raw_encodings,
             after_pca
         )
+    }
+
+    /// Appends the scores of the given `encoding` against the target encodings to the `output`. Does NOT clear
+    /// `output`.
+    pub fn score_encoding_into(&self, encoding: Array1<f64>, output: &mut Vec<f64>) {
+        for target in &self.target_encodings {
+            let diff = target.clone() - encoding.clone();
+            let dist = diff.pow2().sum().sqrt();
+            output.push(1.0 / dist.powf(self.distance_falloff));
+        }
+        let weights_sum: f64 = output.iter().copied().sum();
+        output.iter_mut().for_each(|n| {
+            *n /= weights_sum;
+        });
+    }
+
+    pub fn score_encoding(&self, encoding: Array1<f64>) -> Vec<f64> {
+        let mut output = vec![];
+        self.score_encoding_into(encoding, &mut output);
+        output
     }
 
     pub fn decode_latents(&self, latents: Tensor<B, 2>) -> Tensor<B, 4> {

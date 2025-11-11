@@ -4,6 +4,7 @@ pub use efficient_pca::PCA;
 use ndarray::{Array1, Array2};
 use serde::Deserialize;
 use serde_json::json;
+use utils::parse_json_file;
 
 #[derive(Deserialize)]
 struct PcaJson {
@@ -25,7 +26,7 @@ pub fn save_pca(pca: &PCA, file: impl AsRef<Path>) -> serde_json::Result<()> {
 
 pub fn load_pca(file: impl AsRef<Path>) -> serde_json::Result<PCA> {
     let pca_json: PcaJson =
-        serde_json::from_reader(std::fs::File::open(file).map_err(|e| serde_json::Error::io(e))?)?;
+        parse_json_file(file)?;
 
     let mut pca = PCA::new();
     pca.mean = Some(pca_json.mean);

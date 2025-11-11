@@ -3201,7 +3201,6 @@ dependencies = [
  "image",
  "ndarray 0.16.1",
  "rayon",
- "rusqlite",
 ]
 
 [[package]]

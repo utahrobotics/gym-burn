@@ -8,5 +8,5 @@ image.workspace = true
 ndarray.workspace = true
 handwritten.workspace = true
 clap.workspace = true
-rusqlite.workspace = true
+# rusqlite.workspace = true
 rayon.workspace = true
