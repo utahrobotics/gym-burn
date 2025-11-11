@@ -1,12 +1,15 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use handwritten::{Detector, burn::{Tensor, tensor::TensorData}, wgpu::WgpuBackend};
+use handwritten::{
+    Detector,
+    burn::{Tensor, tensor::TensorData},
+    wgpu::WgpuBackend,
+};
 use image::{DynamicImage, ImageBuffer, Rgb};
 use ndarray::Axis;
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rusqlite::{Connection, params};
-
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -58,7 +61,7 @@ fn main() {
         device,
     );
     image_tensor = image_tensor.permute([2, 0, 1]);
-    
+
     let conn = Connection::open("handwritten.sqlite").unwrap();
     conn.execute("DROP TABLE IF EXISTS distances", ()).unwrap();
     conn.execute("CREATE TABLE distances (row_id INTEGER PRIMARY KEY, px INTEGER NOT NULL, py INTEGER NOT NULL, distance REAL NOT NULL)", ()).unwrap();
@@ -77,7 +80,12 @@ fn main() {
     let origin = ndarray::arr1(&[args.x, args.y, args.z]);
 
     println!("Producing Heatmap");
-    for (i, point) in feature.latents_pca.iter().flat_map(|arr| arr.axis_iter(Axis(0))).enumerate() {
+    for (i, point) in feature
+        .latents_pca
+        .iter()
+        .flat_map(|arr| arr.axis_iter(Axis(0)))
+        .enumerate()
+    {
         let x = i % smaller_img_width;
         let y = i / smaller_img_width;
         // println!("{:?} {:?}", point.shape(), origin.shape());
@@ -118,11 +126,9 @@ fn main() {
     //     })
     //     .collect();
 
-    let pixels: Vec<_> = (0..img_height).into_par_iter()
-        .flat_map(|y| {
-            (0..img_width).into_par_iter()
-                .map(move |x| (x, y))
-        })
+    let pixels: Vec<_> = (0..img_height)
+        .into_par_iter()
+        .flat_map(|y| (0..img_width).into_par_iter().map(move |x| (x, y)))
         .flat_map(|(x, y)| {
             let mut pixel = image.get_pixel(x as u32, y as u32).0;
 
@@ -132,7 +138,8 @@ fn main() {
                 return pixel;
             }
 
-            let dist = distances[x - args.feature_size / 2 + (y - args.feature_size / 2) * smaller_img_width];
+            let dist = distances
+                [x - args.feature_size / 2 + (y - args.feature_size / 2) * smaller_img_width];
             let brightness;
 
             if let Some((_elbow_dist, _elbow_brightness)) = elbow {
@@ -154,5 +161,10 @@ fn main() {
         })
         .collect();
 
-    DynamicImage::from(ImageBuffer::<Rgb<f32>, Vec<_>>::from_vec(img_width as u32, img_height as u32, pixels).unwrap()).save("output.webp").unwrap();
+    DynamicImage::from(
+        ImageBuffer::<Rgb<f32>, Vec<_>>::from_vec(img_width as u32, img_height as u32, pixels)
+            .unwrap(),
+    )
+    .save("output.webp")
+    .unwrap();
 }
