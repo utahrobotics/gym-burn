@@ -53,7 +53,7 @@ fn main() {
 
     println!("Running PCA 3D");
     let mut pca = PCA::new();
-    pca.fit(latent_points.clone(), None)
+    pca.rfit(latent_points.clone(), 3, 0, None, None)
         .expect("Expected PCA to finish succesfully");
 
     let explained_ratio = pca.explained_variance().unwrap().clone() / latents_size as f64;

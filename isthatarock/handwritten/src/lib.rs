@@ -76,7 +76,7 @@ impl<B: Backend> Detector<B> {
     /// The tensor's dimension should be [image width, image height, number of color channels]
     pub fn encode_tensor(&self, tensor: Tensor<B, 3>, feature_sizes: impl IntoIterator<Item = usize>) -> EncodingOutput<B> {
         let [channels, height, width] = tensor.dims();
-        let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Cubic).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
+        let interp = Interpolate2dConfig::new().with_mode(InterpolateMode::Linear).with_output_size(Some([IMAGE_WIDTH, IMAGE_WIDTH])).init();
 
         let mut features = vec![];
         for feature_size in feature_sizes {

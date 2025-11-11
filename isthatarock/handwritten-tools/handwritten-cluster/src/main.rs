@@ -105,7 +105,7 @@ fn main() {
 
     let feature = encodings.features.pop().unwrap();
     let interp = Interpolate2dConfig::new()
-        .with_mode(InterpolateMode::Cubic)
+        .with_mode(InterpolateMode::Linear)
         .with_output_size(Some([args.feature_size, args.feature_size]))
         .init();
 

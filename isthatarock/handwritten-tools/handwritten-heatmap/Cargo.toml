@@ -1,15 +1,12 @@
 [package]
-name = "handwritten-cluster"
+name = "handwritten-heatmap"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dbscan = "0.3.1"
-kneed = "1.0.0"
+image.workspace = true
 ndarray.workspace = true
 handwritten.workspace = true
-rusqlite.workspace = true
 clap.workspace = true
-image.workspace = true
+rusqlite.workspace = true
 rayon.workspace = true
-rustc-hash = "2.1.1"
