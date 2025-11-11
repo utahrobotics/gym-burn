@@ -62,7 +62,11 @@ fn main() {
 
     let mask_image = args.mask_image.map(|img| {
         let mut img = image::open(img).expect("Expected mask image to be readable");
-        img = img.resize_exact((img_width - args.feature_size + 1) as u32, (img_height - args.feature_size + 1) as u32, FilterType::Nearest);
+        img = img.resize_exact(
+            (img_width - args.feature_size + 1) as u32,
+            (img_height - args.feature_size + 1) as u32,
+            FilterType::Nearest,
+        );
         img.into_rgb8()
     });
 
@@ -72,7 +76,7 @@ fn main() {
 
     conn.execute("DROP TABLE IF EXISTS colored", ()).unwrap();
     conn.execute("CREATE TABLE colored (row_id INTEGER PRIMARY KEY, r INTEGER NOT NULL, g INTEGER NOT NULL, b INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL)", ()).unwrap();
-    
+
     conn.execute("DROP TABLE IF EXISTS clusters", ()).unwrap();
     conn.execute("CREATE TABLE clusters (row_id INTEGER PRIMARY KEY, r INTEGER NOT NULL, g INTEGER NOT NULL, b INTEGER NOT NULL, x REAL NOT NULL, y REAL NOT NULL, z REAL NOT NULL, size INTEGER NOT NULL)", ()).unwrap();
 
@@ -115,11 +119,7 @@ fn main() {
     //     .into_iter()
     //     .zip(feature.batched)
     //     .zip(feature.latents_pca)
-    for (latents, latents_pca) in feature
-        .latents
-        .into_iter()
-        .zip(feature.latents_pca)
-    {
+    for (latents, latents_pca) in feature.latents.into_iter().zip(feature.latents_pca) {
         let mut decoded = detector.decode_latents(latents);
 
         // for decoded in decoded.clone().iter_dim(0) {
@@ -147,24 +147,31 @@ fn main() {
             .unwrap();
         decoded = interp.forward(decoded);
 
-        for ((point, decoded), brightness) in latents_pca.axis_iter(Axis(0)).zip(decoded.iter_dim(0)).zip(brightnesses) {
+        for ((point, decoded), brightness) in latents_pca
+            .axis_iter(Axis(0))
+            .zip(decoded.iter_dim(0))
+            .zip(brightnesses)
+        {
             let x = i % smaller_img_width;
             let y = i / smaller_img_width;
 
             if let Some(mask_image) = &mask_image {
                 let pixel = mask_image.get_pixel(x as u32, y as u32).0;
 
-                colored_stmt.execute(params![pixel[0], pixel[1], pixel[2], point[0], point[1], point[2]])
+                colored_stmt
+                    .execute(params![
+                        pixel[0], pixel[1], pixel[2], point[0], point[1], point[2]
+                    ])
                     .unwrap();
 
                 let point = [point[0], point[1], point[2]];
                 match clustering_map.entry(pixel) {
                     Entry::Occupied(mut entry) => {
                         entry.get_mut().push(point);
-                    },
+                    }
                     Entry::Vacant(entry) => {
                         entry.insert(vec![point]);
-                    },
+                    }
                 }
             }
 
@@ -179,7 +186,8 @@ fn main() {
             count_image = count_image.slice_assign(slice, initial + feature_ones.clone());
 
             // let brightness = x as f64 / img_width as f64;
-            pca_stmt.execute(params![brightness, point[0], point[1], point[2]])
+            pca_stmt
+                .execute(params![brightness, point[0], point[1], point[2]])
                 .unwrap();
             i += 1;
         }
@@ -189,7 +197,8 @@ fn main() {
         println!("Clustering");
 
         let mut total_unknown = 0usize;
-        clustering_map.into_iter()
+        clustering_map
+            .into_iter()
             .filter(|(color, points)| {
                 if points.len() == 1 {
                     // ignore. Probably just noise
@@ -201,15 +210,15 @@ fn main() {
                     true
                 }
             })
-            .map(|(color, points)| {
-                (color, cluster(points, args.min_points))
-            })
+            .map(|(color, points)| (color, cluster(points, args.min_points)))
             .for_each(|(color, result)| {
                 println!("{color:?} Unknowns: {}", result.unknowns);
 
                 for ([x, y, z], size) in result.centers {
                     let [r, g, b] = color;
-                    clusters_stmt.execute(params![r, g, b, x, y, z, size]).unwrap();
+                    clusters_stmt
+                        .execute(params![r, g, b, x, y, z, size])
+                        .unwrap();
                 }
 
                 total_unknown += result.unknowns;
@@ -237,4 +246,3 @@ fn main() {
     // println!("Mean element-wise PSNR: {:.2}", psnr_sum / psnr_count);
     assert!(count_image.greater_elem(0.0).all().into_scalar() != 0);
 }
-
