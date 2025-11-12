@@ -4,9 +4,7 @@ use clap::Parser;
 use image::DynamicImage;
 use imageproc::distance_transform::Norm;
 
-
 const EXPANSION: f32 = 1.4 / 28.0;
-
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,7 +27,13 @@ fn main() {
 
     let mut edges = imageproc::edges::canny(&image, args.low_threshold, args.high_threshold);
     let radius = EXPANSION * args.feature_size as f32;
-    imageproc::morphology::dilate_mut(&mut edges, Norm::L2, (radius.round() as u64).try_into().expect("Dilation is too large"));
+    imageproc::morphology::dilate_mut(
+        &mut edges,
+        Norm::L2,
+        (radius.round() as u64)
+            .try_into()
+            .expect("Dilation is too large"),
+    );
     edges = imageproc::filter::gaussian_blur_f32(&edges, radius);
 
     DynamicImage::from(edges).save("output.png").unwrap();
