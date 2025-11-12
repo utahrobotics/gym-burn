@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["handwritten-cluster", "handwritten-heatmap", "handwritten-infer", "handwritten-pca", "handwritten-viz"]
+members = ["handwritten-cluster", "handwritten-edgeproc", "handwritten-heatmap", "handwritten-infer", "handwritten-pca", "handwritten-viz"]
 exclude = []
 
 [workspace.dependencies]

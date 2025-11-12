@@ -130,7 +130,7 @@ fn main() {
         //         decoded.permute([1, 2, 0]).into_data().into_vec().unwrap(),
         //     )
         //     .unwrap();
-        //     DynamicImage::from(image).save(format!("slices/{j}.webp")).unwrap();
+        //     DynamicImage::from(image).save(format!("slices/{j}.png")).unwrap();
         //     j += 1;
         // }
 
@@ -241,7 +241,7 @@ fn main() {
             .unwrap(),
     )
     .unwrap();
-    DynamicImage::from(image).save("output.webp").unwrap();
+    DynamicImage::from(image).save("output.png").unwrap();
 
     // println!("Mean element-wise PSNR: {:.2}", psnr_sum / psnr_count);
     assert!(count_image.greater_elem(0.0).all().into_scalar() != 0);

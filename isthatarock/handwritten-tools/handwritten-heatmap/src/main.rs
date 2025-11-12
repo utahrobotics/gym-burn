@@ -112,6 +112,6 @@ fn main() {
         ImageBuffer::<Rgb<f32>, Vec<_>>::from_vec(img_width as u32, img_height as u32, pixels)
             .unwrap(),
     )
-    .save("output.webp")
+    .save("output.png")
     .unwrap();
 }
