@@ -241,7 +241,7 @@ fn main() {
             .unwrap(),
     )
     .unwrap();
-    DynamicImage::from(image).save("output.png").unwrap();
+    DynamicImage::from(image).into_rgba8().save("output.png").unwrap();
 
     // println!("Mean element-wise PSNR: {:.2}", psnr_sum / psnr_count);
     assert!(count_image.greater_elem(0.0).all().into_scalar() != 0);

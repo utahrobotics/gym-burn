@@ -79,6 +79,8 @@ fn main() {
         .flat_map(|arr| arr.axis_iter(Axis(0)))
     {
         detector.score_encoding_into(point.into_owned(), &mut output);
+        // let max_score = *output.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+        // scores.push(output[0] / max_score);
         scores.push(output[0]);
         output.clear();
     }
@@ -112,6 +114,7 @@ fn main() {
         ImageBuffer::<Rgb<f32>, Vec<_>>::from_vec(img_width as u32, img_height as u32, pixels)
             .unwrap(),
     )
+    .into_rgba8()
     .save("output.png")
     .unwrap();
 }
