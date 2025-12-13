@@ -5,6 +5,7 @@ pub mod composite;
 pub mod conv;
 pub mod error;
 pub mod linear;
+pub mod recurrent;
 pub mod loss;
 
 pub trait Init<B: Backend, T> {

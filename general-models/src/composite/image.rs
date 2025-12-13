@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Init, SimpleInfer, SimpleTrain,
     conv::{Conv2dModel, Conv2dModelConfig, ConvTranspose2dModel, ConvTranspose2dModelConfig},
-    linear::{LinearClassifierModel, LinearClassifierModelConfig, LinearModel, LinearModelConfig},
+    linear::{LinearModel, LinearModelConfig},
 };
 
 #[derive(Debug, Module)]
@@ -62,45 +62,6 @@ impl<B: Backend> Init<B, Conv2dLinearModel<B>> for Conv2dLinearModelConfig {
                 .adaptive_avg_pooling
                 .map(|x| AdaptiveAvgPool2dConfig::new(x).init()),
             linear: self.linear.init(device),
-        }
-    }
-}
-
-#[derive(Debug, Module)]
-pub struct ConvLinearClassifierModel<B: Backend> {
-    pub conv_linear: Conv2dLinearModel<B>,
-    pub classifier: LinearClassifierModel<B>,
-}
-
-impl<B: Backend> SimpleInfer<B, 4, 2> for ConvLinearClassifierModel<B> {
-    fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
-        self.classifier.infer(self.conv_linear.infer(tensor))
-    }
-}
-
-impl<B: Backend> SimpleTrain<B, 4, 2> for ConvLinearClassifierModel<B> {
-    fn forward(&self, tensor: Tensor<B, 4>) -> Tensor<B, 2> {
-        self.classifier.train(self.conv_linear.train(tensor))
-    }
-}
-
-impl<B: Backend> ConvLinearClassifierModel<B> {
-    pub fn get_input_channels(&self) -> usize {
-        self.conv_linear.get_input_channels()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ConvLinearClassifierModelConfig {
-    pub conv_linear: Conv2dLinearModelConfig,
-    pub classifier: LinearClassifierModelConfig,
-}
-
-impl<B: Backend> Init<B, ConvLinearClassifierModel<B>> for ConvLinearClassifierModelConfig {
-    fn init(self, device: &<B as Backend>::Device) -> ConvLinearClassifierModel<B> {
-        ConvLinearClassifierModel {
-            conv_linear: self.conv_linear.init(device),
-            classifier: self.classifier.init(device),
         }
     }
 }
